@@ -1,4 +1,5 @@
 import { login } from './actions'
+import Link from "next/link";
 
 export default async function LoginPage({
     searchParams,
@@ -8,56 +9,66 @@ export default async function LoginPage({
     const params = await searchParams
 
     return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-            <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-8 shadow-lg">
-                <div className="text-center">
-                    <h2 className="text-3xl font-extrabold text-gray-900">
-                        Barbería Fulanos
-                    </h2>
-                    <p className="mt-2 text-sm text-gray-600">
-                        Ingresa con tu correo electrónico
+        <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+
+            {/* Fondo Ambiental (Coherencia con la Home) */}
+            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+            <div className="w-full max-w-sm z-10">
+
+                {/* Header */}
+                <div className="text-center mb-8">
+                    <Link href="/" className="text-zinc-500 text-xs font-bold hover:text-white mb-6 inline-block transition-colors">
+                        ← Volver al inicio
+                    </Link>
+                    <h1 className="text-3xl font-black tracking-tight mb-2">Bienvenido</h1>
+                    <p className="text-zinc-400 text-sm">
+                        Ingresa tu correo para acceder a tus puntos o al panel administrativo.
                     </p>
                 </div>
 
-                {/* ALERTA DE MENSAJE */}
+                {/* Alertas */}
                 {params.message === 'check-email' && (
-                    <div className="rounded-md bg-green-50 p-4 text-sm text-green-700 border border-green-200">
-                        ✅ ¡Enlace enviado! Revisa tu correo electrónico (incluyendo Spam).
+                    <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
+                        ✅ ¡Enlace enviado! Revisa tu correo (y Spam).
                     </div>
                 )}
 
                 {params.error && (
-                    <div className="rounded-md bg-red-50 p-4 text-sm text-red-700 border border-red-200">
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-medium">
                         ❌ Ocurrió un error. Inténtalo de nuevo.
                     </div>
                 )}
 
-                <form className="mt-8 space-y-6">
-                    <div className="rounded-md shadow-sm">
-                        <div>
-                            <label htmlFor="email" className="sr-only">
-                                Email
-                            </label>
-                            <input
-                                id="email"
-                                name="email"
-                                type="email"
-                                required
-                                className="relative block w-full rounded-md border-0 p-3 py-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-black sm:text-sm sm:leading-6"
-                                placeholder="tu@email.com"
-                            />
-                        </div>
+                {/* Formulario Estilo "Glassmorphism" Sutil */}
+                <form className="space-y-4">
+                    <div className="space-y-2">
+                        <label htmlFor="email" className="text-xs font-bold uppercase text-zinc-500 tracking-wider ml-1">
+                            Correo Electrónico
+                        </label>
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            required
+                            className="w-full bg-zinc-900/50 border border-zinc-800 text-white rounded-xl p-4 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-zinc-600"
+                            placeholder="nombre@ejemplo.com"
+                        />
                     </div>
 
-                    <div>
-                        <button
-                            formAction={login}
-                            className="group relative flex w-full justify-center rounded-md bg-black px-3 py-3 text-sm font-semibold text-white hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black"
-                        >
-                            Enviar enlace mágico
-                        </button>
-                    </div>
+                    <button
+                        formAction={login}
+                        className="w-full bg-white text-black font-bold py-4 rounded-xl text-lg hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_15px_rgba(255,255,255,0.1)] mt-4"
+                    >
+                        Enviar enlace mágico ✨
+                    </button>
                 </form>
+
+                <p className="text-center text-zinc-600 text-xs mt-8">
+                    Sin contraseñas. Seguro y rápido.
+                </p>
+
             </div>
         </div>
     )
