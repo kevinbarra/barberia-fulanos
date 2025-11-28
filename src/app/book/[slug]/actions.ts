@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { sendBookingEmail } from '@/lib/email' // Importamos el servicio de email
+import { sendBookingEmail } from '@/lib/email'
 
 export async function createBooking(data: {
     tenant_id: string;
@@ -15,12 +15,23 @@ export async function createBooking(data: {
 }) {
     const supabase = await createClient()
 
+    // 1. VALIDACIÓN DE DATOS REALES (Consultar nombres)
+    // Hacemos las consultas en paralelo para no perder tiempo
+    const [serviceResult, staffResult] = await Promise.all([
+        supabase.from('services').select('name').eq('id', data.service_id).single(),
+        supabase.from('profiles').select('full_name').eq('id', data.staff_id).single()
+    ]);
+
+    const realServiceName = serviceResult.data?.name || "Servicio General";
+    const realStaffName = staffResult.data?.full_name || "El equipo";
+
+    // 2. Calcular Fechas
     const startDate = new Date(data.start_time);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
     const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
 
-    // 1. Guardar en Base de Datos
+    // 3. Guardar en Base de Datos
     const { error } = await supabase.from('bookings').insert({
         tenant_id: data.tenant_id,
         service_id: data.service_id,
@@ -37,15 +48,27 @@ export async function createBooking(data: {
         return { error: 'No se pudo agendar la cita.' }
     }
 
-    // 2. ENVIAR EMAIL (Sin await para que sea rápido para el usuario)
-    const dateStr = startDate.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-    const timeStr = startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    // 4. PREPARAR EMAIL CON DATOS REALES
+    // Formato bonito de fecha: "Jueves, 27 de Noviembre"
+    const dateStr = startDate.toLocaleDateString('es-MX', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long'
+    });
 
-    sendBookingEmail({
+    // Formato bonito de hora: "4:30 PM"
+    const timeStr = startDate.toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    // 5. ENVIAR
+    await sendBookingEmail({
         clientName: data.client_name,
         clientEmail: data.client_email,
-        serviceName: "Corte de Cabello", // Idealmente dinámico, pero funcional para MVP
-        barberName: "Tu Barbero",
+        serviceName: realServiceName, // <--- AHORA SÍ ES REAL
+        barberName: realStaffName,    // <--- AHORA SÍ ES REAL
         date: dateStr,
         time: timeStr
     });

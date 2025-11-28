@@ -16,7 +16,7 @@ export async function sendBookingEmail(data: {
     try {
         await resend.emails.send({
             from: 'Barbería Fulanos <onboarding@resend.dev>', // Dominio de prueba oficial
-            to: ['kevinbarra2001@gmail.com'], // <--- AQUÍ LLEGARÁN LOS CORREOS DE PRUEBA
+            to: [data.clientEmail], // <--- AQUÍ LLEGARÁN LOS CORREOS DE PRUEBA
             subject: `✅ Cita Confirmada: ${data.serviceName}`,
             html: `
         <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
