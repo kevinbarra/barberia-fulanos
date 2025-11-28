@@ -18,7 +18,7 @@ export async function login(formData: FormData) {
     const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-            emailRedirectTo: redirectUrl, // <--- AHORA ES DINÁMICO
+            emailRedirectTo: `${redirectUrl}?next=/app`, // <--- AHORA ES DINÁMICO
             data: {
                 tenant_id: 'eed81835-8498-49b2-8095-21d56fe7b5c6',
                 role: 'owner',

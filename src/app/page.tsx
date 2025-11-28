@@ -12,7 +12,7 @@ export default function LandingPage() {
       <nav className="p-6 z-10 flex justify-between items-center">
         <div className="font-bold text-xl tracking-tight">FULANOS</div>
         <Link
-          href="/login"
+          href="/admin"
           className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
         >
           Soy Staff
