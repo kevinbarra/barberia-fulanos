@@ -1,30 +1,39 @@
 import { createClient, getTenantId } from "@/utils/supabase/server";
 import BookingCard from "@/components/admin/BookingCard";
+import AddBookingButton from "@/components/admin/AddBookingButton"; // <-- Importamos el botón nuevo
 import { redirect } from "next/navigation";
 
 export default async function AdminBookingsPage() {
     const supabase = await createClient();
-
-    // 1. Obtener el ID dinámicamente (Refactorización)
     const tenantId = await getTenantId();
 
-    if (!tenantId) {
-        // Si no tiene negocio asignado, al login
-        return redirect('/login');
-    }
+    if (!tenantId) return redirect('/login');
 
-    // 2. Traer las citas USANDO EL ID DINÁMICO
+    // 1. Traer Citas (Lo que ya hacíamos)
     const { data: bookings } = await supabase
         .from("bookings")
-        .select(`
-      *,
-      services ( name, price, duration_min )
-    `)
-        .eq("tenant_id", tenantId) // <--- ¡Ahora es dinámico!
+        .select(`*, services ( name, price, duration_min )`)
+        .eq("tenant_id", tenantId)
         .order("start_time", { ascending: true });
 
+    // 2. NUEVO: Traer Datos para el formulario de Walk-in
+    // Necesitamos la lista de servicios activos para el "Select" del modal
+    const { data: services } = await supabase
+        .from("services")
+        .select("id, name, duration_min")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true);
+
+    // Necesitamos la lista de barberos para el "Select" del modal
+    const { data: staff } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("tenant_id", tenantId)
+        .in("role", ["owner", "staff"]);
+
     return (
-        <div className="max-w-5xl mx-auto p-8">
+        <div className="max-w-5xl mx-auto p-8 pb-24"> {/* pb-24 da espacio extra abajo para que el botón no tape contenido */}
+
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold">Agenda de Citas</h1>
@@ -41,13 +50,19 @@ export default async function AdminBookingsPage() {
                         <p className="text-gray-500">No hay citas programadas aún.</p>
                     </div>
                 ) : (
-                    /* Renderizamos el componente cliente para cada cita */
                     bookings.map((booking) => (
                         // @ts-ignore
                         <BookingCard key={booking.id} booking={booking} />
                     ))
                 )}
             </div>
+
+            {/* Aquí insertamos el Botón Flotante */}
+            <AddBookingButton
+                tenantId={tenantId}
+                services={services || []}
+                staff={staff || []}
+            />
         </div>
     );
 }
