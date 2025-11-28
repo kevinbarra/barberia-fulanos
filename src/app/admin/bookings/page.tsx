@@ -1,17 +1,26 @@
-import { createClient } from "@/utils/supabase/server";
-import BookingCard from "@/components/admin/BookingCard"; // Importamos el nuevo componente
+import { createClient, getTenantId } from "@/utils/supabase/server";
+import BookingCard from "@/components/admin/BookingCard";
+import { redirect } from "next/navigation";
 
 export default async function AdminBookingsPage() {
     const supabase = await createClient();
 
-    // Traer las citas ordenadas
+    // 1. Obtener el ID dinámicamente (Refactorización)
+    const tenantId = await getTenantId();
+
+    if (!tenantId) {
+        // Si no tiene negocio asignado, al login
+        return redirect('/login');
+    }
+
+    // 2. Traer las citas USANDO EL ID DINÁMICO
     const { data: bookings } = await supabase
         .from("bookings")
         .select(`
       *,
       services ( name, price, duration_min )
     `)
-        .eq("tenant_id", "eed81835-8498-49b2-8095-21d56fe7b5c6") // Tu ID
+        .eq("tenant_id", tenantId) // <--- ¡Ahora es dinámico!
         .order("start_time", { ascending: true });
 
     return (
@@ -34,7 +43,7 @@ export default async function AdminBookingsPage() {
                 ) : (
                     /* Renderizamos el componente cliente para cada cita */
                     bookings.map((booking) => (
-                        // @ts-ignore: Supabase types complexity
+                        // @ts-ignore
                         <BookingCard key={booking.id} booking={booking} />
                     ))
                 )}
