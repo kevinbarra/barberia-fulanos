@@ -1,37 +1,47 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
-import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-export async function login(formData: FormData) {
+// 1. Enviar el Código OTP
+export async function sendOtp(email: string) {
     const supabase = await createClient()
-    const email = formData.get('email') as string
-
-    // Lógica inteligente para saber la URL actual
-    const headersList = await headers()
-    const host = headersList.get('host') // Ej: barberia-fulanos.vercel.app
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https'
-    const redirectUrl = `${protocol}://${host}/auth/callback`
 
     const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-            emailRedirectTo: `${redirectUrl}?next=/app`, // <--- AHORA ES DINÁMICO
-            data: {
-                tenant_id: 'eed81835-8498-49b2-8095-21d56fe7b5c6',
-                role: 'owner',
-                full_name: 'Kevin Admin'
-            }
+            // shouldCreateUser: true asegura que si es nuevo, se registre.
+            shouldCreateUser: true,
         },
     })
 
     if (error) {
-        console.error('Error de Auth:', error)
-        redirect('/login?error=true')
+        console.error('Error enviando OTP:', error)
+        return { success: false, error: error.message }
     }
 
-    revalidatePath('/', 'layout')
-    redirect('/login?message=check-email')
+    return { success: true }
+}
+
+// 2. Verificar el Código OTP
+export async function verifyOtp(email: string, token: string) {
+    const supabase = await createClient()
+
+    const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+    })
+
+    if (error) {
+        console.error('Error verificando OTP:', error)
+        return { success: false, error: 'Código inválido o expirado' }
+    }
+
+    // Validación extra: Verificar que el usuario tenga un tenant_id asignado
+    // Si no tiene perfil aún (usuario nuevo), el trigger de DB lo creará,
+    // pero aquí podríamos redirigir a un onboarding si fuera necesario.
+
+    // Si todo sale bien, la sesión se crea en el servidor automáticamente.
+    return { success: true }
 }

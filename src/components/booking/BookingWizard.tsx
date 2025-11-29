@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { createBooking } from "@/app/book/[slug]/actions"; // Importamos la acción
+import { createBooking } from "@/app/book/[slug]/actions";
 
+// TIPOS ACTUALIZADOS
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string };
-type Staff = { id: string; full_name: string; role: string };
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null }; // <--- avatar_url añadido
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string };
 
 export default function BookingWizard({
@@ -58,7 +59,6 @@ export default function BookingWizard({
 
         setIsSubmitting(true);
 
-        // Construir la fecha completa ISO (YYYY-MM-DDTHH:MM:00)
         const dateTime = `${selectedDate}T${selectedTime}:00`;
 
         const result = await createBooking({
@@ -75,7 +75,7 @@ export default function BookingWizard({
         setIsSubmitting(false);
 
         if (result.success) {
-            setSuccess(true); // Mostrar pantalla de éxito
+            setSuccess(true);
         } else {
             alert("Hubo un error al reservar. Inténtalo de nuevo.");
         }
@@ -121,7 +121,7 @@ export default function BookingWizard({
         );
     }
 
-    // --- PASO 2: BARBERO ---
+    // --- PASO 2: BARBERO (VISUALIZACIÓN CON FOTOS) ---
     if (step === 2) {
         return (
             <section className="animate-in fade-in slide-in-from-right-8 duration-300">
@@ -132,11 +132,29 @@ export default function BookingWizard({
                         <button
                             key={member.id}
                             onClick={() => { setSelectedStaff(member); setStep(3); }}
-                            className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-black hover:ring-1 hover:ring-black transition-all text-left"
+                            className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-black hover:ring-1 hover:ring-black transition-all text-left group flex flex-col items-center justify-center text-center"
                         >
-                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 font-bold mb-2 text-sm">{member.full_name.charAt(0)}</div>
-                            <span className="font-semibold text-gray-900 block truncate">{member.full_name}</span>
-                            <span className="text-xs text-gray-500 capitalize">{member.role}</span>
+                            {/* Círculo de Avatar */}
+                            <div className="w-16 h-16 mb-3 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-100 group-hover:border-black transition-colors relative">
+                                {member.avatar_url ? (
+                                    <img
+                                        src={member.avatar_url}
+                                        alt={member.full_name}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl bg-gray-200">
+                                        {member.full_name.charAt(0)}
+                                    </div>
+                                )}
+                            </div>
+
+                            <span className="font-semibold text-gray-900 block truncate w-full text-sm">
+                                {member.full_name}
+                            </span>
+                            <span className="text-xs text-gray-500 capitalize block">
+                                {member.role === 'owner' ? 'Barbero Senior' : 'Staff'}
+                            </span>
                         </button>
                     ))}
                 </div>
@@ -178,7 +196,7 @@ export default function BookingWizard({
         );
     }
 
-    // --- PASO 4: DATOS DEL CLIENTE (NUEVO) ---
+    // --- PASO 4: DATOS DEL CLIENTE ---
     if (step === 4) {
         return (
             <section className="animate-in fade-in slide-in-from-right-8 duration-300">

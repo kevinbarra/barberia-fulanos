@@ -2,51 +2,104 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 
+// --- CREAR SERVICIO ---
 export async function createService(formData: FormData) {
     const supabase = await createClient()
 
-    // 1. DIAGNÓSTICO: ¿Quién está intentando guardar?
+    // Auth Check
     const { data: { user } } = await supabase.auth.getUser()
-    console.log("------------------------------------------------")
-    console.log("🕵️‍♂️ DEBUG PROCESO DE GUARDADO")
-    console.log("🆔 Usuario ID:", user?.id)
+    if (!user) return { error: 'No autorizado' }
 
-    // 2. Obtener datos del formulario
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
     const tenant_id = formData.get('tenant_id') as string
 
-    // 3. DIAGNÓSTICO: ¿Qué datos llegaron?
-    console.log("📦 Datos recibidos del formulario:", {
-        name,
-        price,
-        duration,
-        tenant_id
-    })
-
-    // 4. Intentar insertar en Supabase
     const { error } = await supabase.from('services').insert({
         name,
         price: parseFloat(price),
         duration_min: parseInt(duration),
         tenant_id: tenant_id,
+        is_active: true
     })
 
-    // 5. DIAGNÓSTICO: Resultado
-    if (error) {
-        console.error('❌ ERROR FATAL AL INSERTAR EN DB:', error)
-        console.log("------------------------------------------------")
-        // Redirigimos con el error para que la UI lo sepa
-        redirect('/admin/services?error=true')
+    if (error) return { error: 'Error al crear servicio' }
+
+    revalidatePath('/admin/services')
+    return { success: true, message: 'Servicio creado' }
+}
+
+// --- ACTUALIZAR SERVICIO ---
+export async function updateService(formData: FormData) {
+    const supabase = await createClient()
+    const id = formData.get('id') as string
+    const name = formData.get('name') as string
+    const price = formData.get('price') as string
+    const duration = formData.get('duration') as string
+
+    const { error } = await supabase
+        .from('services')
+        .update({
+            name,
+            price: parseFloat(price),
+            duration_min: parseInt(duration)
+        })
+        .eq('id', id)
+
+    if (error) return { error: 'Error al actualizar' }
+
+    revalidatePath('/admin/services')
+    return { success: true, message: 'Servicio actualizado' }
+}
+
+// --- CAMBIAR ESTADO (ACTIVAR/DESACTIVAR) ---
+export async function toggleServiceStatus(id: string, currentStatus: boolean) {
+    const supabase = await createClient()
+
+    const { error } = await supabase
+        .from('services')
+        .update({ is_active: !currentStatus })
+        .eq('id', id)
+
+    if (error) return { error: 'Error al cambiar estado' }
+
+    revalidatePath('/admin/services')
+    return { success: true, message: currentStatus ? 'Servicio desactivado' : 'Servicio activado' }
+}
+
+// --- ELIMINAR SERVICIO (NUEVO - CON SEGURIDAD) ---
+export async function deleteService(id: string) {
+    const supabase = await createClient()
+
+    // 1. Verificar si tiene uso histórico (Citas o Transacciones)
+    // Esto evita romper la contabilidad del pasado
+    const { count: bookingsCount } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('service_id', id)
+
+    const { count: transactionsCount } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('service_id', id)
+
+    // Si tiene historial, bloqueamos el borrado
+    if ((bookingsCount || 0) > 0 || (transactionsCount || 0) > 0) {
+        return {
+            success: false,
+            error: 'No se puede eliminar: Este servicio tiene ventas o citas registradas. Mejor desactívalo.'
+        }
     }
 
-    console.log("✅ Servicio guardado con éxito")
-    console.log("------------------------------------------------")
+    // 2. Si está limpio, procedemos a borrar
+    const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', id)
 
-    // 6. Éxito
+    if (error) return { success: false, error: 'Error al eliminar servicio' }
+
     revalidatePath('/admin/services')
-    redirect('/admin/services')
+    return { success: true, message: 'Servicio eliminado correctamente' }
 }

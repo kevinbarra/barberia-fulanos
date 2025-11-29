@@ -1,97 +1,139 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import QRCode from "react-qr-code"; // Componente para dibujar el QR
+import QRCode from "react-qr-code";
+import Link from "next/link";
+import { Settings, User } from "lucide-react";
+import Image from "next/image";
 
 export default async function ClientAppPage() {
     const supabase = await createClient();
 
-    // 1. Verificar sesión del cliente
+    // 1. Auth Check
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return redirect("/login");
 
-    if (!user) {
-        // Si no está logueado, lo mandamos al login
-        // OJO: Deberíamos tener un login separado para clientes, 
-        // pero por ahora usamos el mismo.
-        return redirect("/login");
-    }
-
-    // 2. Obtener datos del perfil (Puntos)
+    // 2. Datos del Perfil
     const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-    // 3. Obtener historial de visitas (citas completadas)
+    // 3. Historial (Optimizado con nombres reales)
     const { data: history } = await supabase
-        .from("bookings")
-        .select("*, services(name)")
-        .eq("status", "completed") // Solo las pagadas
-        // Aquí hay un detalle: en bookings no guardamos client_id (usuario), guardamos customer_id.
-        // Como tu sistema actual es "Guest Checkout", las citas viejas NO están ligadas a este usuario.
-        // Este historial aparecerá vacío hasta que implementemos el escaneo del QR.
-        .eq("customer_id", user.id)
-        .order("start_time", { ascending: false });
+        .from("transactions") // Buscamos en transactions que es la fuente de la verdad
+        .select("amount, created_at, points_earned, services(name)")
+        .eq("client_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+    // LÓGICA DE GAMIFICACIÓN
+    const points = profile?.loyalty_points || 0;
+    const GOAL = 100; // Meta para premio (configurable)
+    const progress = Math.min((points / GOAL) * 100, 100);
+    const nextReward = GOAL - (points % GOAL); // Puntos faltantes para el siguiente ciclo
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-6 flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="min-h-screen bg-zinc-950 text-white p-6 relative overflow-hidden selection:bg-blue-500/30">
 
-            {/* Fondo decorativo */}
-            <div className="absolute top-[-20%] left-[-20%] w-[140%] h-[50%] bg-blue-600 blur-[100px] opacity-20 pointer-events-none rounded-full"></div>
+            {/* Luces de Fondo Ambientales */}
+            <div className="absolute top-[-10%] left-[-20%] w-[300px] h-[300px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+            <div className="absolute bottom-[-10%] right-[-20%] w-[250px] h-[250px] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-            <div className="z-10 w-full max-w-sm">
+            <div className="relative z-10 max-w-sm mx-auto flex flex-col min-h-[90vh]">
 
-                {/* HEADER */}
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold">Hola, {profile?.full_name?.split(" ")[0]}</h1>
-                    <p className="text-gray-400 text-sm">Miembro Club Fulanos</p>
+                {/* HEADER: Perfil */}
+                <div className="flex justify-between items-center mb-8">
+                    <div>
+                        <h1 className="text-xl font-bold">Hola, {profile?.full_name?.split(" ")[0]}</h1>
+                        <p className="text-zinc-500 text-xs">Bienvenido a Fulanos</p>
+                    </div>
+                    <Link href="/app/profile" className="relative group">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-zinc-800 group-hover:border-white transition-colors bg-zinc-900 flex items-center justify-center">
+                            {profile?.avatar_url ? (
+                                <Image
+                                    src={profile.avatar_url}
+                                    alt="Avatar"
+                                    width={48}
+                                    height={48}
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <User className="w-6 h-6 text-zinc-500" />
+                            )}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 bg-zinc-800 p-1 rounded-full border border-black">
+                            <Settings size={10} className="text-white" />
+                        </div>
+                    </Link>
                 </div>
 
-                {/* TARJETA DE PUNTOS (EL QR) */}
-                <div className="bg-white text-black p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-600"></div>
+                {/* TARJETA WALLET (Core Experience) */}
+                <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 p-1 rounded-[32px] shadow-2xl mb-8 border border-zinc-700/50">
+                    <div className="bg-zinc-900 rounded-[28px] p-6 relative overflow-hidden">
 
-                    <div className="flex flex-col items-center">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Tu ID de Cliente</p>
+                        {/* Brillo decorativo */}
+                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
-                        <div className="bg-white p-2 rounded-xl border-2 border-dashed border-gray-200">
-                            {/* EL CÓDIGO QR REAL */}
-                            <QRCode
-                                value={user.id} // El valor del QR es el ID del usuario
-                                size={180}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                viewBox={`0 0 256 256`}
-                            />
+                        {/* QR CODE */}
+                        <div className="flex flex-col items-center justify-center py-4">
+                            <div className="bg-white p-3 rounded-2xl shadow-inner">
+                                <QRCode
+                                    value={user.id}
+                                    size={160}
+                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                    viewBox={`0 0 256 256`}
+                                />
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-4 uppercase tracking-widest font-bold">Tu ID de Miembro</p>
                         </div>
 
-                        <p className="mt-4 text-xs text-gray-400">Muestra este código al pagar</p>
+                        {/* BARRA DE PROGRESO */}
+                        <div className="mt-6">
+                            <div className="flex justify-between text-xs mb-2 font-medium">
+                                <span className="text-zinc-300">Nivel Actual</span>
+                                <span className="text-blue-400">{points} pts</span>
+                            </div>
+                            <div className="h-3 w-full bg-zinc-800 rounded-full overflow-hidden border border-zinc-700/50">
+                                <div
+                                    className="h-full bg-gradient-to-r from-blue-600 to-purple-500 transition-all duration-1000 ease-out rounded-full"
+                                    style={{ width: `${progress}%` }}
+                                ></div>
+                            </div>
+                            <p className="text-right text-[10px] text-zinc-500 mt-2">
+                                Faltan {nextReward} pts para tu recompensa
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                {/* PUNTOS ACUMULADOS */}
-                <div className="bg-gray-800 p-6 rounded-2xl flex items-center justify-between mb-4 border border-gray-700">
-                    <div>
-                        <p className="text-gray-400 text-xs uppercase font-bold">Puntos Acumulados</p>
-                        <h2 className="text-3xl font-black text-yellow-400">{profile?.loyalty_points || 0}</h2>
-                    </div>
-                    <div className="text-2xl">🏆</div>
-                </div>
-
-                {/* HISTORIAL RECIENTE */}
-                <div>
-                    <h3 className="text-gray-400 text-sm font-bold mb-3 uppercase">Últimas Visitas</h3>
-                    <div className="space-y-2">
+                {/* HISTORIAL COMPACTO */}
+                <div className="flex-1">
+                    <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">Actividad Reciente</h3>
+                    <div className="space-y-3">
                         {!history || history.length === 0 ? (
-                            <p className="text-gray-600 text-sm text-center py-4 italic">Aún no tienes visitas registradas con tu cuenta.</p>
+                            <div className="text-center py-10 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 border-dashed">
+                                <p className="text-zinc-600 text-sm">Aún no tienes visitas registradas.</p>
+                            </div>
                         ) : (
-                            history.map((visit) => (
-                                <div key={visit.id} className="bg-gray-800 p-4 rounded-xl flex justify-between items-center border border-gray-700">
-                                    <div>
-                                        {/* @ts-ignore */}
-                                        <p className="font-bold text-sm">{visit.services?.name}</p>
-                                        <p className="text-xs text-gray-500">{new Date(visit.start_time).toLocaleDateString()}</p>
+                            history.map((tx, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 bg-zinc-900/80 border border-zinc-800/50 rounded-2xl hover:bg-zinc-900 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                            <span className="text-lg">✂️</span>
+                                        </div>
+                                        <div>
+                                            {/* @ts-ignore */}
+                                            <p className="font-bold text-sm text-zinc-200">{tx.services?.name || 'Servicio'}</p>
+                                            <p className="text-xs text-zinc-500">
+                                                {new Date(tx.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <span className="text-green-400 text-xs font-bold px-2 py-1 bg-green-400/10 rounded-lg">Completado</span>
+                                    <div className="text-right">
+                                        <span className="block text-green-400 font-bold text-sm">+{tx.points_earned} pts</span>
+                                        <span className="text-xs text-zinc-600">${tx.amount}</span>
+                                    </div>
                                 </div>
                             ))
                         )}

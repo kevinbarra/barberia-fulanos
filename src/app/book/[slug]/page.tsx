@@ -26,14 +26,14 @@ export default async function BookingPage({
         .eq("tenant_id", tenant.id)
         .eq("is_active", true);
 
-    // 3. Cargar Staff
+    // 3. Cargar Staff (AHORA CON FOTO)
     const { data: staff } = await supabase
         .from("profiles")
-        .select("id, full_name, role")
+        .select("id, full_name, role, avatar_url") // <--- CAMBIO CLAVE AQUÍ
         .eq("tenant_id", tenant.id)
         .in("role", ["owner", "staff"]);
 
-    // 4. NUEVO: Cargar Horarios de todos
+    // 4. Cargar Horarios de todos
     const { data: schedules } = await supabase
         .from("staff_schedules")
         .select("*")
@@ -53,7 +53,7 @@ export default async function BookingPage({
                 <BookingWizard
                     services={services || []}
                     staff={staff || []}
-                    schedules={schedules || []} // Pasamos los horarios al componente
+                    schedules={schedules || []}
                 />
             </main>
         </div>

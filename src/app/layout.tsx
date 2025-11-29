@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { Toaster } from "sonner"; // <--- ESTO ES NUEVO
 import "./globals.css";
 
-// 1. Configuración del Viewport (Zoom, escala, colores)
-// Esto evita que el usuario haga zoom pellizcando y rompa el diseño "App"
+// 1. Configuración del Viewport (PWA Friendly)
 export const viewport: Viewport = {
   themeColor: "black",
   width: "device-width",
@@ -11,11 +11,11 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// 2. Configuración de Metadata (SEO y PWA)
+// 2. Metadata
 export const metadata: Metadata = {
   title: "Barbería Fulanos",
   description: "Sistema de gestión para barberías",
-  manifest: "/manifest.json", // <--- AQUÍ CONECTAMOS EL PASAPORTE
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -35,6 +35,8 @@ export default function RootLayout({
     <html lang="es">
       <body className="antialiased bg-gray-50 text-gray-900 selection:bg-black selection:text-white">
         {children}
+        {/* Componente de notificaciones premium */}
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );
