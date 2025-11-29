@@ -11,6 +11,7 @@ export default function LandingPage() {
       {/* NAV SUPERIOR */}
       <nav className="p-6 z-10 flex justify-between items-center">
         <div className="font-bold text-xl tracking-tight">FULANOS</div>
+        {/* CORRECCIÓN CRÍTICA: Apuntamos a /admin en lugar de /login */}
         <Link
           href="/admin"
           className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"

@@ -11,14 +11,14 @@ export default async function LoginPage({
     const params = await searchParams
 
     // --- LÓGICA INTELIGENTE: Redirección automática ---
-    // Si el usuario ya tiene sesión iniciada, no debería ver el login.
-    // Lo mandamos directamente a la app.
+    // 1. Verificamos si ya existe una sesión activa.
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
+    // 2. Si el usuario ya está logueado, lo sacamos del login.
     if (user) {
-        // Si ya está dentro, lo mandamos al dashboard de cliente por defecto.
-        // Desde ahí podrá navegar al Admin si es staff.
+        // Lo redirigimos a la app del cliente por defecto.
+        // Si es Admin, desde ahí podrá navegar o si intenta entrar a /admin el middleware lo dejará pasar.
         return redirect('/app');
     }
     // --------------------------------------------------
@@ -26,7 +26,7 @@ export default async function LoginPage({
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
 
-            {/* Fondo Ambiental (Efectos de luz) */}
+            {/* Fondo Ambiental (Efectos de luz premium) */}
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
@@ -46,7 +46,7 @@ export default async function LoginPage({
                     </p>
                 </div>
 
-                {/* Alertas de Estado (Mensajes de Error o Éxito) */}
+                {/* Alertas de Estado (Feedback visual) */}
                 {params.message === 'check-email' && (
                     <div className="mb-6 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm text-center font-medium animate-in fade-in slide-in-from-top-2">
                         ✅ ¡Enlace enviado! Revisa tu correo (incluyendo la carpeta de Spam).
