@@ -14,12 +14,14 @@ export async function createService(formData: FormData) {
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
+    const category = formData.get('category') as string || 'General' // <--- NUEVO
     const tenant_id = formData.get('tenant_id') as string
 
     const { error } = await supabase.from('services').insert({
         name,
         price: parseFloat(price),
         duration_min: parseInt(duration),
+        category,
         tenant_id: tenant_id,
         is_active: true
     })
@@ -37,13 +39,15 @@ export async function updateService(formData: FormData) {
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
+    const category = formData.get('category') as string // <--- NUEVO
 
     const { error } = await supabase
         .from('services')
         .update({
             name,
             price: parseFloat(price),
-            duration_min: parseInt(duration)
+            duration_min: parseInt(duration),
+            category
         })
         .eq('id', id)
 
@@ -68,12 +72,11 @@ export async function toggleServiceStatus(id: string, currentStatus: boolean) {
     return { success: true, message: currentStatus ? 'Servicio desactivado' : 'Servicio activado' }
 }
 
-// --- ELIMINAR SERVICIO (NUEVO - CON SEGURIDAD) ---
+// --- ELIMINAR SERVICIO (CON SEGURIDAD) ---
 export async function deleteService(id: string) {
     const supabase = await createClient()
 
     // 1. Verificar si tiene uso histórico (Citas o Transacciones)
-    // Esto evita romper la contabilidad del pasado
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })

@@ -4,8 +4,15 @@ import { useState } from "react";
 import { createBooking } from "@/app/book/[slug]/actions";
 
 // TIPOS ACTUALIZADOS
-type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string };
-type Staff = { id: string; full_name: string; role: string; avatar_url: string | null }; // <--- avatar_url añadido
+type Service = {
+    id: string;
+    name: string;
+    price: number;
+    duration_min: number;
+    tenant_id: string;
+    category?: string; // <--- NUEVO
+};
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string };
 
 export default function BookingWizard({
@@ -30,6 +37,17 @@ export default function BookingWizard({
     // Estados del cliente (Guest)
     const [clientData, setClientData] = useState({ name: "", phone: "", email: "" });
 
+    // --- AGRUPACIÓN DE SERVICIOS (LÓGICA NUEVA) ---
+    const groupedServices = services.reduce((acc, service) => {
+        const cat = service.category || 'General';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(service);
+        return acc;
+    }, {} as Record<string, Service[]>);
+
+    // Orden de categorías fijo para que siempre salgan igual
+    const categoryOrder = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras', 'General'];
+
     // --- LÓGICA DE HORARIOS ---
     const getAvailableSlots = () => {
         if (!selectedDate || !selectedStaff) return [];
@@ -53,12 +71,10 @@ export default function BookingWizard({
 
     const slots = getAvailableSlots();
 
-    // --- FUNCIÓN FINAL: GUARDAR CITA ---
+    // --- GUARDAR CITA ---
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
-
         setIsSubmitting(true);
-
         const dateTime = `${selectedDate}T${selectedTime}:00`;
 
         const result = await createBooking({
@@ -73,15 +89,11 @@ export default function BookingWizard({
         });
 
         setIsSubmitting(false);
-
-        if (result.success) {
-            setSuccess(true);
-        } else {
-            alert("Hubo un error al reservar. Inténtalo de nuevo.");
-        }
+        if (result.success) setSuccess(true);
+        else alert("Hubo un error al reservar. Inténtalo de nuevo.");
     };
 
-    // --- PANTALLA DE ÉXITO ---
+    // --- PANTALLA ÉXITO ---
     if (success) {
         return (
             <div className="text-center py-10 animate-in zoom-in duration-500">
@@ -90,38 +102,51 @@ export default function BookingWizard({
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Cita Confirmada!</h2>
                 <p className="text-gray-600 mb-6">Te esperamos el {selectedDate} a las {selectedTime}</p>
-                <button onClick={() => window.location.reload()} className="text-black underline">
-                    Volver al inicio
-                </button>
+                <button onClick={() => window.location.reload()} className="text-black underline">Volver al inicio</button>
             </div>
         );
     }
 
-    // --- PASO 1: SERVICIO ---
+    // --- PASO 1: SERVICIO (AGRUPADO POR CATEGORÍA) ---
     if (step === 1) {
         return (
-            <section className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h2 className="text-lg font-semibold mb-4 text-gray-800">1. Selecciona un servicio</h2>
-                <div className="space-y-3">
-                    {services.map((service) => (
-                        <button
-                            key={service.id}
-                            onClick={() => { setSelectedService(service); setStep(2); }}
-                            className="w-full bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center hover:border-black hover:ring-1 hover:ring-black transition-all group text-left"
-                        >
-                            <div>
-                                <span className="font-semibold text-gray-900 block group-hover:text-black">{service.name}</span>
-                                <span className="text-sm text-gray-500">{service.duration_min} min</span>
+            <section className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+                <h2 className="text-lg font-semibold mb-6 text-gray-900">Selecciona un servicio</h2>
+
+                <div className="space-y-8">
+                    {categoryOrder.map(category => {
+                        const items = groupedServices[category];
+                        if (!items || items.length === 0) return null;
+
+                        return (
+                            <div key={category}>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 ml-1">
+                                    {category}
+                                </h3>
+                                <div className="space-y-3">
+                                    {items.map((service) => (
+                                        <button
+                                            key={service.id}
+                                            onClick={() => { setSelectedService(service); setStep(2); }}
+                                            className="w-full bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center hover:border-black hover:ring-1 hover:ring-black transition-all group text-left"
+                                        >
+                                            <div>
+                                                <span className="font-semibold text-gray-900 block group-hover:text-black">{service.name}</span>
+                                                <span className="text-sm text-gray-500">{service.duration_min} min</span>
+                                            </div>
+                                            <div className="font-bold text-gray-900">${service.price}</div>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="font-bold text-gray-900">${service.price}</div>
-                        </button>
-                    ))}
+                        )
+                    })}
                 </div>
             </section>
         );
     }
 
-    // --- PASO 2: BARBERO (VISUALIZACIÓN CON FOTOS) ---
+    // --- PASO 2: BARBERO ---
     if (step === 2) {
         return (
             <section className="animate-in fade-in slide-in-from-right-8 duration-300">
@@ -134,27 +159,17 @@ export default function BookingWizard({
                             onClick={() => { setSelectedStaff(member); setStep(3); }}
                             className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-black hover:ring-1 hover:ring-black transition-all text-left group flex flex-col items-center justify-center text-center"
                         >
-                            {/* Círculo de Avatar */}
                             <div className="w-16 h-16 mb-3 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-100 group-hover:border-black transition-colors relative">
                                 {member.avatar_url ? (
-                                    <img
-                                        src={member.avatar_url}
-                                        alt={member.full_name}
-                                        className="w-full h-full object-cover"
-                                    />
+                                    <img src={member.avatar_url} alt={member.full_name} className="w-full h-full object-cover" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl bg-gray-200">
                                         {member.full_name.charAt(0)}
                                     </div>
                                 )}
                             </div>
-
-                            <span className="font-semibold text-gray-900 block truncate w-full text-sm">
-                                {member.full_name}
-                            </span>
-                            <span className="text-xs text-gray-500 capitalize block">
-                                {member.role === 'owner' ? 'Barbero Senior' : 'Staff'}
-                            </span>
+                            <span className="font-semibold text-gray-900 block truncate w-full text-sm">{member.full_name}</span>
+                            <span className="text-xs text-gray-500 capitalize block">{member.role === 'owner' ? 'Barbero Senior' : 'Staff'}</span>
                         </button>
                     ))}
                 </div>
@@ -203,51 +218,25 @@ export default function BookingWizard({
                 <button onClick={() => setStep(3)} className="text-sm text-gray-500 mb-4 hover:underline">← Volver</button>
                 <h2 className="text-lg font-semibold mb-2 text-gray-800">4. Tus Datos</h2>
                 <p className="text-sm text-gray-500 mb-6">Para enviarte la confirmación.</p>
-
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Nombre completo</label>
-                        <input
-                            type="text"
-                            required
-                            className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                            placeholder="Ej. Juan Pérez"
-                            onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
-                        />
+                        <input type="text" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="Ej. Juan Pérez" onChange={(e) => setClientData({ ...clientData, name: e.target.value })} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Teléfono (WhatsApp)</label>
-                        <input
-                            type="tel"
-                            required
-                            className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                            placeholder="Ej. 55 1234 5678"
-                            onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
-                        />
+                        <input type="tel" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="Ej. 55 1234 5678" onChange={(e) => setClientData({ ...clientData, phone: e.target.value })} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700">Correo (Opcional)</label>
-                        <input
-                            type="email"
-                            className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black"
-                            placeholder="juan@gmail.com"
-                            onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
-                        />
+                        <input type="email" className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="juan@gmail.com" onChange={(e) => setClientData({ ...clientData, email: e.target.value })} />
                     </div>
                 </div>
-
-                <button
-                    onClick={handleBooking}
-                    disabled={!clientData.name || !clientData.phone || isSubmitting}
-                    className="w-full mt-8 bg-black text-white py-3 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
-                >
-                    {isSubmitting ? (
-                        <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-                    ) : "Confirmar Reserva"}
+                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full mt-8 bg-black text-white py-3 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center">
+                    {isSubmitting ? <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span> : "Confirmar Reserva"}
                 </button>
             </section>
         );
     }
-
     return null;
 }

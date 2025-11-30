@@ -5,6 +5,9 @@ import { createService } from '@/app/admin/services/actions'
 import { toast } from 'sonner'
 import { Loader2, Plus } from 'lucide-react'
 
+// Categorías Estándar del Negocio
+const CATEGORIES = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras'];
+
 export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
@@ -12,7 +15,6 @@ export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
     const handleSubmit = async (formData: FormData) => {
         setIsSubmitting(true)
 
-        // Llamamos a la Server Action
         const result = await createService(formData)
 
         setIsSubmitting(false)
@@ -36,6 +38,7 @@ export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
             >
                 <input type="hidden" name="tenant_id" value={tenantId} />
 
+                {/* NOMBRE */}
                 <div>
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Nombre</label>
                     <input
@@ -46,6 +49,25 @@ export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
                     />
                 </div>
 
+                {/* CATEGORÍA (NUEVO) */}
+                <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Categoría</label>
+                    <div className="relative">
+                        <select
+                            name="category"
+                            className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium appearance-none"
+                        >
+                            {CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                            ▼
+                        </div>
+                    </div>
+                </div>
+
+                {/* PRECIO Y DURACIÓN */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Precio</label>
