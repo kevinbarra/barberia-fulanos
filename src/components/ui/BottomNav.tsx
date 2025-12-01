@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { LayoutDashboard, CalendarDays, Scissors, User, Wallet, ShieldCheck } from 'lucide-react'
 
-// Aceptamos una nueva prop opcional: showAdminEntry
 export default function BottomNav({
     role,
     showAdminEntry = false
@@ -14,6 +13,9 @@ export default function BottomNav({
 }) {
     const pathname = usePathname()
 
+    // 🚨 LÓGICA POS: Si estamos en modo caja, ocultamos la navegación global
+    if (pathname.startsWith('/admin/pos')) return null;
+
     const adminMenu = [
         { name: 'Inicio', href: '/admin', icon: LayoutDashboard },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
@@ -21,12 +23,13 @@ export default function BottomNav({
         { name: 'Perfil', href: '/admin/profile', icon: User },
     ]
 
+    // ... (resto del código igual)
+
     const clientMenu = [
         { name: 'Mi Wallet', href: '/app', icon: Wallet },
         { name: 'Perfil', href: '/app/profile', icon: User },
     ]
 
-    // Si tiene permiso de Admin, agregamos el botón de retorno al menú de cliente
     if (role === 'client' && showAdminEntry) {
         clientMenu.push({ name: 'Admin', href: '/admin', icon: ShieldCheck })
     }
@@ -34,7 +37,7 @@ export default function BottomNav({
     const menu = role === 'admin' ? adminMenu : clientMenu
 
     return (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 pb-6 md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 pb-8 md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
             <div className={`flex justify-between items-center ${menu.length > 2 ? 'max-w-sm' : 'max-w-[200px]'} mx-auto`}>
                 {menu.map((item) => {
                     const isActive = pathname === item.href

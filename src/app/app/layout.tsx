@@ -1,12 +1,17 @@
 import BottomNav from "@/components/ui/BottomNav";
 import { createClient } from "@/utils/supabase/server";
+import { checkAndClaimInvitations } from "@/lib/auth-helpers"; // <--- IMPORTAR
 
 export default async function ClientLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    // 1. Verificar permisos del usuario actual
+    // 1. EJECUTAR AUTO-VINCULACIÓN (SELF-HEALING)
+    // Esto arregla silenciosamente cualquier perfil que tenga invitación pendiente
+    await checkAndClaimInvitations();
+
+    // 2. Verificar permisos para el menú
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -19,7 +24,6 @@ export default async function ClientLayout({
             .eq('id', user.id)
             .single();
 
-        // Si es owner o staff, tiene permiso de ver el botón de Admin
         isStaffOrOwner = profile?.role === 'owner' || profile?.role === 'staff';
     }
 
@@ -29,7 +33,6 @@ export default async function ClientLayout({
                 {children}
             </main>
 
-            {/* Pasamos la prop de permiso al menú */}
             <BottomNav role="client" showAdminEntry={isStaffOrOwner} />
         </div>
     );

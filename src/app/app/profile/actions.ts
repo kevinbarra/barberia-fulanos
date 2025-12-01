@@ -14,18 +14,22 @@ export async function updateClientProfile(formData: FormData) {
 
     let avatarUrl = null
 
-    // 1. Subida de Imagen (Optimizado para Storage)
+    // 1. Subida de Imagen
     if (file && file.size > 0) {
         if (file.size > 5 * 1024 * 1024) return { error: 'Imagen muy pesada (Max 5MB)' }
 
+        // Nombre único para evitar caché del navegador (timestamp)
         const fileExt = file.name.split('.').pop()
-        const filePath = `${user.id}/client-${Date.now()}.${fileExt}`
+        const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`
 
         const { error: uploadError } = await supabase.storage
             .from('avatars')
             .upload(filePath, file, { upsert: true })
 
-        if (uploadError) return { error: 'Error al subir imagen' }
+        if (uploadError) {
+            console.error(uploadError)
+            return { error: 'Error al subir imagen' }
+        }
 
         const { data: { publicUrl } } = supabase.storage
             .from('avatars')
@@ -43,9 +47,13 @@ export async function updateClientProfile(formData: FormData) {
         .update(updateData)
         .eq('id', user.id)
 
-    if (error) return { error: 'Error al guardar datos' }
+    if (error) {
+        console.error("Error DB:", error)
+        return { error: 'Error al guardar. Verifica permisos.' }
+    }
 
-    revalidatePath('/app') // Refresca la Wallet
+    // 3. Refrescar Cache CRÍTICO
+    revalidatePath('/app', 'layout') // Refresca todo el layout de la app
     revalidatePath('/app/profile')
 
     return { success: true, message: 'Perfil actualizado' }
