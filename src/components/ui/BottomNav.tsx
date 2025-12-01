@@ -13,17 +13,17 @@ export default function BottomNav({
 }) {
     const pathname = usePathname()
 
-    // 🚨 LÓGICA POS: Si estamos en modo caja, ocultamos la navegación global
+    // 🚨 Si estamos en modo caja (POS), ocultamos la navegación para más espacio
     if (pathname.startsWith('/admin/pos')) return null;
 
+    // MENÚ ADMIN CORREGIDO (Sprint 0)
     const adminMenu = [
         { name: 'Inicio', href: '/admin', icon: LayoutDashboard },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
-        { name: 'Servicios', href: '/admin/services', icon: Scissors },
+        { name: 'POS', href: '/admin/pos', icon: Wallet }, // <--- NUEVO
+        { name: 'Equipo', href: '/admin/team', icon: ShieldCheck }, // <--- NUEVO
         { name: 'Perfil', href: '/admin/profile', icon: User },
     ]
-
-    // ... (resto del código igual)
 
     const clientMenu = [
         { name: 'Mi Wallet', href: '/app', icon: Wallet },
@@ -38,7 +38,7 @@ export default function BottomNav({
 
     return (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 pb-8 md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-            <div className={`flex justify-between items-center ${menu.length > 2 ? 'max-w-sm' : 'max-w-[200px]'} mx-auto`}>
+            <div className={`flex justify-between items-center ${menu.length > 3 ? 'max-w-md w-full' : 'max-w-[200px]'} mx-auto`}>
                 {menu.map((item) => {
                     const isActive = pathname === item.href
                     return (

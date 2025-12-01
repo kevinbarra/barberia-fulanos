@@ -12,7 +12,7 @@ export default async function AdminDashboard() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Obtener perfil completo con ROL
+    // 1. Obtener perfil completo
     const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, role, tenants(slug)")
@@ -21,14 +21,11 @@ export default async function AdminDashboard() {
 
     const userName = profile?.full_name?.split(" ")[0] || "Staff";
     const userRole = profile?.role || 'staff';
-    // @ts-ignore
-    const tenantSlug = profile?.tenants?.slug || "fulanos";
 
-    // 2. FECHAS CORRECTAS (TIMEZONE FIXED) 🌎
-    // Usamos el helper para obtener el rango exacto en hora local (México)
+    // 2. Fechas
     const { startISO, endISO } = getTodayRange();
 
-    // 3. KPI Financiero (SOLO OWNER - Dinero)
+    // 3. KPI Financiero (SOLO OWNER)
     let totalIncome = 0;
     if (userRole === 'owner') {
         const { data: allTransactions } = await supabase
@@ -41,7 +38,7 @@ export default async function AdminDashboard() {
         totalIncome = allTransactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     }
 
-    // 4. KPI Citas (Visible para todos)
+    // 4. KPI Citas
     const { count: bookingsCount } = await supabase
         .from("bookings")
         .select("*", { count: 'exact', head: true })
@@ -49,48 +46,29 @@ export default async function AdminDashboard() {
         .gte("start_time", startISO)
         .lte("start_time", endISO);
 
-    // 5. OBTENCIÓN DE TRANSACCIONES (LISTA DE ACTIVIDAD)
-    let query = supabase
+    // 5. Transacciones (Seguridad vía RLS, sin filtro JS)
+    const { data: transactionsData, error } = await supabase
         .from("transactions")
         .select(`
-            id, 
-            amount, 
-            created_at, 
-            client_id, 
-            points_earned, 
+            id, amount, created_at, client_id, points_earned, 
             services(name)
-        `) // NOTA: Quitamos 'profiles(full_name)' para evitar conflicto de relaciones por ahora
+        `)
         .eq("tenant_id", tenantId)
         .gte("created_at", startISO)
         .lte("created_at", endISO)
         .order("created_at", { ascending: false });
 
-    // FILTRO MAESTRO DE SEGURIDAD
-    // Si NO es owner, solo ve sus propias ventas.
-    if (userRole !== 'owner') {
-        query = query.eq("staff_id", user?.id);
-    }
+    if (error) console.error("Error fetching transactions:", error);
 
-    const { data: transactionsData, error } = await query;
-
-    if (error) {
-        console.error("Error fetching transactions:", error);
-    }
-
-    // 6. Formateo de datos para la UI
-    const formattedTransactions = transactionsData?.map(t => {
+    const formattedTransactions = transactionsData?.map(t => ({
+        id: t.id,
+        amount: t.amount,
+        created_at: t.created_at,
+        client_id: t.client_id,
+        points_earned: t.points_earned,
         // @ts-ignore
-        const serviceName = t.services?.name || 'Venta Rápida';
-
-        return {
-            id: t.id,
-            amount: t.amount,
-            created_at: t.created_at,
-            client_id: t.client_id,
-            points_earned: t.points_earned,
-            service_name: serviceName
-        };
-    }) || [];
+        service_name: t.services?.name || 'Venta Rápida'
+    })) || [];
 
     const formatMoney = (amount: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
@@ -98,7 +76,6 @@ export default async function AdminDashboard() {
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">
 
-            {/* HEADER */}
             <div className="mb-8 mt-2 flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Hola, {userName}</h1>
@@ -108,9 +85,8 @@ export default async function AdminDashboard() {
                 </div>
             </div>
 
-            {/* KPIS PRINCIPALES */}
+            {/* KPIS */}
             <div className="grid grid-cols-2 gap-4 mb-8">
-                {/* Tarjeta Dinero (Condicional) */}
                 {userRole === 'owner' ? (
                     <div className="bg-black text-white p-5 rounded-2xl shadow-xl flex flex-col justify-between h-36 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-20 h-20 bg-zinc-800 rounded-full -mr-10 -mt-10 blur-xl opacity-50"></div>
@@ -130,9 +106,7 @@ export default async function AdminDashboard() {
                             <span className="text-xl">✂️</span>
                         </div>
                         <div>
-                            <h2 className="text-3xl font-black tracking-tight text-gray-900">
-                                {formattedTransactions.length}
-                            </h2>
+                            <h2 className="text-3xl font-black tracking-tight text-gray-900">{formattedTransactions.length}</h2>
                             <p className="text-gray-500 text-xs mt-1">Servicios hoy</p>
                         </div>
                     </div>
@@ -153,7 +127,7 @@ export default async function AdminDashboard() {
                 </div>
             </div>
 
-            {/* MÓDULO DE TRANSACCIONES (LISTA DE RESCATE) */}
+            {/* ACTIVIDAD */}
             <div className="mb-8">
                 <h3 className="text-gray-900 font-bold text-lg mb-3">
                     {userRole === 'owner' ? 'Actividad Global del Día' : 'Mis Cobros Recientes'}
@@ -161,31 +135,52 @@ export default async function AdminDashboard() {
                 <TransactionList transactions={formattedTransactions} />
             </div>
 
-            {/* MENÚ DE NAVEGACIÓN */}
+            {/* MENÚ CORREGIDO */}
             <h3 className="text-gray-900 font-bold text-lg mb-4">Accesos Rápidos</h3>
-            <div className="grid grid-cols-1 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Link href="/admin/bookings" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-black transition-all active:scale-[0.98]">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-2xl">🗓️</div>
                         <div>
                             <h3 className="font-bold text-lg text-gray-900">Agenda</h3>
-                            <p className="text-gray-400 text-xs">Gestionar citas y cobros</p>
+                            <p className="text-gray-400 text-xs">Gestionar citas</p>
                         </div>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400">→</div>
+                </Link>
+
+                <Link href="/admin/pos" className="bg-black p-4 rounded-2xl shadow-lg border border-zinc-800 flex items-center justify-between hover:bg-zinc-800 transition-all active:scale-[0.98] group">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-zinc-800 text-white rounded-xl flex items-center justify-center text-2xl group-hover:bg-zinc-700">🛒</div>
+                        <div>
+                            <h3 className="font-bold text-lg text-white">Terminal POS</h3>
+                            <p className="text-zinc-400 text-xs">Cobrar a clientes</p>
+                        </div>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-white">→</div>
                 </Link>
 
                 {userRole === 'owner' && (
-                    <div className="grid grid-cols-2 gap-3">
-                        <Link href="/admin/services" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 hover:border-purple-500 transition-all active:scale-[0.98]">
-                            <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-3 text-xl">✂️</div>
-                            <h3 className="font-bold text-gray-900 text-sm">Servicios</h3>
+                    <>
+                        <Link href="/admin/team" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-purple-500 transition-all active:scale-[0.98]">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-2xl">👥</div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-gray-900">Equipo</h3>
+                                    <p className="text-gray-400 text-xs">Gestionar acceso</p>
+                                </div>
+                            </div>
                         </Link>
-                        <Link href="/admin/schedule" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 hover:border-orange-500 transition-all active:scale-[0.98]">
-                            <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center mb-3 text-xl">⏰</div>
-                            <h3 className="font-bold text-gray-900 text-sm">Horarios</h3>
+
+                        <Link href="/admin/services" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-orange-500 transition-all active:scale-[0.98]">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-2xl">✂️</div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-gray-900">Servicios</h3>
+                                    <p className="text-gray-400 text-xs">Catálogo</p>
+                                </div>
+                            </div>
                         </Link>
-                    </div>
+                    </>
                 )}
             </div>
         </div>
