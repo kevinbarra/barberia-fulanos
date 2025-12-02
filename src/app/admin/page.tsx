@@ -12,7 +12,6 @@ export default async function AdminDashboard() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Obtener perfil completo
     const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, role, tenants(slug)")
@@ -22,10 +21,9 @@ export default async function AdminDashboard() {
     const userName = profile?.full_name?.split(" ")[0] || "Staff";
     const userRole = profile?.role || 'staff';
 
-    // 2. Fechas
     const { startISO, endISO } = getTodayRange();
 
-    // 3. KPI Financiero (SOLO OWNER)
+    // KPI Financiero
     let totalIncome = 0;
     if (userRole === 'owner') {
         const { data: allTransactions } = await supabase
@@ -38,7 +36,7 @@ export default async function AdminDashboard() {
         totalIncome = allTransactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     }
 
-    // 4. KPI Citas
+    // KPI Citas
     const { count: bookingsCount } = await supabase
         .from("bookings")
         .select("*", { count: 'exact', head: true })
@@ -46,7 +44,7 @@ export default async function AdminDashboard() {
         .gte("start_time", startISO)
         .lte("start_time", endISO);
 
-    // 5. Transacciones (Seguridad vía RLS, sin filtro JS)
+    // Transacciones
     const { data: transactionsData, error } = await supabase
         .from("transactions")
         .select(`
@@ -135,7 +133,7 @@ export default async function AdminDashboard() {
                 <TransactionList transactions={formattedTransactions} />
             </div>
 
-            {/* MENÚ CORREGIDO */}
+            {/* MENÚ */}
             <h3 className="text-gray-900 font-bold text-lg mb-4">Accesos Rápidos</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Link href="/admin/bookings" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-black transition-all active:scale-[0.98]">
@@ -171,15 +169,17 @@ export default async function AdminDashboard() {
                             </div>
                         </Link>
 
-                        <Link href="/admin/services" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-orange-500 transition-all active:scale-[0.98]">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-2xl">✂️</div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-gray-900">Servicios</h3>
-                                    <p className="text-gray-400 text-xs">Catálogo</p>
-                                </div>
-                            </div>
-                        </Link>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Link href="/admin/services" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center items-center gap-2 hover:border-orange-500 transition-all active:scale-[0.98] text-center">
+                                <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-xl flex items-center justify-center text-xl">✂️</div>
+                                <h3 className="font-bold text-gray-900 text-sm">Servicios</h3>
+                            </Link>
+
+                            <Link href="/admin/schedule" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-center items-center gap-2 hover:border-teal-500 transition-all active:scale-[0.98] text-center">
+                                <div className="w-10 h-10 bg-teal-50 text-teal-600 rounded-xl flex items-center justify-center text-xl">⏰</div>
+                                <h3 className="font-bold text-gray-900 text-sm">Horarios</h3>
+                            </Link>
+                        </div>
                     </>
                 )}
             </div>

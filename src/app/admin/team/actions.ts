@@ -2,30 +2,31 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { sendStaffInvitation } from '@/lib/email'
 
-// --- INVITAR STAFF (BLINDADO 0.1%) ---
+// --- INVITAR STAFF ---
 export async function inviteStaff(formData: FormData) {
     const supabase = await createClient()
 
-    // 1. Verificar Admin
+    // 1. Verificar Autenticación
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
+    // 2. Verificar Permisos (Solo Owner invita)
     const { data: requester } = await supabase
         .from('profiles')
-        .select('role, tenant_id')
+        .select('role, tenant_id, tenants(name)')
         .eq('id', user.id)
         .single()
 
-    if (requester?.role !== 'owner') return { error: 'Solo el dueño puede invitar' }
+    if (requester?.role !== 'owner') return { error: 'Solo el dueño puede enviar invitaciones.' }
 
     const emailRaw = formData.get('email') as string
     if (!emailRaw) return { error: 'Email requerido' }
     const email = emailRaw.toLowerCase().trim()
 
-    // 2. ESTRATEGIA HÍBRIDA
-    // Primero, creamos/actualizamos la invitación SIEMPRE.
-    // Esto actúa como "fuente de verdad" de que queremos a esta persona.
+    // 3. Registrar Invitación en Base de Datos
+    // Usamos 'upsert' para actualizar si ya existía una pendiente
     const { error: inviteError } = await supabase
         .from('staff_invitations')
         .upsert({
@@ -36,59 +37,72 @@ export async function inviteStaff(formData: FormData) {
         }, { onConflict: 'tenant_id, email' })
 
     if (inviteError) {
-        console.error(inviteError)
-        return { error: 'Error al registrar invitación.' }
+        console.error('DB Invite Error:', inviteError)
+        return { error: 'Error al registrar la invitación en el sistema.' }
     }
 
-    // 3. INTENTO DE VINCULACIÓN INMEDIATA (Auto-Claim)
-    // Llamamos a la función RPC maestra que creamos antes.
-    // Ella buscará si el usuario ya existe en Auth/Profiles y lo conectará ahora mismo.
-    // Nota: RPC 'claim_invitation_by_email' es una función nueva que crearemos abajo para el admin
-    // Por ahora, usaremos lógica manual segura:
+    // 4. Preparar Datos del Correo
+    // Detectamos el dominio automáticamente. En producción Vercel usa HTTPS.
+    // NEXT_PUBLIC_SITE_URL debe estar configurado en Vercel, si no, usa localhost.
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
-    // Buscar si existe el perfil PUBLICO
-    const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email)
-        .single()
+    // El link lleva al Login y pre-llena el correo para facilitar el registro
+    const inviteLink = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
 
-    if (existingProfile) {
-        // Si existe, lo forzamos a ser staff AHORA
-        await supabase.from('profiles').update({
-            role: 'staff',
-            tenant_id: requester.tenant_id
-        }).eq('id', existingProfile.id)
+    // @ts-ignore - Supabase types a veces infieren mal los joins, esto es seguro
+    const businessName = requester.tenants?.name || "La Barbería";
 
-        // Y cerramos la invitación
-        await supabase.from('staff_invitations').update({ status: 'accepted' }).eq('email', email)
-
-        revalidatePath('/admin/team')
-        return { success: true, message: 'Usuario existente añadido al equipo.' }
-    }
+    // 5. Enviar el Correo Real
+    const emailResult = await sendStaffInvitation({
+        email,
+        businessName,
+        inviteLink
+    });
 
     revalidatePath('/admin/team')
-    return { success: true, message: 'Invitación enviada. Esperando que el usuario se registre.' }
+
+    // 6. Retornar Resultado al Usuario
+    if (emailResult.success) {
+        return { success: true, message: `Invitación enviada a ${email}` }
+    } else {
+        // Si falló el correo pero se guardó en DB, avisamos.
+        // El usuario ya está pre-autorizado en DB, así que "técnicamente" está invitado,
+        // pero necesita saber que el correo falló.
+        return { success: true, message: 'Usuario autorizado, pero falló el envío del correo (Revisa logs).' }
+    }
 }
 
-// --- ELIMINAR STAFF ---
+// --- ELIMINAR STAFF / REVOCAR ACCESO ---
 export async function removeStaff(targetId: string) {
     const supabase = await createClient()
 
+    // 1. Auth Check
     const { data: { user } } = await supabase.auth.getUser()
-    const { data: requester } = await supabase.from('profiles').select('role').eq('id', user?.id).single()
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single()
 
     if (requester?.role !== 'owner') return { error: 'No autorizado' }
 
-    // Intentar borrar de invitaciones
-    const { error: invError } = await supabase.from('staff_invitations').delete().eq('id', targetId)
+    // 2. Eliminar Invitación (Si estaba pendiente)
+    const { error: invError } = await supabase
+        .from('staff_invitations')
+        .delete()
+        .eq('id', targetId)
 
-    // Intentar revocar perfil (si es un ID de usuario)
-    // Nota: Si targetId era de invitación, esto no hará nada (y está bien)
-    const { error: profError } = await supabase.from('profiles').update({ role: 'customer', tenant_id: null }).eq('id', targetId)
+    // 3. Revocar Rol en Perfil (Si ya era usuario activo)
+    // Lo degradamos a 'customer' y le quitamos el tenant_id
+    const { error: profError } = await supabase
+        .from('profiles')
+        .update({ role: 'customer', tenant_id: null })
+        .eq('id', targetId)
 
-    if (invError && profError) return { error: 'No se pudo eliminar.' }
+    if (invError && profError) {
+        return { error: 'No se pudo encontrar el usuario o invitación.' }
+    }
 
     revalidatePath('/admin/team')
-    return { success: true, message: 'Acceso revocado.' }
+    return { success: true, message: 'Acceso revocado correctamente.' }
 }

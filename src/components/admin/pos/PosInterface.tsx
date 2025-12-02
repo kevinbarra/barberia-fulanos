@@ -1,85 +1,212 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { processPosSale } from '@/app/admin/pos/actions'
-import { linkTransactionToUser as linkGlobal } from '@/app/admin/bookings/actions'
+import { createTicket, finalizeTicket, voidTicket } from '@/app/admin/pos/actions'
+import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
+import Link from 'next/link'
 import Image from 'next/image'
-import { User, CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, RotateCcw, Scissors, ChevronUp } from 'lucide-react'
+import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, LogOut, Scissors, X } from 'lucide-react'
 import QRScanner from '@/components/admin/QRScanner'
-import { motion, useAnimation, PanInfo } from 'framer-motion'
 
-type Staff = { id: string; full_name: string; avatar_url: string | null }
-type Service = { id: string; name: string; price: number; duration_min: number; category?: string }
+// --- TIPOS ---
+type Staff = {
+    id: string;
+    full_name: string;
+    avatar_url: string | null
+}
+
+type Service = {
+    id: string;
+    name: string;
+    price: number;
+    duration_min: number;
+    category?: string
+}
+
+type Ticket = {
+    id: string;
+    startTime: string;
+    clientName: string;
+    staffName: string;
+    serviceName: string | null;
+    price: number | null
+}
+
+// Duraciones para bloqueo rápido de agenda
+const DURATIONS = [15, 30, 45, 60, 90]
 
 export default function PosInterface({
     staff,
     services,
+    activeTickets: initialTickets,
     tenantId
 }: {
     staff: Staff[],
     services: Service[],
+    activeTickets: Ticket[],
     tenantId: string
 }) {
-    const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
-    const [selectedService, setSelectedService] = useState<Service | null>(null)
-    const [paymentMethod, setPaymentMethod] = useState('cash')
-    const [isProcessing, setIsProcessing] = useState(false)
+    // --- ESTADO LOCAL (Para UI Instantánea) ---
+    const [tickets, setTickets] = useState<Ticket[]>(initialTickets)
+
+    // Sincronizar estado local si el servidor manda nuevos datos (Refresh)
+    useEffect(() => {
+        setTickets(initialTickets)
+    }, [initialTickets])
+
+    // Navegación Móvil: 'list' (Izquierda) o 'action' (Derecha)
+    const [mobileTab, setMobileTab] = useState<'list' | 'action'>('list')
+
+    // Selección de Ticket
+    const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [successTx, setSuccessTx] = useState<{ id: string, points: number } | null>(null)
+
+    // Estados del Formulario Check-in (Entrada)
+    const [selStaff, setSelStaff] = useState<Staff | null>(null)
+    const [duration, setDuration] = useState<number>(30)
+    const [clientName, setClientName] = useState('')
+    const [isProcessing, setIsProcessing] = useState(false)
+
+    // Estados del Formulario Checkout (Salida)
+    const [selFinalService, setSelFinalService] = useState<Service | null>(null)
+    const [paymentMethod, setPaymentMethod] = useState('cash')
     const [showScanner, setShowScanner] = useState(false)
 
-    // Animación
-    const [isMobileOpen, setIsMobileOpen] = useState(false)
-    const controls = useAnimation()
+    // --- LÓGICA INTELIGENTE: SELECCIÓN DE BARBERO ---
+    const handleStaffSelect = (member: Staff) => {
+        // Buscamos si este barbero ya tiene un ticket "en silla"
+        const activeTicket = tickets.find(t => t.staffName.includes(member.full_name))
 
-    // --- 1. AUTO-OPEN (UX) ---
-    useEffect(() => {
-        if (selectedStaff && selectedService) {
-            setIsMobileOpen(true)
-        }
-    }, [selectedStaff, selectedService])
-
-    // --- 2. CANDADO DE ESCRITORIO (FIX BUG VISUAL) ---
-    useEffect(() => {
-        // Función para forzar el reset en desktop
-        const handleResize = () => {
-            if (window.innerWidth >= 1024) {
-                // Si es pantalla grande, FORZAMOS posición 0 inmediatamente
-                controls.set({ y: 0 })
-            } else {
-                // Si es móvil, respetamos el estado abierto/cerrado
-                controls.start(isMobileOpen ? { y: 0 } : { y: "calc(100% - 90px)" })
-            }
-        }
-
-        // Ejecutar al inicio y al redimensionar
-        handleResize()
-        window.addEventListener('resize', handleResize)
-
-        return () => window.removeEventListener('resize', handleResize)
-    }, [isMobileOpen, controls])
-
-    // --- 3. GESTOS (Solo afectan si no estamos en desktop por CSS, pero esto asegura la lógica) ---
-    const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-        if (window.innerWidth >= 1024) return; // No permitir arrastre en desktop
-
-        const threshold = 100
-        const velocity = 500
-
-        if (info.offset.y < -threshold || info.velocity.y < -velocity) {
-            setIsMobileOpen(true)
-        } else if (info.offset.y > threshold || info.velocity.y > velocity) {
-            setIsMobileOpen(false)
+        if (activeTicket) {
+            // CASO OCUPADO: Redirigir directo a cobrar su ticket existente
+            toast.info(`⚠️ ${member.full_name.split(' ')[0]} ya tiene un servicio en curso.`)
+            handleSelectTicket(activeTicket)
         } else {
-            controls.start(isMobileOpen ? { y: 0 } : { y: "calc(100% - 90px)" })
+            // CASO LIBRE: Seleccionarlo para abrir un nuevo servicio
+            setSelStaff(member)
         }
     }
 
-    const handleTap = () => {
-        if (window.innerWidth < 1024) setIsMobileOpen(!isMobileOpen)
+    // --- ACCIONES PRINCIPALES ---
+
+    // 1. CHECK-IN: Crear Ticket (Solo Tiempo)
+    const handleCheckIn = async () => {
+        if (!selStaff) return
+        setIsProcessing(true)
+
+        const res = await createTicket({
+            tenantId,
+            staffId: selStaff.id,
+            clientName: clientName || "Cliente Walk-in",
+            duration: duration
+        })
+
+        if (res.success) {
+            toast.success('Ticket Abierto')
+            resetCheckIn()
+            setMobileTab('list') // Regresar a la lista para ver el ticket creado
+        } else {
+            toast.error(res.error)
+            setIsProcessing(false)
+        }
     }
 
-    // --- LÓGICA NEGOCIO ---
+    // 2. CHECKOUT: Cobrar Ticket (Asignar Servicio Final)
+    const handleCheckout = async () => {
+        if (!selectedTicket || !selFinalService) return
+        setIsProcessing(true)
+
+        const res = await finalizeTicket({
+            bookingId: selectedTicket.id,
+            amount: selFinalService.price,
+            serviceId: selFinalService.id,
+            paymentMethod,
+            tenantId
+        })
+
+        if (res.success && res.transactionId) {
+            setSuccessTx({ id: res.transactionId, points: res.points || 0 })
+
+            // Optimistic Update: Quitar ticket de la lista visualmente YA
+            setTickets(prev => prev.filter(t => t.id !== selectedTicket.id))
+
+            toast.success('¡Cobro exitoso!')
+        } else {
+            toast.error(res.error)
+        }
+        setIsProcessing(false)
+    }
+
+    // 3. ANULAR: Cancelar Ticket (Soft Delete)
+    const handleVoid = async () => {
+        if (!selectedTicket || !confirm("¿Anular ticket? Esto quedará registrado.")) return
+
+        const ticketId = selectedTicket.id
+
+        // Optimistic UI: Lo borramos de la vista inmediatamente
+        setTickets(prev => prev.filter(t => t.id !== ticketId))
+        setSelectedTicket(null)
+        setMobileTab('list')
+
+        const res = await voidTicket(ticketId)
+
+        if (res.success) {
+            toast.info("Ticket anulado")
+        } else {
+            toast.error(res.error)
+            // Si falló en servidor, el próximo refresh lo traerá de vuelta (correcto)
+        }
+    }
+
+    // --- HELPERS DE NAVEGACIÓN Y RESET ---
+
+    const handleScanLink = async (userId: string) => {
+        if (!successTx) return
+        toast.loading('Vinculando...')
+        const res = await linkTransactionToUser(successTx.id, userId)
+        toast.dismiss()
+        if (res.success) {
+            toast.success(res.message)
+            fullReset()
+        } else {
+            toast.error(res.message)
+        }
+    }
+
+    const handleNewTicket = () => {
+        setSelectedTicket(null)
+        setSuccessTx(null)
+        setMobileTab('action') // Forzar vista formulario en móvil
+    }
+
+    const handleSelectTicket = (ticket: Ticket) => {
+        setSelectedTicket(ticket)
+        setSelFinalService(null) // Resetear selección de servicio
+        setSuccessTx(null)
+        setMobileTab('action') // Forzar vista cobro en móvil
+    }
+
+    const handleBackToList = () => {
+        setMobileTab('list') // Regresar explícitamente a la lista
+    }
+
+    const resetCheckIn = () => {
+        setSelStaff(null)
+        setDuration(30)
+        setClientName('')
+        setIsProcessing(false)
+    }
+
+    const fullReset = () => {
+        resetCheckIn()
+        setSelectedTicket(null)
+        setSuccessTx(null)
+        setShowScanner(false)
+        setMobileTab('list')
+    }
+
+    // --- LÓGICA DE CATEGORÍAS (Memoized) ---
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
             const cat = service.category || 'General';
@@ -92,71 +219,49 @@ export default function PosInterface({
     const categories = Object.keys(groupedServices);
     const [activeCategory, setActiveCategory] = useState(categories[0] || 'General');
 
-    const handleCheckout = async () => {
-        if (!selectedStaff || !selectedService) return
-        setIsProcessing(true)
-        const result = await processPosSale({
-            tenantId,
-            staffId: selectedStaff.id,
-            serviceId: selectedService.id,
-            price: selectedService.price,
-            duration: selectedService.duration_min,
-            paymentMethod
-        })
-        setIsProcessing(false)
-        if (result.success && result.transactionId) {
-            setSuccessTx({ id: result.transactionId, points: result.points || 0 })
-            toast.success('Venta registrada 💰')
-        } else {
-            toast.error(result.error)
-        }
-    }
-
-    const handleScanLink = async (userId: string) => {
-        if (!successTx) return
-        toast.loading('Vinculando...')
-        const res = await linkGlobal(successTx.id, userId)
-        toast.dismiss()
-        if (res.success) {
-            toast.success(res.message)
-            resetPos()
-        } else {
-            toast.error(res.message)
-        }
-    }
-
-    const resetPos = () => {
-        setSelectedStaff(null)
-        setSelectedService(null)
-        setSuccessTx(null)
-        setShowScanner(false)
-        setPaymentMethod('cash')
-        setIsMobileOpen(false)
-    }
-
+    // --- VISTA: PANTALLA DE ÉXITO ---
     if (successTx) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[80vh] text-center p-6 animate-in zoom-in pb-24">
+            <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-white w-full animate-in zoom-in">
                 <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-6 shadow-xl">
                     <CheckCircle size={48} strokeWidth={3} />
                 </div>
-                <h1 className="text-3xl font-black text-gray-900">¡Cobro Exitoso!</h1>
-                <p className="text-gray-500 mt-2 text-lg">
-                    Esta compra genera <strong className="text-black">+{successTx.points} puntos</strong>.
-                </p>
+                <h1 className="text-3xl font-black text-gray-900">¡Venta Cerrada!</h1>
+
                 <div className="mt-8 w-full max-w-md space-y-4">
                     {!showScanner ? (
                         <>
-                            <button onClick={() => setShowScanner(true)} className="w-full py-5 bg-black text-white rounded-2xl font-bold text-xl shadow-lg flex items-center justify-center gap-3 hover:scale-[1.02] transition-all">
-                                <QrCode size={24} /> Vincular Cliente
+                            <button
+                                onClick={() => setShowScanner(true)}
+                                className="w-full py-5 bg-black text-white rounded-2xl font-bold text-xl shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all"
+                            >
+                                <QrCode size={24} /> Asignar Puntos (QR)
                             </button>
-                            <button onClick={resetPos} className="w-full py-5 bg-gray-100 text-gray-600 rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all">
-                                Finalizar (Anónimo)
+                            <button
+                                onClick={fullReset}
+                                className="w-full py-5 bg-gray-100 text-gray-600 rounded-2xl font-bold text-lg hover:bg-gray-200 transition-all"
+                            >
+                                Finalizar
                             </button>
                         </>
                     ) : (
-                        <div className="h-80 bg-black rounded-3xl overflow-hidden relative border-4 border-black shadow-2xl">
-                            <QRScanner onScanSuccess={handleScanLink} onClose={() => setShowScanner(false)} />
+                        <div className="w-full max-w-sm mx-auto flex flex-col gap-4">
+                            <div className="h-80 bg-black rounded-3xl overflow-hidden relative border-4 border-black shadow-2xl">
+                                <QRScanner onScanSuccess={handleScanLink} onClose={() => setShowScanner(false)} />
+                                {/* BOTÓN DE SALIDA EXPLÍCITO */}
+                                <button
+                                    onClick={() => setShowScanner(false)}
+                                    className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 backdrop-blur-md z-50 border border-white/20"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => setShowScanner(false)}
+                                className="text-gray-500 text-sm font-medium underline hover:text-black transition-colors"
+                            >
+                                Cancelar y volver
+                            </button>
                         </div>
                     )}
                 </div>
@@ -164,97 +269,299 @@ export default function PosInterface({
         )
     }
 
+    // --- VISTA PRINCIPAL (Layout Híbrido) ---
     return (
-        <div className="flex flex-col lg:grid lg:grid-cols-3 lg:gap-6 h-[calc(100vh-100px)] lg:h-[calc(100vh-140px)] relative overflow-hidden">
+        <div className="flex flex-col md:flex-row w-full h-full bg-gray-100 relative">
 
-            {/* 1. SELECCIÓN */}
-            <div className="flex-1 overflow-y-auto pb-32 lg:pb-0 lg:col-span-2 flex flex-col gap-6 px-1 hide-scrollbar">
-                {/* Staff */}
-                <section>
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">¿Quién atiende?</h3>
-                    <div className="flex gap-3 overflow-x-auto pb-4 snap-x hide-scrollbar">
-                        {staff.map(member => (
-                            <button key={member.id} onClick={() => setSelectedStaff(member)} className={`flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-2xl border-2 transition-all w-24 snap-center ${selectedStaff?.id === member.id ? 'border-black bg-black text-white shadow-md scale-105' : 'border-transparent bg-white hover:bg-gray-50'}`}>
-                                <div className="w-14 h-14 rounded-full overflow-hidden bg-gray-200 relative">
-                                    {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl">{member.full_name[0]}</div>}
-                                </div>
-                                <span className="text-xs font-bold truncate w-full text-center">{member.full_name.split(' ')[0]}</span>
-                            </button>
-                        ))}
-                    </div>
-                </section>
+            {/* IZQUIERDA: LISTA DE TICKETS */}
+            <div className={`md:w-96 bg-white border-r border-gray-200 flex-col h-full ${mobileTab === 'list' ? 'flex w-full' : 'hidden md:flex'}`}>
 
-                {/* Servicios */}
-                <section>
-                    <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar mb-2">
-                        {categories.map(cat => (
-                            <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-black text-white shadow-md' : 'bg-white border border-gray-200 text-gray-500 hover:bg-gray-200'}`}>{cat}</button>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        {groupedServices[activeCategory]?.map(service => (
-                            <button key={service.id} onClick={() => setSelectedService(service)} className={`p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${selectedService?.id === service.id ? 'border-blue-600 bg-blue-50 ring-1 ring-blue-600 shadow-lg' : 'border-gray-100 bg-white hover:border-gray-300'}`}>
-                                <div className="flex flex-col"><span className="font-bold text-sm">{service.name}</span><span className="text-xs text-gray-500">{service.duration_min} min</span></div>
-                                <span className="font-black text-lg">${service.price}</span>
-                            </button>
-                        ))}
-                    </div>
-                </section>
-            </div>
+                {/* Header Lista */}
+                <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center sticky top-0 z-10">
+                    <div className="flex items-center gap-3">
+                        {/* BOTÓN SALIR MÓVIL (CORREGIDO) - Te saca del POS al Dashboard */}
+                        <Link
+                            href="/admin"
+                            className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full flex items-center gap-1"
+                        >
+                            <ChevronLeft size={24} />
+                            <span className="font-bold text-sm text-gray-900">Salir</span>
+                        </Link>
 
-            {/* 2. PANEL DE PAGO (Blindado contra Desktop) */}
-            <motion.div
-                animate={controls}
-                initial={{ y: 0 }} // Empezamos en 0 para evitar flicker en desktop
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                drag={typeof window !== 'undefined' && window.innerWidth < 1024 ? "y" : false} // Solo drag en móvil
-                dragConstraints={{ top: 0, bottom: 0 }}
-                dragElastic={0.2}
-                onDragEnd={handleDragEnd}
-                className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[30px] shadow-[0_-10px_40px_rgba(0,0,0,0.15)] z-50 h-[85vh] flex flex-col border border-gray-200
-                           lg:static lg:h-full lg:transform-none lg:rounded-3xl lg:shadow-xl lg:border-gray-100 lg:z-0"
-            >
-                {/* Handle Móvil */}
-                <div className="lg:hidden w-full pt-4 pb-2 flex flex-col items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white rounded-t-[30px]" onPointerDown={(e) => e.preventDefault()} onClick={handleTap}>
-                    <div className="w-16 h-1.5 bg-gray-300 rounded-full mb-4"></div>
-                    {!isMobileOpen && (
-                        <div className="w-full px-6 flex justify-between items-center mb-2 animate-in fade-in">
-                            <span className="text-gray-500 text-xs font-bold uppercase">Total a pagar</span>
-                            <div className="flex items-center gap-3"><span className="text-2xl font-black tracking-tighter">${selectedService?.price || 0}</span><ChevronUp size={20} className="text-gray-400" /></div>
+                        {/* Título Desktop */}
+                        <div className="hidden md:block">
+                            <h2 className="font-bold text-lg text-gray-900">Tickets</h2>
+                            <p className="text-xs text-gray-400">{tickets.length} en silla</p>
                         </div>
+
+                        {/* Título Móvil */}
+                        <div className="md:hidden">
+                            <h2 className="font-bold text-lg text-gray-900">Tickets ({tickets.length})</h2>
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleNewTicket}
+                        className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95"
+                    >
+                        <Plus size={24} />
+                    </button>
+                </div>
+
+                {/* Cuerpo Lista */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                    {tickets.length === 0 ? (
+                        <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
+                            <p>Sala vacía.</p>
+                        </div>
+                    ) : (
+                        tickets.map(ticket => (
+                            <button
+                                key={ticket.id}
+                                onClick={() => handleSelectTicket(ticket)}
+                                className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === ticket.id
+                                    ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200'
+                                    : 'bg-white border-gray-100'
+                                    }`}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="font-bold text-gray-900 truncate text-base">
+                                        {ticket.clientName}
+                                    </span>
+                                    <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
+                                        En curso
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <span className="flex items-center gap-1">
+                                        <Clock size={12} />
+                                        {new Date(ticket.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    <span>•</span>
+                                    <span>{ticket.staffName.split(' ')[0]}</span>
+                                </div>
+                            </button>
+                        ))
                     )}
                 </div>
+            </div>
 
-                <div className="flex-1 overflow-y-auto px-6 pb-6 pt-2">
-                    <div className="flex justify-between items-center mb-6 hidden lg:flex">
-                        <h2 className="font-black text-2xl">Ticket Actual</h2>
-                        <button onClick={resetPos} className="p-2 text-gray-400 hover:text-red-500 bg-gray-50 rounded-full"><RotateCcw size={20} /></button>
-                    </div>
-                    <div className="space-y-4 mb-8">
-                        <div className={`p-3 rounded-xl flex items-center gap-3 ${selectedStaff ? 'bg-gray-50' : 'bg-red-50 border border-red-100 border-dashed'}`}>
-                            <User size={20} className={selectedStaff ? 'text-black' : 'text-red-300'} />
-                            {selectedStaff ? <span className="font-bold">{selectedStaff.full_name}</span> : <span className="text-red-400 text-sm italic">Falta barbero</span>}
-                        </div>
-                        <div className={`p-3 rounded-xl flex items-center gap-3 ${selectedService ? 'bg-gray-50' : 'bg-red-50 border border-red-100 border-dashed'}`}>
-                            <Scissors size={20} className={selectedService ? 'text-black' : 'text-red-300'} />
-                            {selectedService ? (<div className="flex-1 flex justify-between"><span className="font-bold text-sm">{selectedService.name}</span><span className="font-mono font-bold">${selectedService.price}</span></div>) : <span className="text-red-400 text-sm italic">Falta servicio</span>}
-                        </div>
-                    </div>
-                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Método de Pago</h3>
-                    <div className="grid grid-cols-3 gap-2 mb-6">
-                        {[{ id: 'cash', label: 'Efectivo', icon: Banknote }, { id: 'card', label: 'Tarjeta', icon: CreditCard }, { id: 'transfer', label: 'Transf.', icon: ArrowRightLeft }].map(m => (
-                            <button key={m.id} onClick={() => setPaymentMethod(m.id)} className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${paymentMethod === m.id ? 'border-black bg-black text-white' : 'border-gray-100 text-gray-400'}`}><m.icon size={20} /><span className="text-[10px] font-bold mt-1">{m.label}</span></button>
-                        ))}
-                    </div>
+            {/* DERECHA: PANEL DE ACCIÓN */}
+            <div className={`flex-1 flex-col bg-gray-50 h-full ${mobileTab === 'action' ? 'flex w-full absolute inset-0 z-20 md:static' : 'hidden md:flex'}`}>
+
+                {/* Header Móvil (Botón Atrás - Regresa a la lista, no sale del POS) */}
+                <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3 sticky top-0 z-30">
+                    <button
+                        onClick={handleBackToList}
+                        className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full"
+                    >
+                        <ChevronLeft size={24} />
+                    </button>
+                    <span className="font-bold text-gray-900">
+                        {selectedTicket ? 'Cerrar Cuenta' : 'Nuevo Cliente'}
+                    </span>
                 </div>
 
-                <div className="border-t border-gray-100 p-6 bg-white mt-auto">
-                    <div className="flex justify-between items-center mb-4 lg:mb-6">
-                        <div className="flex flex-col"><span className="text-gray-500 text-xs font-medium uppercase">Total Final</span><span className="text-3xl font-black tracking-tighter">${selectedService?.price || 0}</span></div>
+                {/* MODO A: CHECK-IN (NUEVO CLIENTE) */}
+                {!selectedTicket && (
+                    <div className="flex flex-col h-full animate-in fade-in duration-300">
+                        <div className="hidden md:block p-6 border-b border-gray-200 bg-white">
+                            <h1 className="text-2xl font-black text-gray-900">Check-in</h1>
+                            <p className="text-gray-500 text-sm">Bloquea el horario para empezar.</p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
+
+                            {/* 1. Barbero */}
+                            <section>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">1. Barbero</h3>
+                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                    {staff.map(member => {
+                                        const isBusy = tickets.some(t => t.staffName.includes(member.full_name));
+                                        return (
+                                            <button
+                                                key={member.id}
+                                                onClick={() => handleStaffSelect(member)}
+                                                className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all relative ${selStaff?.id === member.id
+                                                    ? 'border-black bg-black text-white shadow-lg'
+                                                    : 'border-transparent bg-white hover:bg-gray-200'
+                                                    } ${isBusy ? 'opacity-75' : ''}`}
+                                            >
+                                                {isBusy && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm" title="Ocupado"></span>}
+
+                                                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative border border-white/20">
+                                                    {member.avatar_url ? (
+                                                        <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">
+                                                            {member.full_name[0]}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs font-bold truncate w-full text-center">
+                                                    {member.full_name.split(' ')[0]}
+                                                </span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </section>
+
+                            {/* 2. Tiempo */}
+                            <section>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">2. Tiempo Estimado</h3>
+                                <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {DURATIONS.map(min => (
+                                        <button
+                                            key={min}
+                                            onClick={() => setDuration(min)}
+                                            className={`px-6 py-4 rounded-xl font-bold text-lg border-2 transition-all ${duration === min
+                                                ? 'border-black bg-black text-white shadow-lg'
+                                                : 'bg-white border-gray-200 text-gray-500'
+                                                }`}
+                                        >
+                                            {min}m
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* 3. Cliente */}
+                            <section>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">3. Cliente</h3>
+                                <input
+                                    type="text"
+                                    placeholder="Nombre (Opcional)"
+                                    value={clientName}
+                                    onChange={(e) => setClientName(e.target.value)}
+                                    className="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-black outline-none bg-white font-medium"
+                                />
+                            </section>
+                        </div>
+
+                        <div className="p-6 bg-white border-t border-gray-200 pb-8 md:pb-6">
+                            <button
+                                onClick={handleCheckIn}
+                                disabled={!selStaff || isProcessing}
+                                className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-900 disabled:opacity-50 shadow-xl"
+                            >
+                                {isProcessing ? 'Bloqueando...' : 'Iniciar Servicio'}
+                            </button>
+                        </div>
                     </div>
-                    <button onClick={handleCheckout} disabled={!selectedStaff || !selectedService || isProcessing} className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-green-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none flex justify-center items-center gap-2">{isProcessing ? '...' : 'COBRAR'}</button>
-                </div>
-            </motion.div>
+                )}
+
+                {/* MODO B: CHECKOUT (COBRAR) */}
+                {selectedTicket && (
+                    <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
+                        {/* Header Desktop */}
+                        <div className="hidden md:flex p-6 border-b border-gray-200 bg-white justify-between items-center">
+                            <div>
+                                <h1 className="text-2xl font-black text-gray-900">Caja</h1>
+                                <p className="text-gray-500 text-sm">Finalizando servicio.</p>
+                            </div>
+                            <button
+                                onClick={handleVoid}
+                                className="text-red-500 hover:bg-red-50 p-2 px-3 rounded-lg text-xs font-bold flex items-center gap-2 border border-red-100"
+                            >
+                                <Trash2 size={16} /> Anular Ticket
+                            </button>
+                        </div>
+
+                        <div className="flex-1 p-4 md:p-8 flex flex-col overflow-y-auto">
+
+                            {/* Resumen Ticket */}
+                            <div className="mb-6 bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <span className="text-xs text-gray-400 uppercase font-bold">Cliente</span>
+                                    <p className="font-bold text-lg">{selectedTicket.clientName}</p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-xs text-gray-400 uppercase font-bold">Atendió</span>
+                                    <p className="font-bold">{selectedTicket.staffName.split(' ')[0]}</p>
+                                </div>
+                            </div>
+
+                            {/* SELECCIÓN DE SERVICIO FINAL */}
+                            <section className="mb-8 flex-1">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                    <Scissors size={14} /> ¿Qué se realizó?
+                                </h3>
+
+                                <div className="flex gap-2 overflow-x-auto pb-2 mb-3 hide-scrollbar">
+                                    {categories.map(cat => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setActiveCategory(cat)}
+                                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === cat
+                                                ? 'bg-black text-white'
+                                                : 'bg-white border border-gray-200 text-gray-500'
+                                                }`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                                    {groupedServices[activeCategory]?.map(service => (
+                                        <button
+                                            key={service.id}
+                                            onClick={() => setSelFinalService(service)}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${selFinalService?.id === service.id
+                                                ? 'border-green-500 bg-green-50 ring-1 ring-green-500 shadow-md'
+                                                : 'border-gray-200 bg-white hover:border-gray-400'
+                                                }`}
+                                        >
+                                            <div className="font-bold text-sm text-gray-900">{service.name}</div>
+                                            <div className="text-xs text-gray-500 mt-1 font-bold">${service.price}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Área de Pago */}
+                            <div className="border-t border-gray-200 pt-6">
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="text-gray-500 font-medium">Total a Pagar</span>
+                                    <span className="text-4xl font-black text-gray-900">
+                                        ${selFinalService?.price || 0}
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-3 gap-3 mb-6">
+                                    {[{ id: 'cash', label: 'Efectivo', icon: Banknote }, { id: 'card', label: 'Tarjeta', icon: CreditCard }, { id: 'transfer', label: 'Transf.', icon: ArrowRightLeft }].map(m => (
+                                        <button
+                                            key={m.id}
+                                            onClick={() => setPaymentMethod(m.id)}
+                                            className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${paymentMethod === m.id
+                                                ? 'border-black bg-black text-white'
+                                                : 'border-gray-200 bg-white text-gray-400'
+                                                }`}
+                                        >
+                                            <m.icon size={20} className="mb-1" />
+                                            <span className="text-[10px] font-bold">{m.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={handleCheckout}
+                                    disabled={!selFinalService || isProcessing}
+                                    className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-green-700 disabled:opacity-50 transition-all"
+                                >
+                                    {isProcessing ? 'Procesando...' : 'Cobrar Final'}
+                                </button>
+
+                                <button
+                                    onClick={handleVoid}
+                                    className="md:hidden mt-4 w-full py-3 text-red-500 font-bold text-sm"
+                                >
+                                    Eliminar Ticket
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     )
 }

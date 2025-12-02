@@ -1,5 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { saveSchedule } from "./actions";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 // Helper para traducir días
 const DAY_LABELS: Record<string, string> = {
@@ -27,13 +29,20 @@ export default async function SchedulePage() {
         schedules?.find((s) => s.day === day) || { is_active: false, start_time: "10:00", end_time: "20:00" };
 
     return (
-        <div className="max-w-3xl mx-auto p-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold">Mi Horario de Trabajo</h1>
-                <p className="text-gray-600">Configura cuándo estás disponible para recibir citas.</p>
+        <div className="max-w-3xl mx-auto p-6 pb-32">
+
+            {/* Header con Navegación */}
+            <div className="flex items-center gap-4 mb-8">
+                <Link href="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors md:hidden">
+                    <ChevronLeft size={24} className="text-gray-600" />
+                </Link>
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Mi Horario</h1>
+                    <p className="text-gray-600 text-sm">Configura cuándo estás disponible.</p>
+                </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow border border-gray-100 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <form action={saveSchedule}>
                     <div className="space-y-6">
                         {Object.entries(DAY_LABELS).map(([key, label]) => {
@@ -83,7 +92,7 @@ export default async function SchedulePage() {
                     <div className="mt-8 pt-6 border-t border-gray-100 flex justify-end">
                         <button
                             type="submit"
-                            className="bg-black text-white px-6 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors"
+                            className="bg-black text-white px-6 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-lg active:scale-95"
                         >
                             Guardar Horarios
                         </button>
