@@ -10,12 +10,13 @@ export default async function PosPage() {
 
     if (!tenantId) return redirect("/login");
 
-    // Cargar Barberos Activos
+    // Cargar Barberos Activos (FIX: Filtramos por el flag de visibilidad)
     const { data: staff } = await supabase
         .from("profiles")
         .select("id, full_name, avatar_url")
         .eq("tenant_id", tenantId)
-        .in("role", ["owner", "staff"]);
+        .in("role", ["owner", "staff"])
+        .eq("is_active_barber", true); // <--- FILTRO AGREGADO
 
     // Cargar Servicios Activos
     const { data: services } = await supabase

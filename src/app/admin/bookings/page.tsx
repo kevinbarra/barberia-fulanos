@@ -1,6 +1,6 @@
 import { createClient, getTenantId } from "@/utils/supabase/server";
 import BookingCard from "@/components/admin/BookingCard";
-import AddBookingButton from "@/components/admin/AddBookingButton"; // <-- Importamos el botón nuevo
+import AddBookingButton from "@/components/admin/AddBookingButton";
 import { redirect } from "next/navigation";
 
 export default async function AdminBookingsPage() {
@@ -9,30 +9,30 @@ export default async function AdminBookingsPage() {
 
     if (!tenantId) return redirect('/login');
 
-    // 1. Traer Citas (Lo que ya hacíamos)
+    // 1. Traer Citas
     const { data: bookings } = await supabase
         .from("bookings")
         .select(`*, services ( name, price, duration_min )`)
         .eq("tenant_id", tenantId)
         .order("start_time", { ascending: true });
 
-    // 2. NUEVO: Traer Datos para el formulario de Walk-in
-    // Necesitamos la lista de servicios activos para el "Select" del modal
+    // 2. Traer Datos para el formulario de Walk-in
     const { data: services } = await supabase
         .from("services")
         .select("id, name, duration_min")
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
 
-    // Necesitamos la lista de barberos para el "Select" del modal
+    // 3. Traer Barberos (FIX: Solo los que cortan pelo)
     const { data: staff } = await supabase
         .from("profiles")
         .select("id, full_name")
         .eq("tenant_id", tenantId)
-        .in("role", ["owner", "staff"]);
+        .in("role", ["owner", "staff"])
+        .eq("is_active_barber", true); // <--- FILTRO AGREGADO
 
     return (
-        <div className="max-w-5xl mx-auto p-8 pb-24"> {/* pb-24 da espacio extra abajo para que el botón no tape contenido */}
+        <div className="max-w-5xl mx-auto p-8 pb-24">
 
             <div className="flex justify-between items-center mb-8">
                 <div>
@@ -57,7 +57,6 @@ export default async function AdminBookingsPage() {
                 )}
             </div>
 
-            {/* Aquí insertamos el Botón Flotante */}
             <AddBookingButton
                 tenantId={tenantId}
                 services={services || []}
