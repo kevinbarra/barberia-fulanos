@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { createBooking, getTakenSlots } from "@/app/book/[slug]/actions";
-import { format, toZonedTime } from 'date-fns-tz';
+import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
 import { Loader2 } from "lucide-react";
 import Image from 'next/image';
 
@@ -16,8 +15,6 @@ type Service = {
 };
 type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string };
-
-const TIMEZONE = 'America/Mexico_City';
 
 export default function BookingWizard({
     services,
@@ -37,7 +34,10 @@ export default function BookingWizard({
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedTime, setSelectedTime] = useState("");
-    const [takenTimes, setTakenTimes] = useState<string[]>([]);
+
+    // CAMBIO: Ahora guardamos rangos {start, end}, no solo strings
+    const [takenRanges, setTakenRanges] = useState<{ start: number, end: number }[]>([]);
+
     const [clientData, setClientData] = useState({ name: "", phone: "", email: "" });
 
     useEffect(() => {
@@ -46,8 +46,9 @@ export default function BookingWizard({
             if (selectedDate && selectedStaff) {
                 setIsLoadingSlots(true);
                 try {
-                    const taken = await getTakenSlots(selectedStaff.id, selectedDate);
-                    if (isMounted) setTakenTimes(taken);
+                    // CAMBIO: Usamos la nueva función que trae Bookings + Bloqueos
+                    const ranges = await getTakenRanges(selectedStaff.id, selectedDate);
+                    if (isMounted) setTakenRanges(ranges);
                 } catch (error) {
                     console.error("Error fetching slots", error);
                 } finally {
@@ -73,6 +74,7 @@ export default function BookingWizard({
     const slots = useMemo(() => {
         if (!selectedDate || !selectedStaff) return [];
 
+        // 1. Definir horario laboral base del día
         const dateObj = new Date(selectedDate + "T12:00:00");
         const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
         const workSchedule = schedules.find((s) => s.staff_id === selectedStaff?.id && s.day === dayName);
@@ -83,27 +85,30 @@ export default function BookingWizard({
         const currentTime = new Date(`${selectedDate}T${workSchedule.start_time}`);
         const endTime = new Date(`${selectedDate}T${workSchedule.end_time}`);
 
+        // 2. Generar slots cada 30 min
         while (currentTime < endTime) {
-            const timeString = currentTime.toLocaleTimeString('es-MX', {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            });
+            // Verificar colisión con rangos ocupados
+            const slotStartMs = currentTime.getTime();
 
-            const isTaken = takenTimes.some(isoTaken => {
-                const takenDate = toZonedTime(isoTaken, TIMEZONE);
-                const takenTimeString = format(takenDate, 'HH:mm', { timeZone: TIMEZONE });
-                return takenTimeString === timeString;
-            });
+            // Lógica de colisión: ¿Este momento cae dentro de algún rango ocupado?
+            // (start >= range.start && start < range.end)
+            const isTaken = takenRanges.some(range =>
+                slotStartMs >= range.start && slotStartMs < range.end
+            );
 
             if (!isTaken) {
+                const timeString = currentTime.toLocaleTimeString('es-MX', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
                 generatedSlots.push(timeString);
             }
 
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
         return generatedSlots;
-    }, [selectedDate, selectedStaff, schedules, takenTimes]);
+    }, [selectedDate, selectedStaff, schedules, takenRanges]);
 
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;

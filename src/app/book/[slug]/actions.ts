@@ -4,24 +4,47 @@ import { createClient } from '@/utils/supabase/server'
 import { sendBookingEmail } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
 
+// Configuración de Timezone
 const TIMEZONE = 'America/Mexico_City';
 
-export async function getTakenSlots(staffId: string, dateStr: string) {
+// --- OBTENER RANGOS OCUPADOS (Citas + Bloqueos) ---
+export async function getTakenRanges(staffId: string, dateStr: string) {
     const supabase = await createClient()
+
+    // Rango del día en UTC para la consulta
     const startOfDay = fromZonedTime(`${dateStr} 00:00:00`, TIMEZONE).toISOString()
     const endOfDay = fromZonedTime(`${dateStr} 23:59:59`, TIMEZONE).toISOString()
 
-    const { data } = await supabase
+    // 1. Obtener CITAS (Bookings)
+    const { data: bookings } = await supabase
         .from('bookings')
-        .select('start_time')
+        .select('start_time, end_time')
         .eq('staff_id', staffId)
         .neq('status', 'cancelled')
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
 
-    return data?.map(b => b.start_time) || []
+    // 2. Obtener BLOQUEOS (Time Blocks) - NUEVO
+    const { data: blocks } = await supabase
+        .from('time_blocks')
+        .select('start_time, end_time')
+        .eq('staff_id', staffId)
+        .gte('start_time', startOfDay)
+        .lte('start_time', endOfDay)
+
+    // 3. Fusionar y Normalizar
+    const busyRanges = [
+        ...(bookings || []),
+        ...(blocks || [])
+    ].map(item => ({
+        start: new Date(item.start_time).getTime(),
+        end: new Date(item.end_time).getTime()
+    }));
+
+    return busyRanges
 }
 
+// --- CREAR RESERVA ---
 export async function createBooking(data: {
     tenant_id: string;
     service_id: string;
@@ -45,7 +68,11 @@ export async function createBooking(data: {
     const startDate = new Date(data.start_time);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
-    const { count } = await supabase
+    // Validación Doble Check (Race Condition)
+    // Verificamos si choca con Citas O Bloqueos
+
+    // A. Choque con Citas
+    const { count: bookingConflict } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .eq('staff_id', data.staff_id)
@@ -53,8 +80,16 @@ export async function createBooking(data: {
         .lt('start_time', endDate.toISOString())
         .gt('end_time', startDate.toISOString())
 
-    if (count && count > 0) {
-        return { success: false, error: 'Lo sentimos, este horario acaba de ser ocupado.' }
+    // B. Choque con Bloqueos
+    const { count: blockConflict } = await supabase
+        .from('time_blocks')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', data.staff_id)
+        .lt('start_time', endDate.toISOString())
+        .gt('end_time', startDate.toISOString())
+
+    if ((bookingConflict && bookingConflict > 0) || (blockConflict && blockConflict > 0)) {
+        return { success: false, error: 'Lo sentimos, este horario ya no está disponible.' }
     }
 
     const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
@@ -75,6 +110,7 @@ export async function createBooking(data: {
         return { error: 'No se pudo agendar la cita.' }
     }
 
+    // Email
     const dateStr = startDate.toLocaleDateString('es-MX', {
         timeZone: TIMEZONE,
         weekday: 'long',
