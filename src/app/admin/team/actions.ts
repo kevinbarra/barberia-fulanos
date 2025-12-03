@@ -4,12 +4,15 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { sendStaffInvitation } from '@/lib/email'
 
+// --- INVITAR STAFF ---
 export async function inviteStaff(formData: FormData) {
     const supabase = await createClient()
 
+    // 1. Verificar Autenticación
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
+    // 2. Verificar Permisos (Solo Owner invita)
     const { data: requester } = await supabase
         .from('profiles')
         .select('role, tenant_id, tenants(name)')
@@ -22,6 +25,21 @@ export async function inviteStaff(formData: FormData) {
     if (!emailRaw) return { error: 'Email requerido' }
     const email = emailRaw.toLowerCase().trim()
 
+    // --- 1.5 VALIDACIÓN DE NEGOCIO (NUEVO) ---
+    // Verificamos si este email YA es parte del equipo activo.
+    const { data: existingMember } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .eq('tenant_id', requester.tenant_id) // Solo buscamos en TU negocio
+        .single()
+
+    if (existingMember) {
+        return { error: 'Este usuario ya es parte activa de tu equipo.' }
+    }
+    // -----------------------------------------
+
+    // 3. Registrar Invitación en Base de Datos (Upsert permite re-enviar si está pendiente)
     const { error: inviteError } = await supabase
         .from('staff_invitations')
         .upsert({
@@ -36,12 +54,14 @@ export async function inviteStaff(formData: FormData) {
         return { error: 'Error al registrar la invitación en el sistema.' }
     }
 
+    // 4. Preparar Datos del Correo
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const businessName = (requester.tenants as any)?.name || "La Barbería";
 
+    // 5. Enviar el Correo Real
     const emailResult = await sendStaffInvitation({
         email,
         businessName,
@@ -50,6 +70,7 @@ export async function inviteStaff(formData: FormData) {
 
     revalidatePath('/admin/team')
 
+    // 6. Retornar Resultado
     if (emailResult.success) {
         return { success: true, message: `Invitación enviada a ${email}` }
     } else {
@@ -57,6 +78,7 @@ export async function inviteStaff(formData: FormData) {
     }
 }
 
+// --- ELIMINAR STAFF ---
 export async function removeStaff(targetId: string) {
     const supabase = await createClient()
 
