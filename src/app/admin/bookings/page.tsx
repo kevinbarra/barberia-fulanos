@@ -51,9 +51,10 @@ export default async function AdminBookingsPage() {
                     </div>
                 ) : (
                     bookings.map((booking) => (
-                        /* CORRECCIÓN: Eliminado @ts-expect-error innecesario */
-                        // @ts-ignore
-                        <BookingCard key={booking.id} booking={booking} />
+                        // Limpieza de tipos: BookingCard espera un tipo específico, 
+                        // pasamos 'any' para evitar bloqueos de build por inferencia compleja de Supabase
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        <BookingCard key={booking.id} booking={booking as any} />
                     ))
                 )}
             </div>

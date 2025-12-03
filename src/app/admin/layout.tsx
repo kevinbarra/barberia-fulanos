@@ -11,7 +11,6 @@ export default async function AdminLayout({
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // CORRECCIÓN: Eliminada la variable 'role' sin uso.
     let userRole = 'staff';
 
     if (user) {
