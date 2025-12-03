@@ -2,18 +2,24 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { fromZonedTime } from 'date-fns-tz'
 
-// --- 1. HORARIO SEMANAL (RECURRENTE) ---
+const TIMEZONE = 'America/Mexico_City';
+
+// --- 1. HORARIO SEMANAL ---
 export async function saveSchedule(formData: FormData) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) return { error: 'No autorizado' }
 
+    // Helper interno para obtener tenant
+    const { data: profile } = await supabase.from('profiles').select('tenant_id').eq('id', user.id).single()
+    const tenantId = profile?.tenant_id
+
     const updates = []
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
-    // Procesamos cada día del formulario
     for (const day of days) {
         const isActive = formData.get(`${day}_active`) === 'on'
         const startTime = formData.get(`${day}_start`) as string
@@ -25,11 +31,10 @@ export async function saveSchedule(formData: FormData) {
             is_active: isActive,
             start_time: startTime || '09:00',
             end_time: endTime || '18:00',
-            tenant_id: (await getTenantId(supabase, user.id))
+            tenant_id: tenantId
         })
     }
 
-    // Upsert masivo (Insertar o Actualizar)
     const { error } = await supabase
         .from('staff_schedules')
         .upsert(updates, { onConflict: 'staff_id, day' })
@@ -43,40 +48,55 @@ export async function saveSchedule(formData: FormData) {
     return { success: true, message: 'Horario semanal guardado.' }
 }
 
-// --- 2. BLOQUEOS DE TIEMPO (EXCEPCIONES) ---
+// --- 2. BLOQUEOS DE TIEMPO (CORREGIDO) ---
 export async function addTimeBlock(formData: FormData) {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
 
+    // 1. Auth & Permisos
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester) return { error: 'Perfil no encontrado' }
+
+    // 2. Datos del Formulario
     const date = formData.get('date') as string
     const startTime = formData.get('start_time') as string
     const endTime = formData.get('end_time') as string
     const reason = formData.get('reason') as string
+    let targetStaffId = formData.get('staff_id') as string // El ID del barbero a bloquear
 
-    if (!date || !startTime || !endTime) {
-        return { error: 'Faltan datos.' }
+    if (!date || !startTime || !endTime) return { error: 'Faltan datos.' }
+
+    // 3. Lógica de Seguridad (Owner vs Staff)
+    if (requester.role === 'owner') {
+        // Si es dueño, puede bloquear a quien sea (si no manda ID, se asume a sí mismo)
+        targetStaffId = targetStaffId || user.id
+    } else {
+        // Si es staff, FORZAMOS su propio ID. No puede bloquear a otros.
+        targetStaffId = user.id
     }
 
-    // Convertir a ISO timestamps con zona horaria correcta es complejo en servidor puro.
-    // Para simplificar MVP, guardaremos asumiendo la fecha local del input.
-    // "2024-05-20" + "T" + "10:00" + ":00"
-    const startISO = `${date}T${startTime}:00`
-    const endISO = `${date}T${endTime}:00`
+    // 4. Corrección de Timezone (La magia para que 2pm sea 2pm)
+    // Interpretamos "2025-12-04 14:00" como hora CDMX, y obtenemos el UTC real.
+    const startISO = fromZonedTime(`${date} ${startTime}:00`, TIMEZONE).toISOString()
+    const endISO = fromZonedTime(`${date} ${endTime}:00`, TIMEZONE).toISOString()
 
-    // Validación básica
     if (endISO <= startISO) return { error: 'La hora fin debe ser mayor al inicio.' }
 
-    const tenantId = await getTenantId(supabase, user.id)
-
+    // 5. Insertar
     const { error } = await supabase
         .from('time_blocks')
         .insert({
-            tenant_id: tenantId,
-            staff_id: user.id, // El bloqueo es personal
-            start_time: new Date(startISO).toISOString(), // Guardamos en UTC estándar
-            end_time: new Date(endISO).toISOString(),
+            tenant_id: requester.tenant_id,
+            staff_id: targetStaffId,
+            start_time: startISO,
+            end_time: endISO,
             reason: reason || 'No disponible'
         })
 
@@ -86,12 +106,13 @@ export async function addTimeBlock(formData: FormData) {
     }
 
     revalidatePath('/admin/schedule')
-    return { success: true, message: 'Bloqueo agregado.' }
+    return { success: true, message: 'Horario bloqueado correctamente.' }
 }
 
 export async function deleteTimeBlock(blockId: string) {
     const supabase = await createClient()
 
+    // RLS se encarga de verificar que sea su bloque o que sea Owner
     const { error } = await supabase
         .from('time_blocks')
         .delete()
@@ -101,10 +122,4 @@ export async function deleteTimeBlock(blockId: string) {
 
     revalidatePath('/admin/schedule')
     return { success: true, message: 'Bloqueo eliminado.' }
-}
-
-// Helper interno para obtener tenant
-async function getTenantId(supabase: any, userId: string) {
-    const { data } = await supabase.from('profiles').select('tenant_id').eq('id', userId).single()
-    return data?.tenant_id
 }
