@@ -23,13 +23,13 @@ export default async function AdminBookingsPage() {
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
 
-    // 3. Traer Barberos (FIX: Solo los que cortan pelo)
+    // 3. Traer Barberos (Solo los que cortan pelo)
     const { data: staff } = await supabase
         .from("profiles")
         .select("id, full_name")
         .eq("tenant_id", tenantId)
         .in("role", ["owner", "staff"])
-        .eq("is_active_barber", true); // <--- FILTRO AGREGADO
+        .eq("is_active_barber", true);
 
     return (
         <div className="max-w-5xl mx-auto p-8 pb-24">
@@ -51,6 +51,7 @@ export default async function AdminBookingsPage() {
                     </div>
                 ) : (
                     bookings.map((booking) => (
+                        /* CORRECCIÓN: Eliminado @ts-expect-error innecesario */
                         // @ts-ignore
                         <BookingCard key={booking.id} booking={booking} />
                     ))

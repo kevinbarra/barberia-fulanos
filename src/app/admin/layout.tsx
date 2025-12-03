@@ -11,7 +11,7 @@ export default async function AdminLayout({
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    let role: 'admin' | 'client' = 'admin'; // Default seguro
+    // CORRECCIÓN: Eliminada la variable 'role' sin uso.
     let userRole = 'staff';
 
     if (user) {
@@ -27,8 +27,6 @@ export default async function AdminLayout({
         <div className="min-h-screen bg-gray-50 flex flex-row">
 
             {/* A. SIDEBAR (Solo visible en Desktop 'md:flex') */}
-            {/* Pasamos el rol específico para filtrar items internamente si es necesario */}
-            {/* @ts-ignore - Simplificación de tipos para el MVP */}
             <Sidebar role={userRole} />
 
             {/* B. CONTENIDO PRINCIPAL */}
@@ -40,8 +38,6 @@ export default async function AdminLayout({
                 </main>
 
                 {/* C. BOTTOM NAV (Solo visible en Móvil) */}
-                {/* El componente ya tiene lógica para ocultarse en desktop, 
-                    pero lo renderizamos aquí para móviles */}
                 <BottomNav role="admin" />
             </div>
         </div>
