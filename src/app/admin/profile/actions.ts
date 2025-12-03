@@ -3,7 +3,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
-export async function updateClientProfile(formData: FormData) {
+// CORRECCIÓN: Renombrado de 'updateClientProfile' a 'updateProfile' para coincidir con el Admin
+export async function updateProfile(formData: FormData) {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
@@ -18,8 +19,14 @@ export async function updateClientProfile(formData: FormData) {
         if (file.size > 5 * 1024 * 1024) return { error: 'Imagen muy pesada (Max 5MB)' }
         const fileExt = file.name.split('.').pop()
         const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`
+
         const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true })
-        if (uploadError) { console.error(uploadError); return { error: 'Error al subir imagen' }; }
+
+        if (uploadError) {
+            console.error(uploadError);
+            return { error: 'Error al subir imagen' };
+        }
+
         const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
         avatarUrl = publicUrl
     }
@@ -29,10 +36,13 @@ export async function updateClientProfile(formData: FormData) {
 
     const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)
 
-    if (error) { console.error("Error DB:", error); return { error: 'Error al guardar.' }; }
+    if (error) {
+        console.error("Error DB:", error);
+        return { error: 'Error al guardar.' };
+    }
 
-    revalidatePath('/app', 'layout')
-    revalidatePath('/app/profile')
+    revalidatePath('/admin', 'layout') // Actualiza el layout global del admin (sidebar, avatar)
+    revalidatePath('/admin/profile')
 
-    return { success: true, message: 'Perfil actualizado' }
+    return { success: true, message: 'Perfil actualizado correctamente' }
 }
