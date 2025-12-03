@@ -6,10 +6,10 @@ import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, LogOut, Scissors, X } from 'lucide-react'
+import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X } from 'lucide-react'
 import QRScanner from '@/components/admin/QRScanner'
 
-// --- TIPOS COMPLETOS ---
+// --- TIPOS ---
 type Staff = {
     id: string;
     full_name: string;
@@ -33,7 +33,6 @@ type Ticket = {
     price: number | null
 }
 
-// Duraciones para bloqueo rápido de agenda
 const DURATIONS = [15, 30, 45, 60, 90]
 
 export default function PosInterface({
@@ -243,37 +242,27 @@ export default function PosInterface({
         )
     }
 
-    // --- VISTA PRINCIPAL ---
     return (
         <div className="flex flex-col md:flex-row w-full h-full bg-gray-100 relative">
-
-            {/* IZQUIERDA: LISTA */}
             <div className={`md:w-96 bg-white border-r border-gray-200 flex-col h-full ${mobileTab === 'list' ? 'flex w-full' : 'hidden md:flex'}`}>
-
                 <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center sticky top-0 z-10">
                     <div className="flex items-center gap-3">
                         <Link href="/admin" className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full flex items-center gap-1">
                             <ChevronLeft size={24} />
                             <span className="font-bold text-sm text-gray-900">Salir</span>
                         </Link>
-
                         <div className="hidden md:block">
                             <h2 className="font-bold text-lg text-gray-900">Tickets</h2>
                             <p className="text-xs text-gray-400">{tickets.length} en silla</p>
                         </div>
-
                         <div className="md:hidden">
                             <h2 className="font-bold text-lg text-gray-900">Tickets ({tickets.length})</h2>
                         </div>
                     </div>
-                    <button
-                        onClick={handleNewTicket}
-                        className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95"
-                    >
+                    <button onClick={handleNewTicket} className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95">
                         <Plus size={24} />
                     </button>
                 </div>
-
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     {tickets.length === 0 ? (
                         <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
@@ -281,27 +270,13 @@ export default function PosInterface({
                         </div>
                     ) : (
                         tickets.map(ticket => (
-                            <button
-                                key={ticket.id}
-                                onClick={() => handleSelectTicket(ticket)}
-                                className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === ticket.id
-                                    ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200'
-                                    : 'bg-white border-gray-100'
-                                    }`}
-                            >
+                            <button key={ticket.id} onClick={() => handleSelectTicket(ticket)} className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === ticket.id ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200' : 'bg-white border-gray-100'}`}>
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-gray-900 truncate text-base">
-                                        {ticket.clientName}
-                                    </span>
-                                    <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">
-                                        En curso
-                                    </span>
+                                    <span className="font-bold text-gray-900 truncate text-base">{ticket.clientName}</span>
+                                    <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">En curso</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-xs text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                        <Clock size={12} />
-                                        {new Date(ticket.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                                    <span className="flex items-center gap-1"><Clock size={12} /> {new Date(ticket.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     <span>•</span>
                                     <span>{ticket.staffName.split(' ')[0]}</span>
                                 </div>
@@ -310,209 +285,91 @@ export default function PosInterface({
                     )}
                 </div>
             </div>
-
-            {/* DERECHA: PANEL DE ACCIÓN */}
             <div className={`flex-1 flex-col bg-gray-50 h-full ${mobileTab === 'action' ? 'flex w-full absolute inset-0 z-20 md:static' : 'hidden md:flex'}`}>
-
                 <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3 sticky top-0 z-30">
-                    <button
-                        onClick={handleBackToList}
-                        className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full"
-                    >
+                    <button onClick={handleBackToList} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
                         <ChevronLeft size={24} />
                     </button>
-                    <span className="font-bold text-gray-900">
-                        {selectedTicket ? 'Cerrar Cuenta' : 'Nuevo Cliente'}
-                    </span>
+                    <span className="font-bold text-gray-900">{selectedTicket ? 'Cerrar Cuenta' : 'Nuevo Cliente'}</span>
                 </div>
-
                 {!selectedTicket && (
                     <div className="flex flex-col h-full animate-in fade-in duration-300">
                         <div className="hidden md:block p-6 border-b border-gray-200 bg-white">
                             <h1 className="text-2xl font-black text-gray-900">Check-in</h1>
                             <p className="text-gray-500 text-sm">Bloquea el horario para empezar.</p>
                         </div>
-
                         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
-
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">1. Barbero</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                                     {staff.map(member => {
                                         const isBusy = tickets.some(t => t.staffName.includes(member.full_name));
                                         return (
-                                            <button
-                                                key={member.id}
-                                                onClick={() => handleStaffSelect(member)}
-                                                className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all relative ${selStaff?.id === member.id
-                                                    ? 'border-black bg-black text-white shadow-lg'
-                                                    : 'border-transparent bg-white hover:bg-gray-200'
-                                                    } ${isBusy ? 'opacity-75' : ''}`}
-                                            >
+                                            <button key={member.id} onClick={() => handleStaffSelect(member)} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all relative ${selStaff?.id === member.id ? 'border-black bg-black text-white shadow-lg' : 'border-transparent bg-white hover:bg-gray-200'} ${isBusy ? 'opacity-75' : ''}`}>
                                                 {isBusy && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm" title="Ocupado"></span>}
-
                                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative border border-white/20">
-                                                    {member.avatar_url ? (
-                                                        <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">
-                                                            {member.full_name[0]}
-                                                        </div>
-                                                    )}
+                                                    {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">{member.full_name[0]}</div>}
                                                 </div>
-                                                <span className="text-xs font-bold truncate w-full text-center">
-                                                    {member.full_name.split(' ')[0]}
-                                                </span>
+                                                <span className="text-xs font-bold truncate w-full text-center">{member.full_name.split(' ')[0]}</span>
                                             </button>
                                         )
                                     })}
                                 </div>
                             </section>
-
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">2. Tiempo Estimado</h3>
                                 <div className="flex gap-3 overflow-x-auto pb-2">
                                     {DURATIONS.map(min => (
-                                        <button
-                                            key={min}
-                                            onClick={() => setDuration(min)}
-                                            className={`px-6 py-4 rounded-xl font-bold text-lg border-2 transition-all ${duration === min
-                                                ? 'border-black bg-black text-white shadow-lg'
-                                                : 'bg-white border-gray-200 text-gray-500'
-                                                }`}
-                                        >
-                                            {min}m
-                                        </button>
+                                        <button key={min} onClick={() => setDuration(min)} className={`px-6 py-4 rounded-xl font-bold text-lg border-2 transition-all ${duration === min ? 'border-black bg-black text-white shadow-lg' : 'bg-white border-gray-200 text-gray-500'}`}>{min}m</button>
                                     ))}
                                 </div>
                             </section>
-
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">3. Cliente</h3>
-                                <input
-                                    type="text"
-                                    placeholder="Nombre (Opcional)"
-                                    value={clientName}
-                                    onChange={(e) => setClientName(e.target.value)}
-                                    className="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-black outline-none bg-white font-medium"
-                                />
+                                <input type="text" placeholder="Nombre (Opcional)" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-black outline-none bg-white font-medium" />
                             </section>
                         </div>
-
                         <div className="p-6 bg-white border-t border-gray-200 pb-8 md:pb-6">
-                            <button
-                                onClick={handleCheckIn}
-                                disabled={!selStaff || isProcessing}
-                                className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-900 disabled:opacity-50 shadow-xl"
-                            >
-                                {isProcessing ? 'Bloqueando...' : 'Iniciar Servicio'}
-                            </button>
+                            <button onClick={handleCheckIn} disabled={!selStaff || isProcessing} className="w-full py-4 bg-black text-white rounded-xl font-bold text-lg hover:bg-gray-900 disabled:opacity-50 shadow-xl">{isProcessing ? 'Bloqueando...' : 'Iniciar Servicio'}</button>
                         </div>
                     </div>
                 )}
-
                 {selectedTicket && (
                     <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
                         <div className="hidden md:flex p-6 border-b border-gray-200 bg-white justify-between items-center">
-                            <div>
-                                <h1 className="text-2xl font-black text-gray-900">Caja</h1>
-                                <p className="text-gray-500 text-sm">Finalizando servicio.</p>
-                            </div>
-                            <button
-                                onClick={handleVoid}
-                                className="text-red-500 hover:bg-red-50 p-2 px-3 rounded-lg text-xs font-bold flex items-center gap-2 border border-red-100"
-                            >
-                                <Trash2 size={16} /> Anular Ticket
-                            </button>
+                            <div><h1 className="text-2xl font-black text-gray-900">Caja</h1><p className="text-gray-500 text-sm">Finalizando servicio.</p></div>
+                            <button onClick={handleVoid} className="text-red-500 hover:bg-red-50 p-2 px-3 rounded-lg text-xs font-bold flex items-center gap-2 border border-red-100"><Trash2 size={16} /> Anular Ticket</button>
                         </div>
-
                         <div className="flex-1 p-4 md:p-8 flex flex-col overflow-y-auto">
-
                             <div className="mb-6 bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center">
-                                <div>
-                                    <span className="text-xs text-gray-400 uppercase font-bold">Cliente</span>
-                                    <p className="font-bold text-lg">{selectedTicket.clientName}</p>
-                                </div>
-                                <div className="text-right">
-                                    <span className="text-xs text-gray-400 uppercase font-bold">Atendió</span>
-                                    <p className="font-bold">{selectedTicket.staffName.split(' ')[0]}</p>
-                                </div>
+                                <div><span className="text-xs text-gray-400 uppercase font-bold">Cliente</span><p className="font-bold text-lg">{selectedTicket.clientName}</p></div>
+                                <div className="text-right"><span className="text-xs text-gray-400 uppercase font-bold">Atendió</span><p className="font-bold">{selectedTicket.staffName.split(' ')[0]}</p></div>
                             </div>
-
                             <section className="mb-8 flex-1">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Scissors size={14} /> ¿Qué se realizó?
-                                </h3>
-
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2"><Scissors size={14} /> ¿Qué se realizó?</h3>
                                 <div className="flex gap-2 overflow-x-auto pb-2 mb-3 hide-scrollbar">
                                     {categories.map(cat => (
-                                        <button
-                                            key={cat}
-                                            onClick={() => setActiveCategory(cat)}
-                                            className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === cat
-                                                ? 'bg-black text-white'
-                                                : 'bg-white border border-gray-200 text-gray-500'
-                                                }`}
-                                        >
-                                            {cat}
-                                        </button>
+                                        <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${activeCategory === cat ? 'bg-black text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>{cat}</button>
                                     ))}
                                 </div>
                                 <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                                     {groupedServices[activeCategory]?.map(service => (
-                                        <button
-                                            key={service.id}
-                                            onClick={() => setSelFinalService(service)}
-                                            className={`p-3 rounded-xl border-2 text-left transition-all ${selFinalService?.id === service.id
-                                                ? 'border-green-500 bg-green-50 ring-1 ring-green-500 shadow-md'
-                                                : 'border-gray-200 bg-white hover:border-gray-400'
-                                                }`}
-                                        >
+                                        <button key={service.id} onClick={() => setSelFinalService(service)} className={`p-3 rounded-xl border-2 text-left transition-all ${selFinalService?.id === service.id ? 'border-green-500 bg-green-50 ring-1 ring-green-500 shadow-md' : 'border-gray-200 bg-white hover:border-gray-400'}`}>
                                             <div className="font-bold text-sm text-gray-900">{service.name}</div>
                                             <div className="text-xs text-gray-500 mt-1 font-bold">${service.price}</div>
                                         </button>
                                     ))}
                                 </div>
                             </section>
-
                             <div className="border-t border-gray-200 pt-6">
-                                <div className="flex justify-between items-center mb-6">
-                                    <span className="text-gray-500 font-medium">Total a Pagar</span>
-                                    <span className="text-4xl font-black text-gray-900">
-                                        ${selFinalService?.price || 0}
-                                    </span>
-                                </div>
-
+                                <div className="flex justify-between items-center mb-6"><span className="text-gray-500 font-medium">Total a Pagar</span><span className="text-4xl font-black text-gray-900">${selFinalService?.price || 0}</span></div>
                                 <div className="grid grid-cols-3 gap-3 mb-6">
                                     {[{ id: 'cash', label: 'Efectivo', icon: Banknote }, { id: 'card', label: 'Tarjeta', icon: CreditCard }, { id: 'transfer', label: 'Transf.', icon: ArrowRightLeft }].map(m => (
-                                        <button
-                                            key={m.id}
-                                            onClick={() => setPaymentMethod(m.id)}
-                                            className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${paymentMethod === m.id
-                                                ? 'border-black bg-black text-white'
-                                                : 'border-gray-200 bg-white text-gray-400'
-                                                }`}
-                                        >
-                                            <m.icon size={20} className="mb-1" />
-                                            <span className="text-[10px] font-bold">{m.label}</span>
-                                        </button>
+                                        <button key={m.id} onClick={() => setPaymentMethod(m.id)} className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${paymentMethod === m.id ? 'border-black bg-black text-white' : 'border-gray-200 bg-white text-gray-400'}`}><m.icon size={20} className="mb-1" /><span className="text-[10px] font-bold">{m.label}</span></button>
                                     ))}
                                 </div>
-
-                                <button
-                                    onClick={handleCheckout}
-                                    disabled={!selFinalService || isProcessing}
-                                    className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-green-700 disabled:opacity-50 transition-all"
-                                >
-                                    {isProcessing ? 'Procesando...' : 'Cobrar Final'}
-                                </button>
-
-                                <button
-                                    onClick={handleVoid}
-                                    className="md:hidden mt-4 w-full py-3 text-red-500 font-bold text-sm"
-                                >
-                                    Eliminar Ticket
-                                </button>
+                                <button onClick={handleCheckout} disabled={!selFinalService || isProcessing} className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-xl shadow-lg hover:bg-green-700 disabled:opacity-50 transition-all">{isProcessing ? 'Procesando...' : 'Cobrar Final'}</button>
+                                <button onClick={handleVoid} className="md:hidden mt-4 w-full py-3 text-red-500 font-bold text-sm">Eliminar Ticket</button>
                             </div>
                         </div>
                     </div>

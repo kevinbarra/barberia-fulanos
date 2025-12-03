@@ -4,6 +4,15 @@ import TeamList from "@/components/admin/team/TeamList";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
+type StaffMember = {
+    id: string;
+    full_name: string;
+    email: string;
+    avatar_url: string | null;
+    role: string;
+    status: 'active' | 'pending';
+}
+
 export default async function TeamPage() {
     const supabase = await createClient();
     const tenantId = await getTenantId();
@@ -12,7 +21,6 @@ export default async function TeamPage() {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Obtener perfil del usuario actual
     const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -21,15 +29,12 @@ export default async function TeamPage() {
 
     const currentUserRole = profile?.role || 'staff';
 
-    // 2. Obtener Staff ACTIVO
     const { data: activeStaff } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url, role')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
 
-    // 3. Obtener Invitaciones (CORREGIDO CON TIPADO)
-    // Definimos la estructura exacta para evitar el error "implicitly has any type"
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];
 
     if (currentUserRole === 'owner') {
@@ -44,23 +49,21 @@ export default async function TeamPage() {
         }
     }
 
-    // 4. Unificar listas
-    const staffList = [
-        ...(activeStaff || []).map(s => ({ ...s, status: 'active' })),
+    const staffList: StaffMember[] = [
+        ...(activeStaff || []).map(s => ({ ...s, status: 'active' as const })),
         ...(pendingInvites || []).map(inv => ({
             id: inv.id,
             full_name: 'Invitado',
             email: inv.email,
             avatar_url: null,
             role: 'staff',
-            status: 'pending'
+            status: 'pending' as const
         }))
-    ] as any[];
+    ];
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">
             <div className="max-w-2xl mx-auto">
-
                 <div className="flex items-center gap-4 mb-8">
                     <Link href="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                         <ChevronLeft size={24} className="text-gray-600" />
@@ -72,9 +75,7 @@ export default async function TeamPage() {
                         </p>
                     </div>
                 </div>
-
                 <TeamList staff={staffList} currentUserRole={currentUserRole} />
-
             </div>
         </div>
     )

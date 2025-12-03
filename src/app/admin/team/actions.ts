@@ -4,15 +4,12 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { sendStaffInvitation } from '@/lib/email'
 
-// --- INVITAR STAFF ---
 export async function inviteStaff(formData: FormData) {
     const supabase = await createClient()
 
-    // 1. Verificar Autenticación
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    // 2. Verificar Permisos (Solo Owner invita)
     const { data: requester } = await supabase
         .from('profiles')
         .select('role, tenant_id, tenants(name)')
@@ -25,7 +22,6 @@ export async function inviteStaff(formData: FormData) {
     if (!emailRaw) return { error: 'Email requerido' }
     const email = emailRaw.toLowerCase().trim()
 
-    // 3. Registrar Invitación en Base de Datos
     const { error: inviteError } = await supabase
         .from('staff_invitations')
         .upsert({
@@ -40,14 +36,12 @@ export async function inviteStaff(formData: FormData) {
         return { error: 'Error al registrar la invitación en el sistema.' }
     }
 
-    // 4. Preparar Datos del Correo
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
 
-    // @ts-ignore - Supabase types a veces infieren mal los joins
-    const businessName = requester.tenants?.name || "La Barbería";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const businessName = (requester.tenants as any)?.name || "La Barbería";
 
-    // 5. Enviar el Correo Real
     const emailResult = await sendStaffInvitation({
         email,
         businessName,
@@ -56,7 +50,6 @@ export async function inviteStaff(formData: FormData) {
 
     revalidatePath('/admin/team')
 
-    // 6. Retornar Resultado
     if (emailResult.success) {
         return { success: true, message: `Invitación enviada a ${email}` }
     } else {
@@ -64,7 +57,6 @@ export async function inviteStaff(formData: FormData) {
     }
 }
 
-// --- ELIMINAR STAFF ---
 export async function removeStaff(targetId: string) {
     const supabase = await createClient()
 
@@ -77,7 +69,6 @@ export async function removeStaff(targetId: string) {
 
     if (requester?.role !== 'owner') return { error: 'No autorizado' }
 
-    // Eliminar invitación o degradar usuario
     const { error: invError } = await supabase.from('staff_invitations').delete().eq('id', targetId)
     const { error: profError } = await supabase.from('profiles').update({ role: 'customer', tenant_id: null }).eq('id', targetId)
 

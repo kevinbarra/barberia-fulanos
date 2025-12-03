@@ -23,7 +23,6 @@ export default async function AdminDashboard() {
 
     const { startISO, endISO } = getTodayRange();
 
-    // KPI Financiero
     let totalIncome = 0;
     if (userRole === 'owner') {
         const { data: allTransactions } = await supabase
@@ -36,7 +35,6 @@ export default async function AdminDashboard() {
         totalIncome = allTransactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
     }
 
-    // KPI Citas
     const { count: bookingsCount } = await supabase
         .from("bookings")
         .select("*", { count: 'exact', head: true })
@@ -44,7 +42,6 @@ export default async function AdminDashboard() {
         .gte("start_time", startISO)
         .lte("start_time", endISO);
 
-    // Transacciones
     const { data: transactionsData, error } = await supabase
         .from("transactions")
         .select(`
@@ -64,8 +61,8 @@ export default async function AdminDashboard() {
         created_at: t.created_at,
         client_id: t.client_id,
         points_earned: t.points_earned,
-        // @ts-ignore
-        service_name: t.services?.name || 'Venta Rápida'
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        service_name: (t.services as any)?.name || 'Venta Rápida'
     })) || [];
 
     const formatMoney = (amount: number) =>
@@ -73,7 +70,6 @@ export default async function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">
-
             <div className="mb-8 mt-2 flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Hola, {userName}</h1>
@@ -83,7 +79,6 @@ export default async function AdminDashboard() {
                 </div>
             </div>
 
-            {/* KPIS */}
             <div className="grid grid-cols-2 gap-4 mb-8">
                 {userRole === 'owner' ? (
                     <div className="bg-black text-white p-5 rounded-2xl shadow-xl flex flex-col justify-between h-36 relative overflow-hidden">
@@ -125,7 +120,6 @@ export default async function AdminDashboard() {
                 </div>
             </div>
 
-            {/* ACTIVIDAD */}
             <div className="mb-8">
                 <h3 className="text-gray-900 font-bold text-lg mb-3">
                     {userRole === 'owner' ? 'Actividad Global del Día' : 'Mis Cobros Recientes'}
@@ -133,7 +127,6 @@ export default async function AdminDashboard() {
                 <TransactionList transactions={formattedTransactions} />
             </div>
 
-            {/* MENÚ */}
             <h3 className="text-gray-900 font-bold text-lg mb-4">Accesos Rápidos</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <Link href="/admin/bookings" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-black transition-all active:scale-[0.98]">

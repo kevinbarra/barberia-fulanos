@@ -8,41 +8,33 @@ import Image from "next/image";
 export default async function ClientAppPage() {
     const supabase = await createClient();
 
-    // 1. Auth Check
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return redirect("/login");
 
-    // 2. Datos del Perfil
     const { data: profile } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-    // 3. Historial (Optimizado con nombres reales)
     const { data: history } = await supabase
-        .from("transactions") // Buscamos en transactions que es la fuente de la verdad
+        .from("transactions")
         .select("amount, created_at, points_earned, services(name)")
         .eq("client_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
 
-    // LÓGICA DE GAMIFICACIÓN
     const points = profile?.loyalty_points || 0;
-    const GOAL = 100; // Meta para premio (configurable)
+    const GOAL = 100;
     const progress = Math.min((points / GOAL) * 100, 100);
-    const nextReward = GOAL - (points % GOAL); // Puntos faltantes para el siguiente ciclo
+    const nextReward = GOAL - (points % GOAL);
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 relative overflow-hidden selection:bg-blue-500/30">
-
-            {/* Luces de Fondo Ambientales */}
             <div className="absolute top-[-10%] left-[-20%] w-[300px] h-[300px] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-20%] w-[250px] h-[250px] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
             <div className="relative z-10 max-w-sm mx-auto flex flex-col min-h-[90vh]">
-
-                {/* HEADER: Perfil */}
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h1 className="text-xl font-bold">Hola, {profile?.full_name?.split(" ")[0]}</h1>
@@ -68,14 +60,9 @@ export default async function ClientAppPage() {
                     </Link>
                 </div>
 
-                {/* TARJETA WALLET (Core Experience) */}
                 <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 p-1 rounded-[32px] shadow-2xl mb-8 border border-zinc-700/50">
                     <div className="bg-zinc-900 rounded-[28px] p-6 relative overflow-hidden">
-
-                        {/* Brillo decorativo */}
                         <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
-
-                        {/* QR CODE */}
                         <div className="flex flex-col items-center justify-center py-4">
                             <div className="bg-white p-3 rounded-2xl shadow-inner">
                                 <QRCode
@@ -87,8 +74,6 @@ export default async function ClientAppPage() {
                             </div>
                             <p className="text-[10px] text-zinc-500 mt-4 uppercase tracking-widest font-bold">Tu ID de Miembro</p>
                         </div>
-
-                        {/* BARRA DE PROGRESO */}
                         <div className="mt-6">
                             <div className="flex justify-between text-xs mb-2 font-medium">
                                 <span className="text-zinc-300">Nivel Actual</span>
@@ -107,7 +92,6 @@ export default async function ClientAppPage() {
                     </div>
                 </div>
 
-                {/* HISTORIAL COMPACTO */}
                 <div className="flex-1">
                     <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4">Actividad Reciente</h3>
                     <div className="space-y-3">
@@ -123,8 +107,8 @@ export default async function ClientAppPage() {
                                             <span className="text-lg">✂️</span>
                                         </div>
                                         <div>
-                                            {/* @ts-ignore */}
-                                            <p className="font-bold text-sm text-zinc-200">{tx.services?.name || 'Servicio'}</p>
+                                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                            <p className="font-bold text-sm text-zinc-200">{(tx.services as any)?.name || 'Servicio'}</p>
                                             <p className="text-xs text-zinc-500">
                                                 {new Date(tx.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                                             </p>
@@ -139,7 +123,6 @@ export default async function ClientAppPage() {
                         )}
                     </div>
                 </div>
-
             </div>
         </div>
     );

@@ -9,21 +9,18 @@ export default async function AdminBookingsPage() {
 
     if (!tenantId) return redirect('/login');
 
-    // 1. Traer Citas
     const { data: bookings } = await supabase
         .from("bookings")
         .select(`*, services ( name, price, duration_min )`)
         .eq("tenant_id", tenantId)
         .order("start_time", { ascending: true });
 
-    // 2. Traer Datos para el formulario de Walk-in
     const { data: services } = await supabase
         .from("services")
         .select("id, name, duration_min")
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
 
-    // 3. Traer Barberos (Solo los que cortan pelo)
     const { data: staff } = await supabase
         .from("profiles")
         .select("id, full_name")
@@ -33,7 +30,6 @@ export default async function AdminBookingsPage() {
 
     return (
         <div className="max-w-5xl mx-auto p-8 pb-24">
-
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold">Agenda de Citas</h1>
@@ -51,9 +47,8 @@ export default async function AdminBookingsPage() {
                     </div>
                 ) : (
                     bookings.map((booking) => (
-                        // CORRECCIÓN: Eliminada directiva @ts-expect-error innecesaria
-                        // @ts-ignore
-                        <BookingCard key={booking.id} booking={booking} />
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        <BookingCard key={booking.id} booking={booking as any} />
                     ))
                 )}
             </div>
