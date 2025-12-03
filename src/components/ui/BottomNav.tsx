@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Scissors, User, Wallet, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, User, Wallet, ShieldCheck } from 'lucide-react'
 
 export default function BottomNav({
     role,
@@ -13,15 +13,13 @@ export default function BottomNav({
 }) {
     const pathname = usePathname()
 
-    // 🚨 Si estamos en modo caja (POS), ocultamos la navegación para más espacio
     if (pathname.startsWith('/admin/pos')) return null;
 
-    // MENÚ ADMIN CORREGIDO (Sprint 0)
     const adminMenu = [
         { name: 'Inicio', href: '/admin', icon: LayoutDashboard },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
-        { name: 'POS', href: '/admin/pos', icon: Wallet }, // <--- NUEVO
-        { name: 'Equipo', href: '/admin/team', icon: ShieldCheck }, // <--- NUEVO
+        { name: 'POS', href: '/admin/pos', icon: Wallet },
+        { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
         { name: 'Perfil', href: '/admin/profile', icon: User },
     ]
 

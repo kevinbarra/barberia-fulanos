@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react"; // <--- IMPORTAR USEMEMO
+import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenSlots } from "@/app/book/[slug]/actions";
 import { format, toZonedTime } from 'date-fns-tz';
 import { Loader2 } from "lucide-react";
+import Image from 'next/image';
 
-// TIPOS
 type Service = {
     id: string;
     name: string;
@@ -33,21 +33,15 @@ export default function BookingWizard({
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [success, setSuccess] = useState(false);
 
-    // Estados de la selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
     const [selectedDate, setSelectedDate] = useState("");
     const [selectedTime, setSelectedTime] = useState("");
-
-    // Anti-Overbooking
     const [takenTimes, setTakenTimes] = useState<string[]>([]);
-
     const [clientData, setClientData] = useState({ name: "", phone: "", email: "" });
 
-    // --- EFFECT: Cargar ocupación ---
     useEffect(() => {
-        let isMounted = true; // Evitar actualizaciones si se desmonta
-
+        let isMounted = true;
         async function fetchSlots() {
             if (selectedDate && selectedStaff) {
                 setIsLoadingSlots(true);
@@ -62,11 +56,9 @@ export default function BookingWizard({
             }
         }
         fetchSlots();
-
-        return () => { isMounted = false; }; // Cleanup
+        return () => { isMounted = false; };
     }, [selectedDate, selectedStaff]);
 
-    // --- AGRUPACIÓN (MEMOIZED) ---
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
             const cat = service.category || 'General';
@@ -78,8 +70,6 @@ export default function BookingWizard({
 
     const categoryOrder = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras', 'General'];
 
-    // --- LÓGICA DE HORARIOS (OPTIMIZADA 0.1%) ---
-    // Usamos useMemo para que este cálculo pesado solo ocurra cuando es necesario
     const slots = useMemo(() => {
         if (!selectedDate || !selectedStaff) return [];
 
@@ -90,7 +80,7 @@ export default function BookingWizard({
         if (!workSchedule) return [];
 
         const generatedSlots = [];
-        let currentTime = new Date(`${selectedDate}T${workSchedule.start_time}`);
+        const currentTime = new Date(`${selectedDate}T${workSchedule.start_time}`);
         const endTime = new Date(`${selectedDate}T${workSchedule.end_time}`);
 
         while (currentTime < endTime) {
@@ -100,7 +90,6 @@ export default function BookingWizard({
                 hour12: false
             });
 
-            // Comparación eficiente
             const isTaken = takenTimes.some(isoTaken => {
                 const takenDate = toZonedTime(isoTaken, TIMEZONE);
                 const takenTimeString = format(takenDate, 'HH:mm', { timeZone: TIMEZONE });
@@ -114,15 +103,12 @@ export default function BookingWizard({
             currentTime.setMinutes(currentTime.getMinutes() + 30);
         }
         return generatedSlots;
-    }, [selectedDate, selectedStaff, schedules, takenTimes]); // Solo recalcula si esto cambia
+    }, [selectedDate, selectedStaff, schedules, takenTimes]);
 
-    // --- GUARDAR CITA ---
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
         setIsSubmitting(true);
-
         const dateTime = `${selectedDate}T${selectedTime}:00`;
-
         const result = await createBooking({
             tenant_id: selectedService.tenant_id,
             service_id: selectedService.id,
@@ -133,19 +119,15 @@ export default function BookingWizard({
             client_phone: clientData.phone,
             client_email: clientData.email,
         });
-
         setIsSubmitting(false);
         if (result.success) setSuccess(true);
         else alert(result.error || "Error al reservar");
     };
 
-    // --- VISTAS ---
     if (success) {
         return (
             <div className="text-center py-10 animate-in zoom-in duration-500">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <span className="text-4xl">🎉</span>
-                </div>
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"><span className="text-4xl">🎉</span></div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Cita Confirmada!</h2>
                 <p className="text-gray-600 mb-6">Te esperamos el {selectedDate} a las {selectedTime}</p>
                 <button onClick={() => window.location.reload()} className="text-black underline">Volver al inicio</button>
@@ -167,10 +149,7 @@ export default function BookingWizard({
                                 <div className="space-y-3">
                                     {items.map((service) => (
                                         <button key={service.id} onClick={() => { setSelectedService(service); setStep(2); }} className="w-full bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-center hover:border-black hover:ring-1 hover:ring-black transition-all group text-left">
-                                            <div>
-                                                <span className="font-semibold text-gray-900 block group-hover:text-black">{service.name}</span>
-                                                <span className="text-sm text-gray-500">{service.duration_min} min</span>
-                                            </div>
+                                            <div><span className="font-semibold text-gray-900 block group-hover:text-black">{service.name}</span><span className="text-sm text-gray-500">{service.duration_min} min</span></div>
                                             <div className="font-bold text-gray-900">${service.price}</div>
                                         </button>
                                     ))}
@@ -183,9 +162,6 @@ export default function BookingWizard({
         );
     }
 
-    // (El resto de los pasos 2, 3, 4 permanecen idénticos en lógica visual, 
-    // pero asegúrate de copiar todo el archivo si prefieres consistencia total)
-    // ... PASO 2, 3, 4 IGUALES QUE ANTES ...
     if (step === 2) {
         return (
             <section className="animate-in fade-in slide-in-from-right-8 duration-300">
@@ -195,7 +171,7 @@ export default function BookingWizard({
                     {staff.map((member) => (
                         <button key={member.id} onClick={() => { setSelectedStaff(member); setStep(3); }} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:border-black hover:ring-1 hover:ring-black transition-all text-left group flex flex-col items-center justify-center text-center">
                             <div className="w-16 h-16 mb-3 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-100 group-hover:border-black transition-colors relative">
-                                {member.avatar_url ? <img src={member.avatar_url} alt={member.full_name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl bg-gray-200">{member.full_name.charAt(0)}</div>}
+                                {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} width={64} height={64} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-xl bg-gray-200">{member.full_name.charAt(0)}</div>}
                             </div>
                             <span className="font-semibold text-gray-900 block truncate w-full text-sm">{member.full_name}</span>
                             <span className="text-xs text-gray-500 capitalize block">{member.role === 'owner' ? 'Barbero Senior' : 'Staff'}</span>
@@ -212,30 +188,16 @@ export default function BookingWizard({
                 <button onClick={() => setStep(2)} className="text-sm text-gray-500 mb-4 hover:underline">← Volver</button>
                 <h2 className="text-lg font-semibold mb-2 text-gray-800">3. Fecha y Hora</h2>
                 <input type="date" className="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:ring-black focus:border-black" min={new Date().toISOString().split('T')[0]} onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(""); }} />
-
                 {selectedDate ? (
-                    isLoadingSlots ? (
-                        <div className="flex justify-center py-8 text-gray-400"><Loader2 className="animate-spin" /></div>
-                    ) : (
+                    isLoadingSlots ? <div className="flex justify-center py-8 text-gray-400"><Loader2 className="animate-spin" /></div> : (
                         <div className="grid grid-cols-3 gap-2">
-                            {slots.length === 0 ? (
-                                <p className="col-span-3 text-center py-4 bg-gray-50 rounded-lg text-gray-500 text-sm">No hay horarios disponibles este día.</p>
-                            ) : (
-                                slots.map((time) => (
-                                    <button key={time} onClick={() => setSelectedTime(time)} className={`py-2 px-1 rounded-lg text-sm font-medium border ${selectedTime === time ? "bg-black text-white border-black" : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"}`}>
-                                        {time}
-                                    </button>
-                                ))
-                            )}
+                            {slots.length === 0 ? <p className="col-span-3 text-center py-4 bg-gray-50 rounded-lg text-gray-500 text-sm">No hay horarios disponibles.</p> : slots.map((time) => (
+                                <button key={time} onClick={() => setSelectedTime(time)} className={`py-2 px-1 rounded-lg text-sm font-medium border ${selectedTime === time ? "bg-black text-white border-black" : "bg-white text-gray-700 border-gray-200 hover:border-gray-400"}`}>{time}</button>
+                            ))}
                         </div>
                     )
-                ) : (
-                    <p className="text-sm text-gray-400 text-center">Selecciona un día para ver horarios.</p>
-                )}
-
-                {selectedTime && (
-                    <button onClick={() => setStep(4)} className="w-full mt-6 bg-black text-white py-3 rounded-xl font-bold">Continuar</button>
-                )}
+                ) : <p className="text-sm text-gray-400 text-center">Selecciona un día.</p>}
+                {selectedTime && <button onClick={() => setStep(4)} className="w-full mt-6 bg-black text-white py-3 rounded-xl font-bold">Continuar</button>}
             </section>
         );
     }
@@ -246,16 +208,13 @@ export default function BookingWizard({
                 <button onClick={() => setStep(3)} className="text-sm text-gray-500 mb-4 hover:underline">← Volver</button>
                 <h2 className="text-lg font-semibold mb-2 text-gray-800">4. Tus Datos</h2>
                 <div className="space-y-4">
-                    <div><label className="block text-sm font-medium text-gray-700">Nombre completo</label><input type="text" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="Ej. Juan Pérez" onChange={(e) => setClientData({ ...clientData, name: e.target.value })} /></div>
-                    <div><label className="block text-sm font-medium text-gray-700">Teléfono</label><input type="tel" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="Ej. 55 1234 5678" onChange={(e) => setClientData({ ...clientData, phone: e.target.value })} /></div>
-                    <div><label className="block text-sm font-medium text-gray-700">Correo (Opcional)</label><input type="email" className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" placeholder="juan@gmail.com" onChange={(e) => setClientData({ ...clientData, email: e.target.value })} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700">Nombre completo</label><input type="text" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" onChange={(e) => setClientData({ ...clientData, name: e.target.value })} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700">Teléfono</label><input type="tel" required className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" onChange={(e) => setClientData({ ...clientData, phone: e.target.value })} /></div>
+                    <div><label className="block text-sm font-medium text-gray-700">Correo (Opcional)</label><input type="email" className="mt-1 w-full p-3 border border-gray-300 rounded-lg focus:ring-black focus:border-black" onChange={(e) => setClientData({ ...clientData, email: e.target.value })} /></div>
                 </div>
-                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full mt-8 bg-black text-white py-3 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:opacity-50 flex justify-center items-center">
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
-                </button>
+                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full mt-8 bg-black text-white py-3 rounded-xl font-bold text-lg hover:bg-gray-800 disabled:opacity-50 flex justify-center items-center">{isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}</button>
             </section>
         );
     }
-
     return null;
 }

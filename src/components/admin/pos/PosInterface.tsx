@@ -9,7 +9,7 @@ import Image from 'next/image'
 import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, LogOut, Scissors, X } from 'lucide-react'
 import QRScanner from '@/components/admin/QRScanner'
 
-// --- TIPOS ---
+// --- TIPOS COMPLETOS ---
 type Staff = {
     id: string;
     full_name: string;
@@ -47,50 +47,40 @@ export default function PosInterface({
     activeTickets: Ticket[],
     tenantId: string
 }) {
-    // --- ESTADO LOCAL (Para UI Instantánea) ---
+    // --- ESTADO LOCAL ---
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets)
 
-    // Sincronizar estado local si el servidor manda nuevos datos (Refresh)
     useEffect(() => {
         setTickets(initialTickets)
     }, [initialTickets])
 
-    // Navegación Móvil: 'list' (Izquierda) o 'action' (Derecha)
     const [mobileTab, setMobileTab] = useState<'list' | 'action'>('list')
-
-    // Selección de Ticket
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [successTx, setSuccessTx] = useState<{ id: string, points: number } | null>(null)
 
-    // Estados del Formulario Check-in (Entrada)
+    // Check-in
     const [selStaff, setSelStaff] = useState<Staff | null>(null)
     const [duration, setDuration] = useState<number>(30)
     const [clientName, setClientName] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
 
-    // Estados del Formulario Checkout (Salida)
+    // Checkout
     const [selFinalService, setSelFinalService] = useState<Service | null>(null)
     const [paymentMethod, setPaymentMethod] = useState('cash')
     const [showScanner, setShowScanner] = useState(false)
 
-    // --- LÓGICA INTELIGENTE: SELECCIÓN DE BARBERO ---
+    // --- LÓGICA INTELIGENTE ---
     const handleStaffSelect = (member: Staff) => {
-        // Buscamos si este barbero ya tiene un ticket "en silla"
         const activeTicket = tickets.find(t => t.staffName.includes(member.full_name))
-
         if (activeTicket) {
-            // CASO OCUPADO: Redirigir directo a cobrar su ticket existente
             toast.info(`⚠️ ${member.full_name.split(' ')[0]} ya tiene un servicio en curso.`)
             handleSelectTicket(activeTicket)
         } else {
-            // CASO LIBRE: Seleccionarlo para abrir un nuevo servicio
             setSelStaff(member)
         }
     }
 
-    // --- ACCIONES PRINCIPALES ---
-
-    // 1. CHECK-IN: Crear Ticket (Solo Tiempo)
+    // --- ACCIONES ---
     const handleCheckIn = async () => {
         if (!selStaff) return
         setIsProcessing(true)
@@ -105,14 +95,13 @@ export default function PosInterface({
         if (res.success) {
             toast.success('Ticket Abierto')
             resetCheckIn()
-            setMobileTab('list') // Regresar a la lista para ver el ticket creado
+            setMobileTab('list')
         } else {
             toast.error(res.error)
             setIsProcessing(false)
         }
     }
 
-    // 2. CHECKOUT: Cobrar Ticket (Asignar Servicio Final)
     const handleCheckout = async () => {
         if (!selectedTicket || !selFinalService) return
         setIsProcessing(true)
@@ -127,10 +116,7 @@ export default function PosInterface({
 
         if (res.success && res.transactionId) {
             setSuccessTx({ id: res.transactionId, points: res.points || 0 })
-
-            // Optimistic Update: Quitar ticket de la lista visualmente YA
             setTickets(prev => prev.filter(t => t.id !== selectedTicket.id))
-
             toast.success('¡Cobro exitoso!')
         } else {
             toast.error(res.error)
@@ -138,29 +124,20 @@ export default function PosInterface({
         setIsProcessing(false)
     }
 
-    // 3. ANULAR: Cancelar Ticket (Soft Delete)
     const handleVoid = async () => {
         if (!selectedTicket || !confirm("¿Anular ticket? Esto quedará registrado.")) return
 
         const ticketId = selectedTicket.id
-
-        // Optimistic UI: Lo borramos de la vista inmediatamente
         setTickets(prev => prev.filter(t => t.id !== ticketId))
         setSelectedTicket(null)
         setMobileTab('list')
 
         const res = await voidTicket(ticketId)
-
-        if (res.success) {
-            toast.info("Ticket anulado")
-        } else {
-            toast.error(res.error)
-            // Si falló en servidor, el próximo refresh lo traerá de vuelta (correcto)
-        }
+        if (res.success) toast.info("Ticket anulado")
+        else toast.error(res.error)
     }
 
-    // --- HELPERS DE NAVEGACIÓN Y RESET ---
-
+    // --- HELPERS ---
     const handleScanLink = async (userId: string) => {
         if (!successTx) return
         toast.loading('Vinculando...')
@@ -177,18 +154,18 @@ export default function PosInterface({
     const handleNewTicket = () => {
         setSelectedTicket(null)
         setSuccessTx(null)
-        setMobileTab('action') // Forzar vista formulario en móvil
+        setMobileTab('action')
     }
 
     const handleSelectTicket = (ticket: Ticket) => {
         setSelectedTicket(ticket)
-        setSelFinalService(null) // Resetear selección de servicio
+        setSelFinalService(null)
         setSuccessTx(null)
-        setMobileTab('action') // Forzar vista cobro en móvil
+        setMobileTab('action')
     }
 
     const handleBackToList = () => {
-        setMobileTab('list') // Regresar explícitamente a la lista
+        setMobileTab('list')
     }
 
     const resetCheckIn = () => {
@@ -206,7 +183,6 @@ export default function PosInterface({
         setMobileTab('list')
     }
 
-    // --- LÓGICA DE CATEGORÍAS (Memoized) ---
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
             const cat = service.category || 'General';
@@ -215,7 +191,6 @@ export default function PosInterface({
             return acc;
         }, {} as Record<string, Service[]>);
     }, [services]);
-
     const categories = Object.keys(groupedServices);
     const [activeCategory, setActiveCategory] = useState(categories[0] || 'General');
 
@@ -248,7 +223,6 @@ export default function PosInterface({
                         <div className="w-full max-w-sm mx-auto flex flex-col gap-4">
                             <div className="h-80 bg-black rounded-3xl overflow-hidden relative border-4 border-black shadow-2xl">
                                 <QRScanner onScanSuccess={handleScanLink} onClose={() => setShowScanner(false)} />
-                                {/* BOTÓN DE SALIDA EXPLÍCITO */}
                                 <button
                                     onClick={() => setShowScanner(false)}
                                     className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 backdrop-blur-md z-50 border border-white/20"
@@ -269,32 +243,25 @@ export default function PosInterface({
         )
     }
 
-    // --- VISTA PRINCIPAL (Layout Híbrido) ---
+    // --- VISTA PRINCIPAL ---
     return (
         <div className="flex flex-col md:flex-row w-full h-full bg-gray-100 relative">
 
-            {/* IZQUIERDA: LISTA DE TICKETS */}
+            {/* IZQUIERDA: LISTA */}
             <div className={`md:w-96 bg-white border-r border-gray-200 flex-col h-full ${mobileTab === 'list' ? 'flex w-full' : 'hidden md:flex'}`}>
 
-                {/* Header Lista */}
                 <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center sticky top-0 z-10">
                     <div className="flex items-center gap-3">
-                        {/* BOTÓN SALIR MÓVIL (CORREGIDO) - Te saca del POS al Dashboard */}
-                        <Link
-                            href="/admin"
-                            className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full flex items-center gap-1"
-                        >
+                        <Link href="/admin" className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full flex items-center gap-1">
                             <ChevronLeft size={24} />
                             <span className="font-bold text-sm text-gray-900">Salir</span>
                         </Link>
 
-                        {/* Título Desktop */}
                         <div className="hidden md:block">
                             <h2 className="font-bold text-lg text-gray-900">Tickets</h2>
                             <p className="text-xs text-gray-400">{tickets.length} en silla</p>
                         </div>
 
-                        {/* Título Móvil */}
                         <div className="md:hidden">
                             <h2 className="font-bold text-lg text-gray-900">Tickets ({tickets.length})</h2>
                         </div>
@@ -307,7 +274,6 @@ export default function PosInterface({
                     </button>
                 </div>
 
-                {/* Cuerpo Lista */}
                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                     {tickets.length === 0 ? (
                         <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
@@ -348,7 +314,6 @@ export default function PosInterface({
             {/* DERECHA: PANEL DE ACCIÓN */}
             <div className={`flex-1 flex-col bg-gray-50 h-full ${mobileTab === 'action' ? 'flex w-full absolute inset-0 z-20 md:static' : 'hidden md:flex'}`}>
 
-                {/* Header Móvil (Botón Atrás - Regresa a la lista, no sale del POS) */}
                 <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3 sticky top-0 z-30">
                     <button
                         onClick={handleBackToList}
@@ -361,7 +326,6 @@ export default function PosInterface({
                     </span>
                 </div>
 
-                {/* MODO A: CHECK-IN (NUEVO CLIENTE) */}
                 {!selectedTicket && (
                     <div className="flex flex-col h-full animate-in fade-in duration-300">
                         <div className="hidden md:block p-6 border-b border-gray-200 bg-white">
@@ -371,7 +335,6 @@ export default function PosInterface({
 
                         <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8">
 
-                            {/* 1. Barbero */}
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">1. Barbero</h3>
                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
@@ -406,7 +369,6 @@ export default function PosInterface({
                                 </div>
                             </section>
 
-                            {/* 2. Tiempo */}
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">2. Tiempo Estimado</h3>
                                 <div className="flex gap-3 overflow-x-auto pb-2">
@@ -425,7 +387,6 @@ export default function PosInterface({
                                 </div>
                             </section>
 
-                            {/* 3. Cliente */}
                             <section>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">3. Cliente</h3>
                                 <input
@@ -450,10 +411,8 @@ export default function PosInterface({
                     </div>
                 )}
 
-                {/* MODO B: CHECKOUT (COBRAR) */}
                 {selectedTicket && (
                     <div className="flex flex-col h-full animate-in slide-in-from-right-4 duration-300">
-                        {/* Header Desktop */}
                         <div className="hidden md:flex p-6 border-b border-gray-200 bg-white justify-between items-center">
                             <div>
                                 <h1 className="text-2xl font-black text-gray-900">Caja</h1>
@@ -469,7 +428,6 @@ export default function PosInterface({
 
                         <div className="flex-1 p-4 md:p-8 flex flex-col overflow-y-auto">
 
-                            {/* Resumen Ticket */}
                             <div className="mb-6 bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center">
                                 <div>
                                     <span className="text-xs text-gray-400 uppercase font-bold">Cliente</span>
@@ -481,7 +439,6 @@ export default function PosInterface({
                                 </div>
                             </div>
 
-                            {/* SELECCIÓN DE SERVICIO FINAL */}
                             <section className="mb-8 flex-1">
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                                     <Scissors size={14} /> ¿Qué se realizó?
@@ -518,7 +475,6 @@ export default function PosInterface({
                                 </div>
                             </section>
 
-                            {/* Área de Pago */}
                             <div className="border-t border-gray-200 pt-6">
                                 <div className="flex justify-between items-center mb-6">
                                     <span className="text-gray-500 font-medium">Total a Pagar</span>

@@ -14,46 +14,25 @@ export async function updateClientProfile(formData: FormData) {
 
     let avatarUrl = null
 
-    // 1. Subida de Imagen
     if (file && file.size > 0) {
         if (file.size > 5 * 1024 * 1024) return { error: 'Imagen muy pesada (Max 5MB)' }
-
-        // Nombre único para evitar caché del navegador (timestamp)
         const fileExt = file.name.split('.').pop()
         const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`
-
-        const { error: uploadError } = await supabase.storage
-            .from('avatars')
-            .upload(filePath, file, { upsert: true })
-
-        if (uploadError) {
-            console.error(uploadError)
-            return { error: 'Error al subir imagen' }
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('avatars')
-            .getPublicUrl(filePath)
-
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true })
+        if (uploadError) { console.error(uploadError); return { error: 'Error al subir imagen' }; }
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath)
         avatarUrl = publicUrl
     }
 
-    // 2. Actualizar Perfil
-    const updateData: any = { full_name: fullName }
+    // CORRECCIÓN: Tipo seguro para satisfacer al Linter
+    const updateData: Record<string, string | null> = { full_name: fullName }
     if (avatarUrl) updateData.avatar_url = avatarUrl
 
-    const { error } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id)
+    const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)
 
-    if (error) {
-        console.error("Error DB:", error)
-        return { error: 'Error al guardar. Verifica permisos.' }
-    }
+    if (error) { console.error("Error DB:", error); return { error: 'Error al guardar.' }; }
 
-    // 3. Refrescar Cache CRÍTICO
-    revalidatePath('/app', 'layout') // Refresca todo el layout de la app
+    revalidatePath('/app', 'layout')
     revalidatePath('/app/profile')
 
     return { success: true, message: 'Perfil actualizado' }
