@@ -10,7 +10,7 @@ export default async function SchedulePage() {
 
     if (!user) return redirect("/login");
 
-    // 1. Obtener Rol del Usuario Actual
+    // 1. Obtener Rol
     const { data: profile } = await supabase
         .from('profiles')
         .select('role, tenant_id')
@@ -20,45 +20,45 @@ export default async function SchedulePage() {
     const userRole = profile?.role || 'staff';
     const tenantId = profile?.tenant_id;
 
-    // 2. Cargar Horario Semanal (Solo el propio por ahora)
+    // 2. Cargar Horario Semanal
     const { data: schedules } = await supabase
         .from("staff_schedules")
         .select("*")
         .eq("staff_id", user.id);
 
-    // 3. Cargar Bloqueos (Lógica Owner vs Staff)
+    // 3. Cargar Bloqueos (CORRECCIÓN VISUAL)
     let query = supabase
         .from("time_blocks")
         .select(`
             *,
             profiles:staff_id ( full_name ) 
         `)
-        .gte("start_time", new Date().toISOString())
+        // CAMBIO: Buscamos bloqueos que NO hayan terminado todavía.
+        // (end_time > now). Así vemos los que están ocurriendo ahora mismo.
+        .gte("end_time", new Date().toISOString())
         .order("start_time", { ascending: true });
 
     if (userRole === 'owner') {
-        // Owner ve TODO el negocio
         query = query.eq("tenant_id", tenantId);
     } else {
-        // Staff ve solo lo SUYO
         query = query.eq("staff_id", user.id);
     }
 
     const { data: blocks } = await query;
 
-    // 4. Cargar Lista de Staff (Solo si es Owner, para el selector)
+    // 4. Cargar Lista de Staff (Solo Owner)
     let staffList: { id: string, full_name: string }[] = [];
     if (userRole === 'owner') {
         const { data: staff } = await supabase
             .from('profiles')
             .select('id, full_name')
             .eq('tenant_id', tenantId)
-            .neq('role', 'customer'); // Solo staff y owners
+            .neq('role', 'customer');
 
         staffList = staff || [];
     }
 
-    // Formatear bloqueos para el cliente
+    // Formatear
     const formattedBlocks = blocks?.map(b => ({
         id: b.id,
         start_time: b.start_time,
