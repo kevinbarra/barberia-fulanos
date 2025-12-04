@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// CORRECCIÓN: Aseguramos que LogOut esté importado aquí 👇
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock } from 'lucide-react'
+// FIX: Agregamos Settings a los imports (LogOut ya estaba bien)
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 
 export default function Sidebar({
@@ -22,6 +22,7 @@ export default function Sidebar({
         { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
         { name: 'Servicios', href: '/admin/services', icon: Scissors },
         { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+        { name: 'Configuración', href: '/admin/settings', icon: Settings }, // <--- NUEVO
         { name: 'Ajustes', href: '/admin/profile', icon: User },
     ]
 
@@ -35,11 +36,12 @@ export default function Sidebar({
     if (role === 'client') {
         menuToRender = clientMenu;
     } else {
-        // Staff: Le quitamos Equipo y Servicios, pero le DEJAMOS Horarios
+        // Staff: Le quitamos Equipo, Servicios y Configuración
         if (role !== 'owner') {
             menuToRender = adminMenu.filter(item =>
                 item.href !== '/admin/team' &&
-                item.href !== '/admin/services'
+                item.href !== '/admin/services' &&
+                item.href !== '/admin/settings' // <--- FILTRO NUEVO
             );
         }
     }
