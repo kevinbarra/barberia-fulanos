@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation' // Para cambiar URL
+import { useState, useRef, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { saveSchedule, addTimeBlock, deleteTimeBlock } from '@/app/admin/schedule/actions'
 import { toast } from 'sonner'
-import { Trash2, Calendar, Loader2, User, Users } from 'lucide-react'
+import { Trash2, Calendar, Loader2, User, Users, Lock } from 'lucide-react'
 import { toZonedTime, format } from 'date-fns-tz'
 
 const TIMEZONE = 'America/Mexico_City';
 
+// TIPOS
 type Schedule = { day: string; start_time: string; end_time: string; is_active: boolean | null }
 type TimeBlock = { id: string; start_time: string; end_time: string; reason: string | null; staff_name: string; staff_id: string }
 type StaffOption = { id: string; full_name: string }
@@ -34,6 +35,8 @@ export default function ScheduleManager({
     staffList: StaffOption[]
 }) {
     const router = useRouter()
+    const [isPending, startTransition] = useTransition();
+
     const [isSaving, setIsSaving] = useState(false)
     const [isAddingBlock, setIsAddingBlock] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
@@ -41,11 +44,13 @@ export default function ScheduleManager({
     const getSchedule = (day: string) =>
         schedules?.find((s) => s.day === day) || { is_active: false, start_time: "10:00", end_time: "20:00" };
 
-    // --- CAMBIAR DE USUARIO (OWNER) ---
+    // --- CAMBIO DE CONTEXTO GLOBAL ---
     const handleStaffChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newId = e.target.value;
-        router.push(`/admin/schedule?view_staff=${newId}`); // Recarga la página con los datos del nuevo staff
-        toast.loading("Cargando horario...", { duration: 1000 });
+        startTransition(() => {
+            router.push(`/admin/schedule?view_staff=${newId}`);
+            router.refresh();
+        });
     }
 
     // --- ACCIONES ---
@@ -97,8 +102,12 @@ export default function ScheduleManager({
         }
     }
 
+    // Nombre del staff actual (para feedback visual)
+    const currentStaffName = staffList.find(s => s.id === targetStaffId)?.full_name || 'Mí mismo';
+    const isLoadingData = isPending;
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-8 ${isLoadingData ? 'opacity-50 pointer-events-none' : ''}`}>
 
             {/* COLUMNA 1: SEMANA TIPO */}
             <section>
@@ -108,13 +117,14 @@ export default function ScheduleManager({
                         <h2 className="font-bold text-lg text-gray-900">Semana Tipo</h2>
                     </div>
 
-                    {/* SELECTOR DE STAFF (SOLO OWNER) */}
+                    {/* SELECTOR MAESTRO (Controla toda la página) */}
                     {userRole === 'owner' && (
                         <div className="relative">
                             <select
                                 value={targetStaffId}
                                 onChange={handleStaffChange}
-                                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold focus:ring-black focus:border-black appearance-none cursor-pointer hover:bg-gray-50 shadow-sm"
+                                disabled={isLoadingData}
+                                className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white font-bold focus:ring-black focus:border-black appearance-none cursor-pointer hover:bg-gray-50 shadow-sm disabled:bg-gray-100 transition-all"
                             >
                                 {staffList.map(s => (
                                     <option key={s.id} value={s.id}>
@@ -123,20 +133,13 @@ export default function ScheduleManager({
                                 ))}
                             </select>
                             <Users size={16} className="absolute left-3 top-2.5 text-gray-500 pointer-events-none" />
+                            {isLoadingData && <div className="absolute right-3 top-2.5"><Loader2 size={16} className="animate-spin text-black" /></div>}
                         </div>
                     )}
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 relative">
-                    {/* Indicador visual de a quién estamos editando */}
-                    {userRole === 'owner' && targetStaffId !== userId && (
-                        <div className="absolute -top-3 right-6 bg-yellow-100 text-yellow-800 text-[10px] font-bold px-3 py-1 rounded-full border border-yellow-200">
-                            EDITANDO A: {staffList.find(s => s.id === targetStaffId)?.full_name.toUpperCase()}
-                        </div>
-                    )}
-
                     <form action={handleSaveWeekly}>
-                        {/* Campo oculto vital para decirle al server a quién editar */}
                         <input type="hidden" name="target_staff_id" value={targetStaffId} />
 
                         <div className="space-y-5">
@@ -158,7 +161,7 @@ export default function ScheduleManager({
                             })}
                         </div>
                         <div className="mt-6 pt-4 border-t border-gray-100 text-right">
-                            <button type="submit" disabled={isSaving} className="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center gap-2 ml-auto">
+                            <button type="submit" disabled={isSaving || isLoadingData} className="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition-all disabled:opacity-50 flex items-center gap-2 ml-auto">
                                 {isSaving && <Loader2 className="animate-spin w-4 h-4" />} Guardar Semana
                             </button>
                         </div>
@@ -173,21 +176,23 @@ export default function ScheduleManager({
                     <h2 className="font-bold text-lg text-gray-900">Bloqueos</h2>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6 relative">
                     <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <Calendar size={16} /> Agregar Tiempo Fuera
                     </h3>
+
+                    {/* Feedback Visual de Contexto */}
+                    {userRole === 'owner' && targetStaffId !== userId && (
+                        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2 text-xs text-yellow-800">
+                            <Lock size={14} />
+                            <span>Creando bloqueo para: <strong>{currentStaffName}</strong></span>
+                        </div>
+                    )}
+
                     <form ref={formRef} action={handleAddBlock} className="space-y-4">
 
-                        {/* Selector para Bloqueos (Por defecto selecciona al staff que estás viendo) */}
-                        {userRole === 'owner' && (
-                            <div className="hidden">
-                                {/* Lo ocultamos visualmente pero enviamos el ID del staff que estamos viendo en la columna 1 
-                                    para mantener coherencia, o podrías poner otro selector explícito. 
-                                    Por UX, asumimos que si estás viendo a Juan, quieres bloquear a Juan. */}
-                                <input type="hidden" name="staff_id" value={targetStaffId} />
-                            </div>
-                        )}
+                        {/* CAMPO OCULTO MAESTRO: Obedece al targetStaffId global */}
+                        <input type="hidden" name="staff_id" value={targetStaffId} />
 
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Día</label>
@@ -207,33 +212,35 @@ export default function ScheduleManager({
                             <label className="text-xs font-bold text-gray-500 uppercase">Motivo</label>
                             <input type="text" name="reason" placeholder="Ej. Comida, Médico..." required className="w-full mt-1 p-2 border rounded-lg text-sm" />
                         </div>
-                        <button type="submit" disabled={isAddingBlock} className="w-full bg-red-50 text-red-600 border border-red-100 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition-all flex justify-center items-center gap-2">
+                        <button type="submit" disabled={isAddingBlock || isLoadingData} className="w-full bg-red-50 text-red-600 border border-red-100 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition-all flex justify-center items-center gap-2">
                             {isAddingBlock ? 'Procesando...' : '+ Bloquear Horario'}
                         </button>
                     </form>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-3 relative">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex justify-between">
                         Próximos Bloqueos
                     </h3>
                     {!blocks || blocks.length === 0 ? (
                         <div className="p-4 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 text-xs">
-                            No hay bloqueos futuros.
+                            No hay bloqueos futuros para {currentStaffName}.
                         </div>
                     ) : (
                         blocks.map(block => {
                             const start = formatTime(block.start_time)
                             const end = formatTime(block.end_time)
+                            const isOwnBlock = block.staff_id === userId;
 
                             return (
-                                <div key={block.id} className="bg-white p-3 rounded-xl border border-gray-200 flex justify-between items-center shadow-sm">
+                                <div key={block.id} className={`p-3 rounded-xl border flex justify-between items-center shadow-sm ${block.staff_id === targetStaffId ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="font-bold text-sm text-gray-900">{block.reason}</span>
-                                            {userRole === 'owner' && block.staff_id !== userId && (
+                                            {/* Si estamos viendo "Mis Horarios" pero aparece un bloqueo de otro, lo etiquetamos */}
+                                            {userRole === 'owner' && (
                                                 <span className="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full font-bold truncate max-w-[100px]">
-                                                    {block.staff_name}
+                                                    {isOwnBlock ? 'Tú' : block.staff_name}
                                                 </span>
                                             )}
                                         </div>
