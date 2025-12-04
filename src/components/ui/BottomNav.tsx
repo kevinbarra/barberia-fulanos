@@ -2,8 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// FIX: Agregamos Clock
-import { LayoutDashboard, CalendarDays, User, Wallet, ShieldCheck, Clock } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, User, Wallet, ShieldCheck } from 'lucide-react'
 
 export default function BottomNav({
     role,
@@ -16,12 +15,10 @@ export default function BottomNav({
 
     if (pathname.startsWith('/admin/pos')) return null;
 
-    // MENU ADMIN EXPANDIDO
     const adminMenu = [
         { name: 'Inicio', href: '/admin', icon: LayoutDashboard },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
         { name: 'POS', href: '/admin/pos', icon: Wallet },
-        { name: 'Horarios', href: '/admin/schedule', icon: Clock }, // <--- NUEVO
         { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
         { name: 'Perfil', href: '/admin/profile', icon: User },
     ]
@@ -31,12 +28,14 @@ export default function BottomNav({
         { name: 'Perfil', href: '/app/profile', icon: User },
     ]
 
-    // Filtrar para Staff (No ven Equipo en móvil para ahorrar espacio, o lo dejamos si cabe)
-    // Para simplificar y asegurar que Horarios se vea, filtramos Equipo si no es Owner
+    // Filtrar para Staff (No ven Equipo en móvil para ahorrar espacio)
     const filteredAdminMenu = role === 'admin'
-        ? adminMenu
+        ? (adminMenu.filter(item => {
+            // Si quieres ocultar "Equipo" al staff en el menú móvil, descomenta esto:
+            // if (item.name === 'Equipo') return false; 
+            return true;
+        }))
         : adminMenu;
-    // Nota: Podrías filtrar aquí si el menú queda muy apretado en pantallas pequeñas
 
     if (role === 'client' && showAdminEntry) {
         clientMenu.push({ name: 'Admin', href: '/admin', icon: ShieldCheck })
@@ -46,13 +45,9 @@ export default function BottomNav({
 
     return (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-3 pb-8 md:hidden z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-            {/* Ajustamos max-w para que quepan 6 íconos si es necesario */}
-            <div className="flex justify-between items-center max-w-lg mx-auto px-2">
+            <div className={`flex justify-between items-center ${menu.length > 4 ? 'max-w-full gap-2' : 'max-w-[250px]'} mx-auto px-4`}>
                 {menu.map((item) => {
                     const isActive = pathname === item.href
-                    // Ocultar Equipo para Staff en móvil si queremos priorizar espacio
-                    // (Opcional, por ahora lo dejamos)
-
                     return (
                         <Link
                             key={item.href}
@@ -61,11 +56,11 @@ export default function BottomNav({
                                 }`}
                         >
                             <item.icon
-                                size={22} // Un poco más pequeño para que quepan todos
+                                size={24}
                                 strokeWidth={isActive ? 2.5 : 2}
                                 className={isActive ? 'fill-gray-100' : ''}
                             />
-                            <span className="text-[9px] truncate w-full text-center">{item.name}</span>
+                            <span className="text-[10px] truncate w-full text-center">{item.name}</span>
                         </Link>
                     )
                 })}
