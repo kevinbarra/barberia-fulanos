@@ -4,13 +4,19 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
 
-export default async function SchedulePage() {
+export default async function SchedulePage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return redirect("/login");
 
-    // 1. Obtener Rol
+    const params = await searchParams; // Next.js 15 requiere await en params
+
+    // 1. Perfil y Permisos
     const { data: profile } = await supabase
         .from('profiles')
         .select('role, tenant_id')
@@ -20,33 +26,37 @@ export default async function SchedulePage() {
     const userRole = profile?.role || 'staff';
     const tenantId = profile?.tenant_id;
 
-    // 2. Cargar Horario Semanal
+    // 2. Determinar a quién estamos viendo (Lógica de Owner)
+    let targetStaffId = user.id; // Por defecto: Yo mismo
+
+    // Si soy Owner Y hay un parámetro en la URL, cambio el objetivo
+    if (userRole === 'owner' && params.view_staff && typeof params.view_staff === 'string') {
+        targetStaffId = params.view_staff;
+    }
+
+    // 3. Cargar Horario Semanal del Objetivo
     const { data: schedules } = await supabase
         .from("staff_schedules")
         .select("*")
-        .eq("staff_id", user.id);
+        .eq("staff_id", targetStaffId);
 
-    // 3. Cargar Bloqueos (CORRECCIÓN VISUAL)
-    let query = supabase
+    // 4. Cargar Bloqueos
+    // Si soy Owner, veo TODOS para tener contexto global en la lista inferior.
+    // Si soy Staff, solo veo los míos.
+    let blocksQuery = supabase
         .from("time_blocks")
-        .select(`
-            *,
-            profiles:staff_id ( full_name ) 
-        `)
-        // CAMBIO: Buscamos bloqueos que NO hayan terminado todavía.
-        // (end_time > now). Así vemos los que están ocurriendo ahora mismo.
+        .select(`*, profiles:staff_id ( full_name )`)
         .gte("end_time", new Date().toISOString())
         .order("start_time", { ascending: true });
 
     if (userRole === 'owner') {
-        query = query.eq("tenant_id", tenantId);
+        blocksQuery = blocksQuery.eq("tenant_id", tenantId);
     } else {
-        query = query.eq("staff_id", user.id);
+        blocksQuery = blocksQuery.eq("staff_id", user.id);
     }
+    const { data: blocks } = await blocksQuery;
 
-    const { data: blocks } = await query;
-
-    // 4. Cargar Lista de Staff (Solo Owner)
+    // 5. Lista de Staff para el Dropdown (Solo Owner)
     let staffList: { id: string, full_name: string }[] = [];
     if (userRole === 'owner') {
         const { data: staff } = await supabase
@@ -54,11 +64,10 @@ export default async function SchedulePage() {
             .select('id, full_name')
             .eq('tenant_id', tenantId)
             .neq('role', 'customer');
-
         staffList = staff || [];
     }
 
-    // Formatear
+    // Formatear Bloqueos
     const formattedBlocks = blocks?.map(b => ({
         id: b.id,
         start_time: b.start_time,
@@ -71,7 +80,6 @@ export default async function SchedulePage() {
 
     return (
         <div className="max-w-5xl mx-auto p-6 pb-32">
-
             <div className="flex items-center gap-4 mb-8">
                 <Link href="/admin" className="p-2 hover:bg-gray-200 rounded-full transition-colors md:hidden">
                     <ChevronLeft size={24} className="text-gray-600" />
@@ -79,7 +87,7 @@ export default async function SchedulePage() {
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Gestión de Tiempo</h1>
                     <p className="text-gray-600 text-sm">
-                        {userRole === 'owner' ? 'Administra la disponibilidad de todo el equipo.' : 'Configura tu disponibilidad.'}
+                        {userRole === 'owner' ? 'Configura horarios globales.' : 'Configura tu disponibilidad.'}
                     </p>
                 </div>
             </div>
@@ -89,9 +97,9 @@ export default async function SchedulePage() {
                 blocks={formattedBlocks}
                 userRole={userRole}
                 userId={user.id}
+                targetStaffId={targetStaffId} // ID del staff que estamos viendo actualmente
                 staffList={staffList}
             />
-
         </div>
     );
 }
