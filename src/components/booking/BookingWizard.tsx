@@ -60,6 +60,8 @@ export default function BookingWizard({
     // Cargar Slots cuando cambia Fecha o Staff
     useEffect(() => {
         let isMounted = true;
+        let intervalId: NodeJS.Timeout;
+
         async function fetchSlots() {
             if (selectedDate && selectedStaff) {
                 setIsLoadingSlots(true);
@@ -75,8 +77,18 @@ export default function BookingWizard({
                 }
             }
         }
+
         fetchSlots();
-        return () => { isMounted = false; };
+
+        // Auto-refresh cada 30 segundos
+        if (selectedDate && selectedStaff) {
+            intervalId = setInterval(fetchSlots, 30000);
+        }
+
+        return () => {
+            isMounted = false;
+            if (intervalId) clearInterval(intervalId);
+        };
     }, [selectedDate, selectedStaff]);
 
     // Categorías de Servicios
