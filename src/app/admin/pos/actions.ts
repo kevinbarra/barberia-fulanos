@@ -140,3 +140,55 @@ export async function voidTicket(bookingId: string) {
     revalidatePath('/admin/pos')
     return { success: true, message: 'Ticket anulado.' }
 }
+
+// --- ACCIÓN 4: SENTAR RESERVA WEB (Convertir reserva a ticket activo) ---
+export async function seatBooking(bookingId: string) {
+    const supabase = await createClient()
+
+    // 1. Obtener la reserva
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('staff_id, status')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking) {
+        return { success: false, error: 'Reserva no encontrada.' }
+    }
+
+    if (booking.status !== 'confirmed') {
+        return { success: false, error: 'Esta reserva ya fue procesada.' }
+    }
+
+    // 2. Validar que el barbero no tenga otro cliente en silla
+    const { count: activeTickets } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', booking.staff_id)
+        .eq('status', 'seated')
+
+    if (activeTickets && activeTickets > 0) {
+        return {
+            success: false,
+            error: 'Este barbero ya tiene un cliente en silla. Finaliza el servicio actual primero.'
+        }
+    }
+
+    // 3. Cambiar estado a seated
+    const { error } = await supabase
+        .from('bookings')
+        .update({
+            status: 'seated',
+            start_time: new Date().toISOString() // Actualizar hora real de inicio
+        })
+        .eq('id', bookingId)
+
+    if (error) {
+        console.error('Seat booking error:', error)
+        return { success: false, error: 'Error al procesar la reserva.' }
+    }
+
+    revalidatePath('/admin/pos')
+    revalidatePath('/admin/bookings')
+    return { success: true, message: 'Cliente sentado. Listo para atender.' }
+}

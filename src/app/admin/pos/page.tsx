@@ -38,6 +38,21 @@ export default async function PosPage() {
         .lte("start_time", endISO)
         .order("start_time", { ascending: false });
 
+    // Reservas web confirmadas para hoy
+    const { data: todayBookings } = await supabase
+        .from("bookings")
+        .select(`
+            id, start_time, end_time, notes, status,
+            profiles:staff_id ( id, full_name ),
+            services:service_id ( name, price, duration_min ),
+            customer:customer_id ( full_name, phone )
+        `)
+        .eq("tenant_id", tenantId)
+        .eq("status", "confirmed")
+        .gte("start_time", startISO)
+        .lte("start_time", endISO)
+        .order("start_time", { ascending: true });
+
     const formattedTickets = activeTickets?.map(t => ({
         id: t.id,
         startTime: t.start_time,
@@ -50,12 +65,28 @@ export default async function PosPage() {
         price: (t.services as any)?.price || 0
     })) || [];
 
+    const formattedBookings = todayBookings?.map(b => ({
+        id: b.id,
+        startTime: b.start_time,
+        endTime: b.end_time,
+        clientName: (b.customer as any)?.full_name || b.notes?.split('|')[0]?.replace('Cliente:', '').trim() || "Cliente",
+        clientPhone: (b.customer as any)?.phone || "",
+        staffId: (b.profiles as any)?.id,
+        staffName: (b.profiles as any)?.full_name || "Staff",
+        serviceName: (b.services as any)?.name || "Servicio",
+        servicePrice: (b.services as any)?.price || 0,
+        duration: (b.services as any)?.duration_min || 30,
+        status: b.status,
+        isWebBooking: true
+    })) || [];
+
     return (
         <div className="h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden">
             <PosInterface
                 staff={staff || []}
                 services={services || []}
                 activeTickets={formattedTickets}
+                todayBookings={formattedBookings}
                 tenantId={tenantId}
             />
         </div>

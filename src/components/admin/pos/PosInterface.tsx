@@ -33,25 +33,48 @@ type Ticket = {
     price: number | null
 }
 
+type WebBooking = {
+    id: string;
+    startTime: string;
+    endTime: string;
+    clientName: string;
+    clientPhone: string;
+    staffId: string;
+    staffName: string;
+    serviceName: string;
+    servicePrice: number;
+    duration: number;
+    status: string;
+    isWebBooking: boolean;
+}
+
 const DURATIONS = [15, 30, 45, 60, 90]
 
 export default function PosInterface({
     staff,
     services,
     activeTickets: initialTickets,
+    todayBookings = [],
     tenantId
 }: {
     staff: Staff[],
     services: Service[],
     activeTickets: Ticket[],
+    todayBookings?: WebBooking[],
     tenantId: string
 }) {
     // --- ESTADO LOCAL ---
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets)
+    const [bookings, setBookings] = useState<WebBooking[]>(todayBookings)
+    const [activeTab, setActiveTab] = useState<'tickets' | 'bookings'>('tickets')
 
     useEffect(() => {
         setTickets(initialTickets)
     }, [initialTickets])
+
+    useEffect(() => {
+        setBookings(todayBookings)
+    }, [todayBookings])
 
     const [mobileTab, setMobileTab] = useState<'list' | 'action'>('list')
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
@@ -163,6 +186,26 @@ export default function PosInterface({
         setMobileTab('action')
     }
 
+    const handleSelectBooking = (booking: WebBooking) => {
+        // Convertir la reserva web a un formato compatible con Ticket
+        const ticketFromBooking: Ticket = {
+            id: booking.id,
+            startTime: booking.startTime,
+            clientName: booking.clientName,
+            staffName: booking.staffName,
+            serviceName: booking.serviceName,
+            price: booking.servicePrice
+        }
+        setSelectedTicket(ticketFromBooking)
+        // Pre-seleccionar el servicio de la reserva
+        const matchingService = services.find(s => s.name === booking.serviceName && s.price === booking.servicePrice)
+        if (matchingService) {
+            setSelFinalService(matchingService)
+        }
+        setSuccessTx(null)
+        setMobileTab('action')
+    }
+
     const handleBackToList = () => {
         setMobileTab('list')
     }
@@ -252,38 +295,99 @@ export default function PosInterface({
                             <span className="font-bold text-sm text-gray-900">Salir</span>
                         </Link>
                         <div className="hidden md:block">
-                            <h2 className="font-bold text-lg text-gray-900">Tickets</h2>
-                            <p className="text-xs text-gray-400">{tickets.length} en silla</p>
+                            <h2 className="font-bold text-lg text-gray-900">POS</h2>
+                            <p className="text-xs text-gray-400">Tickets y reservas</p>
                         </div>
                         <div className="md:hidden">
-                            <h2 className="font-bold text-lg text-gray-900">Tickets ({tickets.length})</h2>
+                            <h2 className="font-bold text-lg text-gray-900">POS</h2>
                         </div>
                     </div>
                     <button onClick={handleNewTicket} className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center shadow-lg active:scale-95">
                         <Plus size={24} />
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                    {tickets.length === 0 ? (
-                        <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
-                            <p>Sala vacía.</p>
-                        </div>
-                    ) : (
-                        tickets.map(ticket => (
-                            <button key={ticket.id} onClick={() => handleSelectTicket(ticket)} className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === ticket.id ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200' : 'bg-white border-gray-100'}`}>
-                                <div className="flex justify-between items-start mb-2">
-                                    <span className="font-bold text-gray-900 truncate text-base">{ticket.clientName}</span>
-                                    <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">En curso</span>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-gray-500">
-                                    <span className="flex items-center gap-1"><Clock size={12} /> {new Date(ticket.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                    <span>•</span>
-                                    <span>{ticket.staffName.split(' ')[0]}</span>
-                                </div>
-                            </button>
-                        ))
-                    )}
+
+                {/* TABS: Tickets vs Reservas */}
+                <div className="flex border-b border-gray-200 bg-white sticky top-[73px] z-10">
+                    <button
+                        onClick={() => setActiveTab('tickets')}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${
+                            activeTab === 'tickets'
+                                ? 'text-black border-b-2 border-black'
+                                : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                    >
+                        En Silla ({tickets.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('bookings')}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${
+                            activeTab === 'bookings'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-400 hover:text-gray-600'
+                        }`}
+                    >
+                        Reservas ({bookings.length})
+                    </button>
                 </div>
+
+                {activeTab === 'tickets' ? (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                        {tickets.length === 0 ? (
+                            <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
+                                <p>Sala vacía.</p>
+                            </div>
+                        ) : (
+                            tickets.map(ticket => (
+                                <button key={ticket.id} onClick={() => handleSelectTicket(ticket)} className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === ticket.id ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200' : 'bg-white border-gray-100'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="font-bold text-gray-900 truncate text-base">{ticket.clientName}</span>
+                                        <span className="text-xs font-bold bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md">En curso</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                        <span className="flex items-center gap-1"><Clock size={12} /> {new Date(ticket.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        <span>•</span>
+                                        <span>{ticket.staffName.split(' ')[0]}</span>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                        {bookings.length === 0 ? (
+                            <div className="h-64 flex flex-col items-center justify-center text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl m-2">
+                                <p>Sin reservas hoy.</p>
+                            </div>
+                        ) : (
+                            bookings.map(booking => (
+                                <button
+                                    key={booking.id}
+                                    onClick={() => handleSelectBooking(booking)}
+                                    className={`w-full text-left p-4 rounded-xl border transition-all ${
+                                        selectedTicket?.id === booking.id
+                                            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200'
+                                            : 'bg-white border-gray-100 hover:border-blue-300'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="font-bold text-gray-900">{booking.clientName}</span>
+                                        <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                                            {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                        <span>{booking.serviceName}</span>
+                                        <span>•</span>
+                                        <span>${booking.servicePrice}</span>
+                                        <span>•</span>
+                                        <span>{booking.staffName.split(' ')[0]}</span>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                )}
             </div>
             <div className={`flex-1 flex-col bg-gray-50 h-full ${mobileTab === 'action' ? 'flex w-full absolute inset-0 z-20 md:static' : 'hidden md:flex'}`}>
                 <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3 sticky top-0 z-30">
