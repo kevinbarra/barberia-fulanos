@@ -15,11 +15,12 @@ export async function createClient() {
                 setAll(cookiesToSet) {
                     try {
                         cookiesToSet.forEach(({ name, value, options }) =>
-                            cookieStore.set(name, value, options)
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (cookieStore as any).set(name, value, options)
                         )
                     } catch {
                         // El método setAll fue llamado desde un Server Component.
-                        // Esto se puede ignorar si tenemos middleware.
+                        // Esto se puede ignorar.
                     }
                 },
             },
@@ -27,8 +28,8 @@ export async function createClient() {
     )
 }
 
-// --- NUEVA FUNCIÓN UTILITARIA (Refactorización) ---
-// Obtiene el ID del negocio del usuario conectado para no "quemarlo" en el código
+// --- FUNCIÓN UTILITARIA (Vital para tu app) ---
+// Esta función es usada en AdminDashboard, Bookings, etc.
 export async function getTenantId() {
     const supabase = await createClient()
 
