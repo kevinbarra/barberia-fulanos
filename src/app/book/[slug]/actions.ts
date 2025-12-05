@@ -4,18 +4,15 @@ import { createClient } from '@/utils/supabase/server'
 import { sendBookingEmail } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
 
-// Configuración de Timezone
 const TIMEZONE = 'America/Mexico_City';
 
 // --- OBTENER RANGOS OCUPADOS (Citas + Bloqueos) ---
 export async function getTakenRanges(staffId: string, dateStr: string) {
     const supabase = await createClient()
 
-    // Rango del día en UTC para la consulta
     const startOfDay = fromZonedTime(`${dateStr} 00:00:00`, TIMEZONE).toISOString()
     const endOfDay = fromZonedTime(`${dateStr} 23:59:59`, TIMEZONE).toISOString()
 
-    // 1. Obtener CITAS (Bookings)
     const { data: bookings } = await supabase
         .from('bookings')
         .select('start_time, end_time')
@@ -24,7 +21,6 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
 
-    // 2. Obtener BLOQUEOS (Time Blocks) - NUEVO
     const { data: blocks } = await supabase
         .from('time_blocks')
         .select('start_time, end_time')
@@ -32,7 +28,6 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
 
-    // 3. Fusionar y Normalizar
     const busyRanges = [
         ...(bookings || []),
         ...(blocks || [])
@@ -54,9 +49,11 @@ export async function createBooking(data: {
     client_phone: string;
     client_email: string;
     duration_min: number;
+    customer_id?: string | null; // <--- NUEVO: Opcional, si viene logueado
 }) {
     const supabase = await createClient()
 
+    // 1. Validaciones
     const [serviceResult, staffResult] = await Promise.all([
         supabase.from('services').select('name').eq('id', data.service_id).single(),
         supabase.from('profiles').select('full_name').eq('id', data.staff_id).single()
@@ -68,10 +65,7 @@ export async function createBooking(data: {
     const startDate = new Date(data.start_time);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
-    // Validación Doble Check (Race Condition)
-    // Verificamos si choca con Citas O Bloqueos
-
-    // A. Choque con Citas
+    // 2. Chequeo de Disponibilidad
     const { count: bookingConflict } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -80,7 +74,6 @@ export async function createBooking(data: {
         .lt('start_time', endDate.toISOString())
         .gt('end_time', startDate.toISOString())
 
-    // B. Choque con Bloqueos
     const { count: blockConflict } = await supabase
         .from('time_blocks')
         .select('*', { count: 'exact', head: true })
@@ -94,11 +87,13 @@ export async function createBooking(data: {
 
     const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
 
+    // 3. Insertar Cita
+    // Si viene customer_id, lo usamos. Si no, queda NULL (Walk-in anónimo).
     const { error } = await supabase.from('bookings').insert({
         tenant_id: data.tenant_id,
         service_id: data.service_id,
         staff_id: data.staff_id,
-        customer_id: null,
+        customer_id: data.customer_id || null, // <--- VINCULACIÓN REAL
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         status: 'confirmed',
@@ -107,22 +102,17 @@ export async function createBooking(data: {
 
     if (error) {
         console.error('Error al reservar:', error)
-        return { error: 'No se pudo agendar la cita.' }
+        return { error: 'No se pudo agendar la cita. Intenta nuevamente.' }
     }
 
-    // Email
+    // 4. Email
     const dateStr = startDate.toLocaleDateString('es-MX', {
         timeZone: TIMEZONE,
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
+        weekday: 'long', day: 'numeric', month: 'long'
     });
-
     const timeStr = startDate.toLocaleTimeString('es-MX', {
         timeZone: TIMEZONE,
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
+        hour: '2-digit', minute: '2-digit'
     });
 
     await sendBookingEmail({
