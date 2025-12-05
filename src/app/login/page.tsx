@@ -5,11 +5,10 @@ import LoginForm from "@/components/login/LoginForm";
 
 export default async function LoginPage() {
     // --- LÓGICA INTELIGENTE: Redirección automática ---
-    // 1. Verificamos si ya existe una sesión activa.
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 2. Si el usuario ya está logueado, lo sacamos del login.
+    // Si el usuario ya está logueado, lo sacamos del login.
     if (user) {
         // Consultamos su rol para mandarlo a la página correcta
         const { data: profile } = await supabase
@@ -18,6 +17,8 @@ export default async function LoginPage() {
             .eq('id', user.id)
             .single();
 
+        // Si es Owner o Staff -> Admin Panel
+        // Si es Customer (o null) -> App Cliente
         const isAdminOrStaff = profile?.role === 'owner' || profile?.role === 'staff';
 
         return redirect(isAdminOrStaff ? '/admin' : '/app');
@@ -27,7 +28,7 @@ export default async function LoginPage() {
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
 
-            {/* Fondo Ambiental */}
+            {/* Fondo Ambiental (Mantenido de tu versión) */}
             <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
@@ -42,6 +43,7 @@ export default async function LoginPage() {
                         ← Volver al inicio
                     </Link>
                     <h1 className="text-3xl font-black tracking-tight mb-2">Bienvenido</h1>
+                    <p className="text-zinc-400 text-sm">Ingresa para gestionar tus citas.</p>
                 </div>
 
                 {/* FORMULARIO CLIENTE (Interactivo) */}
