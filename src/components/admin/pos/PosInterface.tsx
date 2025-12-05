@@ -46,6 +46,7 @@ type WebBooking = {
     duration: number;
     status: string;
     isWebBooking: boolean;
+    noShowCount?: number;
 }
 
 const DURATIONS = [15, 30, 45, 60, 90]
@@ -371,7 +372,17 @@ export default function PosInterface({
                                     }`}
                                 >
                                     <div className="flex justify-between items-start mb-2">
-                                        <span className="font-bold text-gray-900">{booking.clientName}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-gray-900">{booking.clientName}</span>
+                                            {booking.noShowCount && booking.noShowCount > 0 && (
+                                                <span
+                                                    className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold"
+                                                    title={`${booking.noShowCount} no-show(s) previos`}
+                                                >
+                                                    ⚠️ {booking.noShowCount}
+                                                </span>
+                                            )}
+                                        </div>
                                         <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
                                             {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>

@@ -45,7 +45,7 @@ export default async function PosPage() {
             id, start_time, end_time, notes, status,
             profiles:staff_id ( id, full_name ),
             services:service_id ( name, price, duration_min ),
-            customer:customer_id ( full_name, phone )
+            customer:customer_id ( full_name, phone, no_show_count )
         `)
         .eq("tenant_id", tenantId)
         .eq("status", "confirmed")
@@ -77,7 +77,8 @@ export default async function PosPage() {
         servicePrice: (b.services as any)?.price || 0,
         duration: (b.services as any)?.duration_min || 30,
         status: b.status,
-        isWebBooking: true
+        isWebBooking: true,
+        noShowCount: (b.customer as any)?.no_show_count || 0
     })) || [];
 
     return (

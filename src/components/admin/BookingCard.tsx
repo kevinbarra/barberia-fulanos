@@ -5,7 +5,7 @@ import { toZonedTime, format } from 'date-fns-tz'
 import { Clock, CheckCircle2, Scissors, XCircle } from 'lucide-react'
 import CheckOutModal from './CheckOutModal'
 import Image from 'next/image'
-import { cancelBookingAdmin } from '@/app/admin/bookings/actions'
+import { cancelBookingAdmin, markNoShow } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
 
 const TIMEZONE = 'America/Mexico_City';
@@ -24,6 +24,7 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
+    const [isMarkingNoShow, setIsMarkingNoShow] = useState(false);
 
     // Formatear datos
     const startDate = toZonedTime(booking.start_time, TIMEZONE);
@@ -52,6 +53,20 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
             setIsCancelling(false);
         } else {
             toast.error(res?.error || 'Error');
+        }
+    }
+
+    const handleNoShow = async () => {
+        if (!confirm('¿Marcar como No-Show? Esto afectará la reputación del cliente.')) return
+
+        setIsMarkingNoShow(true)
+        const res = await markNoShow(booking.id)
+        setIsMarkingNoShow(false)
+
+        if (res?.success) {
+            toast.success(res.message)
+        } else {
+            toast.error(res?.error || 'Error')
         }
     }
 
@@ -126,6 +141,13 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
                                 </div>
                             ) : (
                                 <>
+                                    <button
+                                        onClick={handleNoShow}
+                                        disabled={isMarkingNoShow}
+                                        className="text-xs font-bold text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                    >
+                                        {isMarkingNoShow ? '...' : 'No Show'}
+                                    </button>
                                     <button
                                         onClick={() => setIsCancelling(true)}
                                         className="text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"

@@ -196,3 +196,55 @@ export async function cancelBookingAdmin(bookingId: string, reason: string) {
 
     return { success: true, message: 'Cita cancelada.' }
 }
+
+// --- FUNCIÓN 5: MARCAR NO-SHOW ---
+export async function markNoShow(bookingId: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // 1. Obtener la cita
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('status, customer_id')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking) return { error: 'Cita no encontrada.' }
+
+    if (booking.status !== 'confirmed') {
+        return { error: 'Solo se pueden marcar como no-show las citas confirmadas.' }
+    }
+
+    // 2. Actualizar cita a no_show
+    const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({
+            status: 'no_show',
+            notes: 'Cliente no se presentó'
+        })
+        .eq('id', bookingId)
+
+    if (bookingError) {
+        console.error(bookingError)
+        return { error: 'Error al marcar no-show.' }
+    }
+
+    // 3. Incrementar contador si hay cliente registrado
+    if (booking.customer_id) {
+        const { error: profileError } = await supabase.rpc('increment_no_show', {
+            user_id: booking.customer_id
+        })
+
+        if (profileError) {
+            console.error('Error incrementando no-show:', profileError)
+            // No retornamos error, la cita ya se marcó
+        }
+    }
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/admin/pos')
+
+    return { success: true, message: 'Marcado como No-Show.' }
+}
