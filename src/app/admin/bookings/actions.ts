@@ -21,10 +21,9 @@ export async function processPayment(data: {
     if (!booking) return { error: 'Cita no encontrada' }
 
     // 2. CALCULAR PUNTOS (Regla de negocio: 10% del valor en puntos)
-    // Ejemplo: $250 pesos = 25 puntos.
     const pointsEarned = Math.floor(data.amount * 0.10)
 
-    // 3. Crear la Transacción (Ahora guardamos los puntos latentes)
+    // 3. Crear la Transacción
     const { data: transaction, error: txError } = await supabase
         .from('transactions')
         .insert({
@@ -38,7 +37,7 @@ export async function processPayment(data: {
             status: 'completed',
             created_at: new Date().toISOString()
         })
-        .select('id') // Importante: Devolver el ID para usarlo en el modal
+        .select('id')
         .single()
 
     if (txError || !transaction) {
@@ -58,11 +57,10 @@ export async function processPayment(data: {
 
     revalidatePath('/admin/bookings')
 
-    // Devolvemos el transactionId para que el Frontend sepa qué vincular
     return { success: true, transactionId: transaction.id, points: pointsEarned }
 }
 
-// --- FUNCIÓN 2: VINCULAR CLIENTE (NUEVA - LÓGICA QR) ---
+// --- FUNCIÓN 2: VINCULAR CLIENTE (QR) ---
 export async function linkTransactionToUser(transactionId: string, userId: string) {
     const supabase = await createClient()
 
@@ -78,7 +76,7 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
         if (transaction.status !== 'completed') throw new Error('Cobro no finalizado.')
         if (transaction.client_id) throw new Error('Esta venta ya tiene dueño.')
 
-        // 2. Validar Usuario (Cliente)
+        // 2. Validar Usuario
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('id, loyalty_points, full_name')
@@ -87,8 +85,7 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
 
         if (profileError || !profile) throw new Error('Cliente no encontrado.')
 
-        // 3. ACTUALIZACIÓN ATÓMICA (Simulada en código)
-        // Vinculamos la venta al usuario
+        // 3. ACTUALIZACIÓN ATÓMICA
         const { error: updateTxError } = await supabase
             .from('transactions')
             .update({ client_id: userId })
@@ -96,7 +93,6 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
 
         if (updateTxError) throw new Error('Falló la vinculación.')
 
-        // Sumamos los puntos al perfil
         const newTotal = (profile.loyalty_points || 0) + (transaction.points_earned || 0)
 
         const { error: updateProfileError } = await supabase
@@ -105,12 +101,11 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
             .eq('id', userId)
 
         if (updateProfileError) {
-            // Nota crítica: Aquí idealmente haríamos rollback, pero en MVP logueamos el error grave.
-            console.error('CRITICAL: Puntos no sumados pero venta vinculada', transactionId)
+            console.error('CRITICAL: Puntos no sumados', transactionId)
             throw new Error('Error sumando puntos.')
         }
 
-        revalidatePath('/admin') // Refrescar dashboard para ver KPI actualizado
+        revalidatePath('/admin')
 
         return {
             success: true,
@@ -165,4 +160,32 @@ export async function createWalkIn(formData: FormData) {
 
     revalidatePath('/admin/bookings')
     return { success: true }
+}
+
+// --- FUNCIÓN 4: CANCELAR CITA (ADMIN) ---
+export async function cancelBookingAdmin(bookingId: string, reason: string) {
+    const supabase = await createClient()
+
+    // 1. Auth Check
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // 2. Cancelar y guardar motivo
+    const { error } = await supabase
+        .from('bookings')
+        .update({
+            status: 'cancelled',
+            notes: reason ? `Cancelado por admin: ${reason}` : 'Cancelado por administración'
+        })
+        .eq('id', bookingId)
+
+    if (error) {
+        console.error(error)
+        return { error: 'Error al cancelar la cita.' }
+    }
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/app') // Actualizar al cliente también
+
+    return { success: true, message: 'Cita cancelada.' }
 }
