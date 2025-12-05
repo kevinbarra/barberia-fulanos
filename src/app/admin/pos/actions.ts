@@ -12,6 +12,20 @@ export async function createTicket(data: {
 }) {
     const supabase = await createClient()
 
+    // Validación: 1 barbero = 1 cliente a la vez
+    const { count: activeTickets } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', data.staffId)
+        .eq('status', 'seated')
+
+    if (activeTickets && activeTickets > 0) {
+        return {
+            success: false,
+            error: 'Este barbero ya tiene un cliente en silla.'
+        }
+    }
+
     // Calculamos la hora de fin basada en la duración seleccionada
     const now = new Date()
     const endTime = new Date(now.getTime() + data.duration * 60000)

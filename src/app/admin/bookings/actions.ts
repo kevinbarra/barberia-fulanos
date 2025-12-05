@@ -14,11 +14,18 @@ export async function processPayment(data: {
     // 1. Obtener detalles de la cita
     const { data: booking } = await supabase
         .from('bookings')
-        .select('tenant_id, staff_id, service_id')
+        .select('tenant_id, staff_id, service_id, status')
         .eq('id', data.booking_id)
         .single()
 
     if (!booking) return { error: 'Cita no encontrada' }
+
+    if (booking.status === 'completed') {
+        return { error: 'Esta cita ya fue cobrada.' }
+    }
+    if (booking.status === 'cancelled') {
+        return { error: 'No se puede cobrar una cita cancelada.' }
+    }
 
     // 2. CALCULAR PUNTOS (Regla de negocio: 10% del valor en puntos)
     const pointsEarned = Math.floor(data.amount * 0.10)

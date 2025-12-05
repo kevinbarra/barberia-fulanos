@@ -16,7 +16,7 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
         .from('bookings')
         .select('start_time, end_time')
         .eq('staff_id', staffId)
-        .neq('status', 'cancelled')
+        .in('status', ['confirmed', 'seated', 'completed'])
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
 
