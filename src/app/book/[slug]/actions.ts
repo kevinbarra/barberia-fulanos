@@ -6,7 +6,6 @@ import { fromZonedTime } from 'date-fns-tz'
 
 const TIMEZONE = 'America/Mexico_City';
 
-// --- OBTENER RANGOS OCUPADOS (Citas + Bloqueos) ---
 export async function getTakenRanges(staffId: string, dateStr: string) {
     const supabase = await createClient()
 
@@ -39,17 +38,16 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
     return busyRanges
 }
 
-// --- CREAR RESERVA ---
 export async function createBooking(data: {
     tenant_id: string;
     service_id: string;
     staff_id: string;
-    start_time: string;
+    start_time: string; // "2023-10-25T10:00"
     client_name: string;
     client_phone: string;
     client_email: string;
     duration_min: number;
-    customer_id?: string | null; // <--- NUEVO: Opcional, si viene logueado
+    customer_id?: string | null;
 }) {
     const supabase = await createClient()
 
@@ -62,10 +60,13 @@ export async function createBooking(data: {
     const realServiceName = serviceResult.data?.name || "Servicio General";
     const realStaffName = staffResult.data?.full_name || "El equipo";
 
-    const startDate = new Date(data.start_time);
+    // 2. CORRECCIÓN DE TIMEZONE CRÍTICA
+    // Interpretamos la fecha string como hora CDMX, no como UTC.
+    // Si data.start_time es "2023-10-25T10:00", esto crea un Date en UTC equivalente (16:00 UTC)
+    const startDate = fromZonedTime(data.start_time, TIMEZONE);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
-    // 2. Chequeo de Disponibilidad
+    // 3. Chequeo de Disponibilidad
     const { count: bookingConflict } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -87,13 +88,11 @@ export async function createBooking(data: {
 
     const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
 
-    // 3. Insertar Cita
-    // Si viene customer_id, lo usamos. Si no, queda NULL (Walk-in anónimo).
     const { error } = await supabase.from('bookings').insert({
         tenant_id: data.tenant_id,
         service_id: data.service_id,
         staff_id: data.staff_id,
-        customer_id: data.customer_id || null, // <--- VINCULACIÓN REAL
+        customer_id: data.customer_id || null,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         status: 'confirmed',

@@ -1,91 +1,110 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import CheckOutModal from "./CheckOutModal";
+import { useState } from 'react'
+import { toZonedTime, format } from 'date-fns-tz'
+import { Clock, User, CheckCircle2, MoreHorizontal, Scissors } from 'lucide-react'
+import CheckOutModal from './CheckOutModal'
+import Image from 'next/image'
 
-// Definimos la estructura de la cita
+const TIMEZONE = 'America/Mexico_City';
+
+// Tipo robusto para la UI
 type BookingProps = {
     id: string;
     start_time: string;
     status: string;
-    notes: string | null;
-    services: {
-        name: string;
-        price: number;
-        duration_min: number;
-    } | null; // Puede ser null si se borró el servicio
-};
+    notes: string;
+    services: { name: string; price: number; duration_min: number };
+    profiles: { full_name: string; avatar_url: string | null };
+}
 
 export default function BookingCard({ booking }: { booking: BookingProps }) {
-    const [showModal, setShowModal] = useState(false);
+    const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
 
-    // Formatear datos para visualización
-    const dateObj = new Date(booking.start_time);
-    const dayName = dateObj.toLocaleDateString("es-MX", { weekday: "short" });
-    const dayNum = dateObj.getDate();
-    const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    // Formateo de hora
+    const startDate = toZonedTime(booking.start_time, TIMEZONE);
+    const timeStr = format(startDate, 'h:mm a', { timeZone: TIMEZONE });
 
-    const serviceName = booking.services?.name || "Servicio desconocido";
+    // Extracción de datos (fallback seguro)
+    const clientName = booking.notes?.split('|')[0]?.replace('Cliente:', '').trim() || 'Cliente Anónimo';
+    const staffName = booking.profiles?.full_name?.split(' ')[0] || 'Staff';
+    const serviceName = booking.services?.name || 'Servicio';
     const price = booking.services?.price || 0;
-    const duration = booking.services?.duration_min || 0;
 
-    // Extraer nombre del cliente de las notas (Truco rápido)
-    // Las notas son: "Cliente: Kevin | Tel: ..."
-    const clientName = booking.notes?.split("|")[0]?.replace("Cliente:", "").trim() || "Anónimo";
+    // Estados visuales
+    const isCompleted = booking.status === 'completed';
+    const isCancelled = booking.status === 'cancelled';
 
     return (
         <>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* COLUMNA IZQUIERDA: DATOS */}
-                <div className="flex items-start gap-4">
-                    <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-center min-w-[90px]">
-                        <span className="block text-xs font-bold uppercase tracking-wider">{dayName}</span>
-                        <span className="block text-xl font-black">{dayNum}</span>
-                        <span className="block text-xs">{timeStr}</span>
-                    </div>
+            <div
+                onClick={() => !isCompleted && !isCancelled && setIsCheckoutOpen(true)}
+                className={`group relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md active:scale-[0.99] cursor-pointer overflow-hidden ${isCompleted ? 'opacity-60 grayscale' : ''}`}
+            >
+                {/* Indicador lateral de estado */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCompleted ? 'bg-green-500' : isCancelled ? 'bg-red-500' : 'bg-black'
+                    }`} />
 
+                <div className="flex justify-between items-start mb-3 pl-3">
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900">{serviceName}</h3>
-                        <p className="text-gray-500 text-sm mt-1">{booking.notes}</p>
-                        <div className="mt-2 flex gap-2">
-                            <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
-                                {duration} min
+                        <h4 className="font-bold text-gray-900 text-lg leading-tight">{clientName}</h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-1 font-medium">
+                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
+                                <Clock size={10} /> {timeStr}
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                                <Scissors size={10} /> {serviceName}
                             </span>
                         </div>
                     </div>
+
+                    {/* Precio o Status */}
+                    <div className="text-right">
+                        {isCompleted ? (
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1">
+                                <CheckCircle2 size={10} /> Pagado
+                            </span>
+                        ) : (
+                            <span className="font-black text-lg text-gray-900">${price}</span>
+                        )}
+                    </div>
                 </div>
 
-                {/* COLUMNA DERECHA: ACCIONES */}
-                <div className="text-right flex flex-col md:items-end gap-2 justify-between h-full">
-                    <span className="text-2xl font-bold text-gray-900">${price}</span>
+                <div className="flex items-center justify-between border-t border-gray-50 pt-3 pl-3 mt-3">
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gray-100 overflow-hidden relative">
+                            {booking.profiles?.avatar_url ? (
+                                <Image src={booking.profiles.avatar_url} alt={staffName} fill className="object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-gray-400">
+                                    {staffName.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium">Atiende {staffName}</span>
+                    </div>
 
-                    {booking.status === "completed" ? (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800">
-                            ✅ Pagado
-                        </span>
-                    ) : (
-                        <button
-                            onClick={() => setShowModal(true)}
-                            className="bg-black text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-gray-800 transition-colors shadow-lg shadow-gray-200 active:scale-95"
-                        >
-                            Cobrar 💸
-                        </button>
+                    {!isCompleted && !isCancelled && (
+                        <div className="text-xs font-bold text-blue-600 group-hover:underline">
+                            Cobrar / Gestionar →
+                        </div>
                     )}
                 </div>
             </div>
 
-            {/* MODAL DE COBRO (Solo se renderiza si showModal es true) */}
-            {showModal && (
+            {/* Modal de Cobro (Reutilizamos el existente, asegurando que reciba los datos bien) */}
+            {isCheckoutOpen && (
                 <CheckOutModal
                     booking={{
                         id: booking.id,
-                        price: price,
                         service_name: serviceName,
-                        client_name: clientName,
+                        price: price,
+                        client_name: clientName
                     }}
-                    onClose={() => setShowModal(false)}
+                    onClose={() => setIsCheckoutOpen(false)}
                 />
             )}
         </>
-    );
+    )
 }
