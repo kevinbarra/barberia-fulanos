@@ -66,45 +66,62 @@ export async function createBooking(data: {
     const startDate = fromZonedTime(data.start_time, TIMEZONE);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
-    // 3. Chequeo de Disponibilidad
-    const { count: bookingConflict } = await supabase
+    const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
+
+    // 3. INSERTAR CON ESTADO TEMPORAL
+    const { data: newBooking, error: insertError } = await supabase
+        .from('bookings')
+        .insert({
+            tenant_id: data.tenant_id,
+            service_id: data.service_id,
+            staff_id: data.staff_id,
+            customer_id: data.customer_id || null,
+            start_time: startDate.toISOString(),
+            end_time: endDate.toISOString(),
+            status: 'pending',
+            notes: guestInfo
+        })
+        .select('id')
+        .single()
+
+    if (insertError) {
+        console.error('Error al insertar:', insertError)
+        return { success: false, error: 'Error al crear reserva.' }
+    }
+
+    // 4. VALIDAR CONFLICTOS POST-INSERT (anti race condition)
+    const { count: conflictCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .eq('staff_id', data.staff_id)
-        .neq('status', 'cancelled')
+        .in('status', ['confirmed', 'seated', 'pending'])
+        .neq('id', newBooking.id)
         .lt('start_time', endDate.toISOString())
         .gt('end_time', startDate.toISOString())
 
-    const { count: blockConflict } = await supabase
+    const { count: blockCount } = await supabase
         .from('time_blocks')
         .select('*', { count: 'exact', head: true })
         .eq('staff_id', data.staff_id)
         .lt('start_time', endDate.toISOString())
         .gt('end_time', startDate.toISOString())
 
-    if ((bookingConflict && bookingConflict > 0) || (blockConflict && blockConflict > 0)) {
-        return { success: false, error: 'Lo sentimos, este horario ya no está disponible.' }
+    if ((conflictCount && conflictCount > 0) || (blockCount && blockCount > 0)) {
+        // ROLLBACK: Eliminar la reserva que acabamos de crear
+        await supabase.from('bookings').delete().eq('id', newBooking.id)
+        return {
+            success: false,
+            error: 'Este horario fue tomado mientras procesábamos. Elige otro.'
+        }
     }
 
-    const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
+    // 5. CONFIRMAR LA RESERVA
+    await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', newBooking.id)
 
-    const { error } = await supabase.from('bookings').insert({
-        tenant_id: data.tenant_id,
-        service_id: data.service_id,
-        staff_id: data.staff_id,
-        customer_id: data.customer_id || null,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-        status: 'confirmed',
-        notes: guestInfo
-    })
-
-    if (error) {
-        console.error('Error al reservar:', error)
-        return { error: 'No se pudo agendar la cita. Intenta nuevamente.' }
-    }
-
-    // 4. Email
+    // 6. Email
     const dateStr = startDate.toLocaleDateString('es-MX', {
         timeZone: TIMEZONE,
         weekday: 'long', day: 'numeric', month: 'long'
