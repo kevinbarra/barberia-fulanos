@@ -11,7 +11,7 @@ import { es } from "date-fns/locale";
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
 type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
-type Schedule = { staff_id: string; day: string; start_time: string; end_time: string };
+type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string } | null;
 
 // --- UTILS UI ---
@@ -98,7 +98,7 @@ export default function BookingWizard({
         // Usamos en-US para obtener el nombre del día compatible con la BD (monday, tuesday...)
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
 
-        const workSchedule = schedules.find((s) => s.staff_id === selectedStaff?.id && s.day === dayName);
+        const workSchedule = schedules.find((s) => s.staff_id === selectedStaff?.id && s.day === dayName && s.is_active === true);
 
         if (!workSchedule) return [];
 
