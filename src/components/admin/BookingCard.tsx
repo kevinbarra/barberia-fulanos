@@ -45,6 +45,7 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
 
     const isCompleted = booking.status === 'completed';
     const isCancelled = booking.status === 'cancelled';
+    const isNoShow = booking.status === 'no_show';
 
     const handleCancel = async () => {
         if (!confirm('¿Confirmas la cancelación?')) return;
@@ -75,10 +76,10 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
 
     return (
         <>
-            <div className={`group relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md overflow-hidden ${isCompleted ? 'opacity-60' : ''} ${isCancelled ? 'bg-red-50/50 border-red-100' : ''}`}>
+            <div className={`group relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md overflow-hidden ${isCompleted ? 'opacity-60' : ''} ${isCancelled ? 'bg-red-50/50 border-red-100' : ''} ${isNoShow ? 'bg-orange-50/50 border-orange-100 opacity-60' : ''}`}>
 
                 {/* Indicador lateral */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCompleted ? 'bg-green-500' : isCancelled ? 'bg-red-500' : 'bg-black'
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCompleted ? 'bg-green-500' : isCancelled ? 'bg-red-500' : isNoShow ? 'bg-orange-500' : 'bg-black'
                     }`} />
 
                 <div className="flex justify-between items-start mb-3 pl-3">
@@ -106,6 +107,10 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
                             <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-1 rounded-full flex items-center gap-1">
                                 <XCircle size={10} /> Cancelado
                             </span>
+                        ) : isNoShow ? (
+                            <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full flex items-center gap-1">
+                                <XCircle size={10} /> No Show
+                            </span>
                         ) : (
                             <span className="font-black text-lg text-gray-900">${price}</span>
                         )}
@@ -128,7 +133,7 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
                     </div>
 
                     {/* ACCIONES ADMIN */}
-                    {!isCompleted && !isCancelled && (
+                    {!isCompleted && !isCancelled && !isNoShow && (
                         <div className="flex gap-2">
                             {isCancelling ? (
                                 <div className="flex items-center gap-2 animate-in slide-in-from-right-4 fade-in">

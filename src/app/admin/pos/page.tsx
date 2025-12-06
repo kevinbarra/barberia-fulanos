@@ -53,6 +53,11 @@ export default async function PosPage() {
         .lte("start_time", endISO)
         .order("start_time", { ascending: true });
 
+    console.log('=== DEBUG POS ===');
+    console.log('startISO:', startISO);
+    console.log('endISO:', endISO);
+    console.log('todayBookings:', todayBookings);
+
     const formattedTickets = activeTickets?.map(t => ({
         id: t.id,
         startTime: t.start_time,
@@ -80,6 +85,8 @@ export default async function PosPage() {
         isWebBooking: true,
         noShowCount: (b.customer as any)?.no_show_count || 0
     })) || [];
+
+    console.log('formattedBookings:', formattedBookings);
 
     return (
         <div className="h-screen bg-gray-50 flex flex-col md:flex-row overflow-hidden">
