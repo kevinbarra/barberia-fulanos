@@ -108,8 +108,22 @@ export default function PosInterface({
         async function loadClientPoints() {
             if (selectedClient) {
                 try {
-                    // Asegurarse de pasar solo el ID
-                    const clientId = typeof selectedClient === 'string' ? selectedClient : selectedClient.id;
+                    // El selectedClient puede venir de diferentes fuentes
+                    let clientId: string;
+
+                    // Si viene de un ticket, tiene la estructura { client: { id, name, phone } }
+                    if ('client' in selectedClient && (selectedClient as any).client) {
+                        clientId = (selectedClient as any).client.id;
+                    }
+                    // Si es el cliente directo
+                    else if ('id' in selectedClient) {
+                        clientId = selectedClient.id;
+                    } else {
+                        console.error('No se pudo obtener el ID del cliente:', selectedClient);
+                        setClientPoints(0);
+                        return;
+                    }
+
                     const points = await getClientPoints(clientId);
                     setClientPoints(points);
                 } catch (error) {
