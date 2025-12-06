@@ -108,39 +108,33 @@ export default function PosInterface({
         async function loadClientPoints() {
             console.log('=== DEBUG POINTS ===');
             console.log('selectedClient:', selectedClient);
-            console.log('selectedClient type:', typeof selectedClient);
-            console.log('selectedClient keys:', selectedClient ? Object.keys(selectedClient) : 'null');
-            if (selectedClient) {
-                try {
-                    // El selectedClient puede venir de diferentes fuentes
-                    let clientId: string;
 
-                    // Si viene de un ticket, tiene la estructura { client: { id, name, phone } }
-                    if ('client' in selectedClient && (selectedClient as any).client) {
-                        clientId = (selectedClient as any).client.id;
-                    }
-                    // Si es el cliente directo
-                    else if ('id' in selectedClient) {
-                        clientId = selectedClient.id;
-                    } else {
-                        console.error('No se pudo obtener el ID del cliente:', selectedClient);
-                        setClientPoints(0);
-                        return;
-                    }
-
-                    const points = await getClientPoints(clientId);
-                    setClientPoints(points);
-                } catch (error) {
-                    console.error('Error loading client points:', error);
-                    setClientPoints(0);
-                }
-            } else {
+            if (!selectedClient || !selectedClient.id) {
+                console.log('No selectedClient or no id, setting points to 0');
                 setClientPoints(0);
                 setPointsToRedeem(0);
+                return;
+            }
+
+            const clientId = selectedClient.id;
+            console.log('Calling getClientPoints with:', clientId);
+
+            setIsLoadingPoints(true);
+
+            try {
+                const points = await getClientPoints(clientId);
+                console.log('getClientPoints returned:', points);
+                setClientPoints(points);
+            } catch (error) {
+                console.error('Error in loadClientPoints:', error);
+                setClientPoints(0);
+            } finally {
+                setIsLoadingPoints(false);
             }
         }
+
         loadClientPoints();
-    }, [selectedClient])
+    }, [selectedClient]);
 
 
     // --- LÓGICA INTELIGENTE ---
