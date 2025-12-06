@@ -281,28 +281,21 @@ export async function createTransactionWithPoints(formData: {
 // --- ACCIÓN 6: OBTENER PUNTOS DEL CLIENTE ---
 export async function getClientPoints(clientId: string): Promise<number> {
     if (!clientId) {
-        console.log('getClientPoints: No clientId provided');
         return 0;
     }
 
     try {
         const supabase = await createClient();
 
-        console.log('getClientPoints: Fetching points for:', clientId);
-
         const { data, error } = await supabase
-            .from('profiles')
-            .select('loyalty_points')
-            .eq('id', clientId)
-            .single();
+            .rpc('get_client_loyalty_points', { client_id: clientId });
 
         if (error) {
-            console.error('getClientPoints error:', error);
+            console.error('getClientPoints RPC error:', error);
             return 0;
         }
 
-        console.log('getClientPoints result:', data);
-        return data?.loyalty_points || 0;
+        return data || 0;
     } catch (error) {
         console.error('getClientPoints exception:', error);
         return 0;
