@@ -42,7 +42,7 @@ export default async function PosPage() {
     const { data: todayBookings } = await supabase
         .from("bookings")
         .select(`
-            id, start_time, end_time, notes, status,
+            id, start_time, end_time, notes, status, customer_id,
             profiles:staff_id ( id, full_name ),
             services:service_id ( name, price, duration_min ),
             customer:customer_id ( full_name, phone, no_show_count )
@@ -83,7 +83,8 @@ export default async function PosPage() {
         duration: (b.services as any)?.duration_min || 30,
         status: b.status,
         isWebBooking: true,
-        noShowCount: (b.customer as any)?.no_show_count || 0
+        noShowCount: (b.customer as any)?.no_show_count || 0,
+        customerId: b.customer_id
     })) || [];
 
     console.log('formattedBookings:', formattedBookings);

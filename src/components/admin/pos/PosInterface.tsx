@@ -8,6 +8,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X } from 'lucide-react'
 import QRScanner from '@/components/admin/QRScanner'
+import PointsRedemption from './PointsRedemption'
+import { calculatePointsDiscount } from '@/types/loyalty'
+import { createTransactionWithPoints, getClientPoints } from '@/app/admin/pos/actions'
 
 // --- TIPOS ---
 type Staff = {
@@ -30,7 +33,8 @@ type Ticket = {
     clientName: string;
     staffName: string;
     serviceName: string | null;
-    price: number | null
+    price: number | null;
+    staffId?: string;
 }
 
 type WebBooking = {
@@ -47,6 +51,7 @@ type WebBooking = {
     status: string;
     isWebBooking: boolean;
     noShowCount?: number;
+    customerId?: string | null;
 }
 
 const DURATIONS = [15, 30, 45, 60, 90]
@@ -77,6 +82,7 @@ export default function PosInterface({
         setBookings(todayBookings)
     }, [todayBookings])
 
+
     const [mobileTab, setMobileTab] = useState<'list' | 'action'>('list')
     const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
     const [successTx, setSuccessTx] = useState<{ id: string, points: number } | null>(null)
@@ -91,6 +97,31 @@ export default function PosInterface({
     const [selFinalService, setSelFinalService] = useState<Service | null>(null)
     const [paymentMethod, setPaymentMethod] = useState('cash')
     const [showScanner, setShowScanner] = useState(false)
+    const [pointsToRedeem, setPointsToRedeem] = useState(0)
+    const [clientPoints, setClientPoints] = useState(0)
+    const [selectedClient, setSelectedClient] = useState<{ id: string } | null>(null)
+    const [isLoadingPoints, setIsLoadingPoints] = useState(false)
+    const [selectedServices, setSelectedServices] = useState<Service[]>([])
+    const [selectedProducts, setSelectedProducts] = useState<any[]>([])
+
+    useEffect(() => {
+        async function loadClientPoints() {
+            if (selectedClient) {
+                try {
+                    const points = await getClientPoints(selectedClient.id)
+                    setClientPoints(points)
+                } catch (error) {
+                    console.error('Error loading client points:', error)
+                    setClientPoints(0)
+                }
+            } else {
+                setClientPoints(0)
+                setPointsToRedeem(0)
+            }
+        }
+        loadClientPoints()
+    }, [selectedClient])
+
 
     // --- LÓGICA INTELIGENTE ---
     const handleStaffSelect = (member: Staff) => {
@@ -134,13 +165,20 @@ export default function PosInterface({
             amount: selFinalService.price,
             serviceId: selFinalService.id,
             paymentMethod,
-            tenantId
+            tenantId,
+            pointsRedeemed: pointsToRedeem
         })
 
         if (res.success && res.transactionId) {
             setSuccessTx({ id: res.transactionId, points: res.points || 0 })
             setTickets(prev => prev.filter(t => t.id !== selectedTicket.id))
-            toast.success('¡Cobro exitoso!')
+
+            if (pointsToRedeem > 0) {
+                const discount = calculatePointsDiscount(pointsToRedeem)
+                toast.success(`¡Cobro exitoso! Descuento de $${discount.toFixed(2)} aplicado`)
+            } else {
+                toast.success('¡Cobro exitoso!')
+            }
         } else {
             toast.error(res.error)
         }
@@ -195,7 +233,8 @@ export default function PosInterface({
             clientName: booking.clientName,
             staffName: booking.staffName,
             serviceName: booking.serviceName,
-            price: booking.servicePrice
+            price: booking.servicePrice,
+            staffId: booking.staffId
         }
         setSelectedTicket(ticketFromBooking)
         // Pre-seleccionar el servicio de la reserva
@@ -203,6 +242,10 @@ export default function PosInterface({
         if (matchingService) {
             setSelFinalService(matchingService)
         }
+
+        // Establecer el cliente (el useEffect se encargará de cargar los puntos)
+        setSelectedClient(booking.customerId ? { id: booking.customerId } : null)
+
         setSuccessTx(null)
         setMobileTab('action')
     }
@@ -224,6 +267,11 @@ export default function PosInterface({
         setSuccessTx(null)
         setShowScanner(false)
         setMobileTab('list')
+        setPointsToRedeem(0)
+        setClientPoints(0)
+        setSelectedClient(null)
+        setSelectedServices([])
+        setSelectedProducts([])
     }
 
     const groupedServices = useMemo(() => {
@@ -236,6 +284,16 @@ export default function PosInterface({
     }, [services]);
     const categories = Object.keys(groupedServices);
     const [activeCategory, setActiveCategory] = useState(categories[0] || 'General');
+
+    // Calculate total with points discount
+    const subtotal = useMemo(() => {
+        return [...selectedServices, ...selectedProducts].reduce(
+            (sum, item) => sum + item.price,
+            0
+        );
+    }, [selectedServices, selectedProducts]);
+    const pointsDiscount = calculatePointsDiscount(pointsToRedeem);
+    const total = Math.max(subtotal - pointsDiscount, 0);
 
     // --- VISTA: PANTALLA DE ÉXITO ---
     if (successTx) {
@@ -312,21 +370,19 @@ export default function PosInterface({
                 <div className="flex border-b border-gray-200 bg-white sticky top-[73px] z-10">
                     <button
                         onClick={() => setActiveTab('tickets')}
-                        className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                            activeTab === 'tickets'
-                                ? 'text-black border-b-2 border-black'
-                                : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'tickets'
+                            ? 'text-black border-b-2 border-black'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         En Silla ({tickets.length})
                     </button>
                     <button
                         onClick={() => setActiveTab('bookings')}
-                        className={`flex-1 py-3 text-sm font-bold transition-colors ${
-                            activeTab === 'bookings'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                        className={`flex-1 py-3 text-sm font-bold transition-colors ${activeTab === 'bookings'
+                            ? 'text-blue-600 border-b-2 border-blue-600'
+                            : 'text-gray-400 hover:text-gray-600'
+                            }`}
                     >
                         Reservas ({bookings.length})
                     </button>
@@ -365,11 +421,10 @@ export default function PosInterface({
                                 <button
                                     key={booking.id}
                                     onClick={() => handleSelectBooking(booking)}
-                                    className={`w-full text-left p-4 rounded-xl border transition-all ${
-                                        selectedTicket?.id === booking.id
-                                            ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200'
-                                            : 'bg-white border-gray-100 hover:border-blue-300'
-                                    }`}
+                                    className={`w-full text-left p-4 rounded-xl border transition-all ${selectedTicket?.id === booking.id
+                                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-200'
+                                        : 'bg-white border-gray-100 hover:border-blue-300'
+                                        }`}
                                 >
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="flex items-center gap-2">
@@ -476,8 +531,45 @@ export default function PosInterface({
                                     ))}
                                 </div>
                             </section>
+
+                            {/* LOYALTY POINTS REDEMPTION */}
+                            {selectedClient && selFinalService && (
+                                <div className="mb-6">
+                                    {isLoadingPoints ? (
+                                        <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
+                                            Cargando puntos del cliente...
+                                        </div>
+                                    ) : (
+                                        <PointsRedemption
+                                            clientPoints={clientPoints}
+                                            totalAmount={selFinalService.price}
+                                            onPointsChange={setPointsToRedeem}
+                                        />
+                                    )}
+                                </div>
+                            )}
+
                             <div className="border-t border-gray-200 pt-6">
-                                <div className="flex justify-between items-center mb-6"><span className="text-gray-500 font-medium">Total a Pagar</span><span className="text-4xl font-black text-gray-900">${selFinalService?.price || 0}</span></div>
+                                <div className="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Subtotal:</span>
+                                        <span className="font-medium">${selFinalService?.price.toFixed(2) || '0.00'}</span>
+                                    </div>
+
+                                    {pointsToRedeem > 0 && (
+                                        <div className="flex justify-between text-sm text-green-600">
+                                            <span>Descuento por puntos ({pointsToRedeem}):</span>
+                                            <span className="font-medium">-${pointsDiscount.toFixed(2)}</span>
+                                        </div>
+                                    )}
+
+                                    <div className="border-t pt-2 flex justify-between">
+                                        <span className="font-semibold text-lg">Total:</span>
+                                        <span className="font-bold text-2xl text-blue-600">
+                                            ${selFinalService ? (selFinalService.price - pointsDiscount).toFixed(2) : '0.00'}
+                                        </span>
+                                    </div>
+                                </div>
                                 <div className="grid grid-cols-3 gap-3 mb-6">
                                     {[{ id: 'cash', label: 'Efectivo', icon: Banknote }, { id: 'card', label: 'Tarjeta', icon: CreditCard }, { id: 'transfer', label: 'Transf.', icon: ArrowRightLeft }].map(m => (
                                         <button key={m.id} onClick={() => setPaymentMethod(m.id)} className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${paymentMethod === m.id ? 'border-black bg-black text-white' : 'border-gray-200 bg-white text-gray-400'}`}><m.icon size={20} className="mb-1" /><span className="text-[10px] font-bold">{m.label}</span></button>
