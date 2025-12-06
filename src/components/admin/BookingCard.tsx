@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toZonedTime, format } from 'date-fns-tz'
 import { Clock, CheckCircle2, Scissors, XCircle } from 'lucide-react'
 import CheckOutModal from './CheckOutModal'
@@ -21,6 +22,7 @@ type BookingProps = {
 }
 
 export default function BookingCard({ booking }: { booking: BookingProps }) {
+    const router = useRouter()
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
@@ -65,6 +67,7 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
 
         if (res?.success) {
             toast.success(res.message)
+            router.refresh()
         } else {
             toast.error(res?.error || 'Error')
         }
