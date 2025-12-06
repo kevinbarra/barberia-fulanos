@@ -108,18 +108,20 @@ export default function PosInterface({
         async function loadClientPoints() {
             if (selectedClient) {
                 try {
-                    const points = await getClientPoints(selectedClient.id)
-                    setClientPoints(points)
+                    // Asegurarse de pasar solo el ID
+                    const clientId = typeof selectedClient === 'string' ? selectedClient : selectedClient.id;
+                    const points = await getClientPoints(clientId);
+                    setClientPoints(points);
                 } catch (error) {
-                    console.error('Error loading client points:', error)
-                    setClientPoints(0)
+                    console.error('Error loading client points:', error);
+                    setClientPoints(0);
                 }
             } else {
-                setClientPoints(0)
-                setPointsToRedeem(0)
+                setClientPoints(0);
+                setPointsToRedeem(0);
             }
         }
-        loadClientPoints()
+        loadClientPoints();
     }, [selectedClient])
 
 
