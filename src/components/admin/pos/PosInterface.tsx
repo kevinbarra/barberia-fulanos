@@ -106,6 +106,10 @@ export default function PosInterface({
 
     useEffect(() => {
         async function loadClientPoints() {
+            console.log('=== DEBUG POINTS ===');
+            console.log('selectedClient:', selectedClient);
+            console.log('selectedClient type:', typeof selectedClient);
+            console.log('selectedClient keys:', selectedClient ? Object.keys(selectedClient) : 'null');
             if (selectedClient) {
                 try {
                     // El selectedClient puede venir de diferentes fuentes
