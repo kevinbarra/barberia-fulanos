@@ -279,15 +279,32 @@ export async function createTransactionWithPoints(formData: {
 }
 
 // --- ACCIÓN 6: OBTENER PUNTOS DEL CLIENTE ---
-export async function getClientPoints(clientId: string) {
-    const supabase = await createClient();
+export async function getClientPoints(clientId: string): Promise<number> {
+    if (!clientId) {
+        console.log('getClientPoints: No clientId provided');
+        return 0;
+    }
 
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('loyalty_points')
-        .eq('id', clientId)
-        .single();
+    try {
+        const supabase = await createClient();
 
-    if (error) throw error;
-    return data.loyalty_points || 0;
+        console.log('getClientPoints: Fetching points for:', clientId);
+
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('loyalty_points')
+            .eq('id', clientId)
+            .single();
+
+        if (error) {
+            console.error('getClientPoints error:', error);
+            return 0;
+        }
+
+        console.log('getClientPoints result:', data);
+        return data?.loyalty_points || 0;
+    } catch (error) {
+        console.error('getClientPoints exception:', error);
+        return 0;
+    }
 }
