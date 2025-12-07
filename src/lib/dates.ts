@@ -1,4 +1,4 @@
-import { toZonedTime, format } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
 import { startOfDay, endOfDay } from 'date-fns';
 
 // 🌎 Configuración Maestra: Zona Horaria del Negocio
@@ -8,19 +8,25 @@ const TIMEZONE = 'America/Mexico_City';
 export function getTodayRange() {
     const now = new Date();
 
-    // 1. Convertir la hora del servidor (UTC) a la hora local del negocio
+    // 1. Obtener la fecha en la zona horaria del negocio
+    // Esto nos da un Date que "aparenta" ser la hora local (ej: 10:00 si en CDMX son las 10:00)
     const zonedNow = toZonedTime(now, TIMEZONE);
 
-    // 2. Calcular inicio y fin del día BASADO en esa hora local
-    const start = startOfDay(zonedNow);
-    const end = endOfDay(zonedNow);
+    // 2. Calcular límites del día en HORA LOCAL (00:00:00 - 23:59:59)
+    const localStart = startOfDay(zonedNow);
+    const localEnd = endOfDay(zonedNow);
+
+    // 3. Convertir esos límites locales de vuelta a UTC real para la base de datos
+    // Ej: 00:00 CDMX -> 06:00 UTC
+    // Ej: 23:59 CDMX -> 05:59 UTC (del día siguiente)
+    const startUTC = fromZonedTime(localStart, TIMEZONE);
+    const endUTC = fromZonedTime(localEnd, TIMEZONE);
 
     return {
-        // Supabase espera fechas en formato ISO (UTC), así que las regresamos convertidas
-        startISO: start.toISOString(),
-        endISO: end.toISOString(),
+        startISO: startUTC.toISOString(),
+        endISO: endUTC.toISOString(),
         // Para mostrar en la UI (ej: "sábado, 29 de noviembre")
-        displayDate: format(zonedNow, "EEEE, d 'de' MMMM", { timeZone: TIMEZONE },)
+        displayDate: format(zonedNow, "EEEE, d 'de' MMMM", { timeZone: TIMEZONE })
     };
 }
 
