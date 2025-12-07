@@ -166,6 +166,8 @@ export async function createWalkIn(formData: FormData) {
     }
 
     revalidatePath('/admin/bookings')
+    revalidatePath('/admin/pos')
+    revalidatePath('/admin/schedule')
     return { success: true }
 }
 

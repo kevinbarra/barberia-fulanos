@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useTransition } from 'react'
+import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveSchedule, addTimeBlock, deleteTimeBlock } from '@/app/admin/schedule/actions'
 import { toast } from 'sonner'
@@ -39,7 +39,13 @@ export default function ScheduleManager({
 
     const [isSaving, setIsSaving] = useState(false)
     const [isAddingBlock, setIsAddingBlock] = useState(false)
+    const [scheduleKey, setScheduleKey] = useState(targetStaffId);
     const formRef = useRef<HTMLFormElement>(null)
+
+    // Forzar re-render del formulario cuando cambia el staff
+    useEffect(() => {
+        setScheduleKey(targetStaffId);
+    }, [targetStaffId]);
 
     const getSchedule = (day: string) =>
         schedules?.find((s) => s.day === day) || { is_active: false, start_time: "10:00", end_time: "20:00" };
@@ -139,7 +145,7 @@ export default function ScheduleManager({
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 relative">
-                    <form action={handleSaveWeekly}>
+                    <form key={scheduleKey} action={handleSaveWeekly}>
                         <input type="hidden" name="target_staff_id" value={targetStaffId} />
 
                         <div className="space-y-5">
