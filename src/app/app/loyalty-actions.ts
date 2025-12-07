@@ -8,24 +8,44 @@ export async function getMyLoyaltyStatus() {
     try {
         // Obtener usuario actual
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No autenticado');
+        if (!user) {
+            console.log('❌ No hay usuario autenticado');
+            throw new Error('No autenticado');
+        }
+
+        console.log('✅ Usuario:', user.id);
 
         // Obtener tenant del usuario
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('tenant_id, loyalty_points')
             .eq('id', user.id)
             .single();
 
-        if (!profile) throw new Error('Perfil no encontrado');
+        if (profileError) {
+            console.error('❌ Error obteniendo perfil:', profileError);
+            throw profileError;
+        }
+
+        if (!profile) {
+            console.error('❌ Perfil no encontrado');
+            throw new Error('Perfil no encontrado');
+        }
+
+        console.log('✅ Perfil:', profile);
 
         // Obtener recompensas disponibles
-        const { data: rewards, error } = await supabase.rpc('get_available_rewards', {
+        const { data: rewards, error: rewardsError } = await supabase.rpc('get_available_rewards', {
             p_client_id: user.id,
             p_tenant_id: profile.tenant_id
         });
 
-        if (error) throw error;
+        if (rewardsError) {
+            console.error('❌ Error obteniendo recompensas:', rewardsError);
+            throw rewardsError;
+        }
+
+        console.log('✅ Recompensas encontradas:', rewards?.length || 0);
 
         return {
             success: true,
@@ -35,7 +55,7 @@ export async function getMyLoyaltyStatus() {
             }
         };
     } catch (error: any) {
-        console.error('Error getting my loyalty status:', error);
+        console.error('❌ Error completo:', error);
         return {
             success: false,
             error: error.message || 'Error al obtener tu estado de lealtad'

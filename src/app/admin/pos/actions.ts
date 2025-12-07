@@ -108,12 +108,14 @@ export async function finalizeTicket({
             .from('bookings')
             .update({
                 status: 'completed',
-                service_id: serviceId
+                service_id: serviceId,
+                updated_at: new Date().toISOString()
             })
             .eq('id', bookingId)
 
         if (updateError) {
-            console.error('Update Booking Error:', updateError)
+            console.error('Update Booking Error:', updateError);
+            throw updateError; // Importante: lanzar error para que no se complete la transacción
         }
 
         // Revalidar rutas para actualizar datos
