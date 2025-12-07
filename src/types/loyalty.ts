@@ -1,66 +1,47 @@
-export type LoyaltyTier = 'bronze' | 'silver' | 'gold';
-
-export interface LoyaltyTierInfo {
-    name: string;
-    color: string;
-    gradient: string;
-    icon: string;
-    minPoints: number;
-    maxPoints: number | null;
-    multiplier: number;
-    benefits: string[];
+export interface LoyaltyReward {
+    reward_id: string;
+    points_required: number;
+    service_name: string;
+    service_price: number;
+    reward_name: string;
+    reward_description: string;
+    can_redeem: boolean;
+    points_needed: number;
 }
 
-export const LOYALTY_TIERS: Record<LoyaltyTier, LoyaltyTierInfo> = {
-    bronze: {
-        name: 'Bronce',
-        color: 'text-amber-700',
-        gradient: 'from-amber-600 to-amber-800',
-        icon: '🥉',
-        minPoints: 0,
-        maxPoints: 499,
-        multiplier: 1.0,
-        benefits: ['1 punto por cada $1 gastado', 'Canjea 100 puntos por $10 de descuento']
-    },
-    silver: {
-        name: 'Plata',
-        color: 'text-slate-400',
-        gradient: 'from-slate-400 to-slate-600',
-        icon: '🥈',
-        minPoints: 500,
-        maxPoints: 999,
-        multiplier: 1.5,
-        benefits: ['1.5 puntos por cada $1 gastado', 'Canjea 100 puntos por $10 de descuento', 'Prioridad en reservaciones']
-    },
-    gold: {
-        name: 'Oro',
-        color: 'text-yellow-500',
-        gradient: 'from-yellow-400 to-yellow-600',
-        icon: '🥇',
-        minPoints: 1000,
-        maxPoints: null,
-        multiplier: 2.0,
-        benefits: ['2 puntos por cada $1 gastado', 'Canjea 100 puntos por $10 de descuento', 'Prioridad máxima', 'Regalos exclusivos']
-    }
-};
-
-export function getTierFromPoints(points: number): LoyaltyTier {
-    if (points >= 1000) return 'gold';
-    if (points >= 500) return 'silver';
-    return 'bronze';
+export interface ClientLoyaltyStatus {
+    current_points: number;
+    available_rewards: LoyaltyReward[];
+    next_reward?: LoyaltyReward;
+    progress_to_next?: number; // Porcentaje 0-100
 }
 
-export function getPointsToNextTier(points: number): number | null {
-    if (points < 500) return 500 - points;
-    if (points < 1000) return 1000 - points;
-    return null;
+export function getNextReward(rewards: LoyaltyReward[], currentPoints: number): LoyaltyReward | undefined {
+    return rewards.find(r => !r.can_redeem);
 }
 
+export function getProgressToNextReward(rewards: LoyaltyReward[], currentPoints: number): number {
+    const nextReward = getNextReward(rewards, currentPoints);
+    if (!nextReward) return 100; // Ya alcanzó todas las recompensas
+
+    const previousReward = rewards.find(r =>
+        r.points_required < nextReward.points_required && r.can_redeem
+    );
+
+    const basePoints = previousReward ? previousReward.points_required : 0;
+    const targetPoints = nextReward.points_required;
+    const progressPoints = currentPoints - basePoints;
+    const totalNeeded = targetPoints - basePoints;
+
+    return Math.min(Math.max((progressPoints / totalNeeded) * 100, 0), 100);
+}
+
+// Helper functions for PointsRedemption logic (100 points = $10 MXN)
 export function calculatePointsDiscount(points: number): number {
     return (points / 100) * 10;
 }
 
-export function calculateMaxRedeemablePoints(points: number, totalAmount: number): number {
-    const maxPointsForAmount = Math.floor((totalAmount / 10) * 100);
-    return Math.min(points, maxPointsForAmount);
+export function calculateMaxRedeemablePoints(clientPoints: number, totalAmount: number): number {
+    const maxPointsForTotal = Math.floor(totalAmount * 10);
+    return Math.min(clientPoints, maxPointsForTotal);
 }

@@ -57,13 +57,15 @@ export async function createTicket(data: {
 }
 
 // --- ACCIÓN 2: CHECKOUT (Cerrar Venta y Registrar Dinero) ---
+// --- ACCIÓN 2: CHECKOUT (Cerrar Venta y Registrar Dinero) ---
 export async function finalizeTicket({
     bookingId,
     amount,
     serviceId,
     paymentMethod,
     tenantId,
-    pointsRedeemed = 0
+    pointsRedeemed = 0,
+    rewardId = null
 }: {
     bookingId: string;
     amount: number;
@@ -71,6 +73,7 @@ export async function finalizeTicket({
     paymentMethod: string;
     tenantId: string;
     pointsRedeemed?: number;
+    rewardId?: string | null;
 }) {
     const supabase = await createClient()
 
@@ -88,13 +91,14 @@ export async function finalizeTicket({
     try {
         // Usar la función RPC que maneja puntos
         const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
-            p_client_id: booking.customer_id, // Mapeado de booking.customer_id
+            p_client_id: booking.customer_id,
             p_total: amount,
             p_services: [{ id: serviceId, price: amount }],
             p_products: [],
             p_payment_method: paymentMethod,
-            p_barber_id: booking.staff_id, // Mapeado de booking.staff_id
-            p_points_redeemed: pointsRedeemed
+            p_barber_id: booking.staff_id,
+            p_points_redeemed: pointsRedeemed,
+            p_reward_id: rewardId
         });
 
         if (txError) throw txError;
@@ -253,5 +257,77 @@ export async function getClientPoints(clientId: string) {
     } catch (error) {
         console.error('Exception fetching points:', error);
         return 0;
+    }
+}
+
+// --- ACCIÓN 7: OBTENER ESTADO DE LEALTAD ---
+export async function getClientLoyaltyStatus(clientId: string, tenantId: string) {
+    const supabase = await createClient();
+
+    try {
+        // Obtener puntos actuales y recompensas disponibles
+        const { data: rewards, error } = await supabase.rpc('get_available_rewards', {
+            p_client_id: clientId,
+            p_tenant_id: tenantId
+        });
+
+        if (error) throw error;
+
+        // Obtener puntos actuales usando la función segura
+        const points = await getClientPoints(clientId);
+
+        return {
+            success: true,
+            data: {
+                current_points: points,
+                available_rewards: rewards || []
+            }
+        };
+    } catch (error: any) {
+        console.error('Error getting loyalty status:', error);
+        return {
+            success: false,
+            error: error.message || 'Error al obtener estado de lealtad'
+        };
+    }
+}
+
+// --- ACCIÓN 8: CANJEAR RECOMPENSA ---
+export async function redeemLoyaltyReward(rewardId: string, clientId: string) {
+    const supabase = await createClient();
+
+    try {
+        // Verificar que la recompensa existe
+        const { data: reward } = await supabase
+            .from('loyalty_rewards')
+            .select('points_required, name')
+            .eq('id', rewardId)
+            .single();
+
+        if (!reward) {
+            throw new Error('Recompensa no encontrada');
+        }
+
+        // Obtener puntos del usuario
+        const currentPoints = await getClientPoints(clientId);
+
+        if (currentPoints < reward.points_required) {
+            throw new Error(`Puntos insuficientes. Necesitas ${reward.points_required} puntos.`);
+        }
+
+        return {
+            success: true,
+            reward: {
+                id: rewardId,
+                name: reward.name,
+                points: reward.points_required
+            }
+        };
+    } catch (error: any) {
+        console.error('Error redeeming reward:', error);
+        return {
+            success: false,
+            error: error.message || 'Error al canjear recompensa'
+        };
     }
 }
