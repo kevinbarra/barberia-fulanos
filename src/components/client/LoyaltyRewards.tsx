@@ -13,6 +13,7 @@ export default function LoyaltyRewards({ currentPoints, rewards }: LoyaltyReward
     const nextReward = rewards.find(r => !r.can_redeem);
 
     // Calcular progreso hacia la próxima recompensa
+    // Calcular progreso hacia la próxima recompensa
     const getProgress = () => {
         if (!nextReward) return 100;
 
@@ -24,7 +25,19 @@ export default function LoyaltyRewards({ currentPoints, rewards }: LoyaltyReward
         const progressPoints = currentPoints - basePoints;
         const totalNeeded = nextReward.points_required - basePoints;
 
-        return Math.min(Math.max((progressPoints / totalNeeded) * 100, 0), 100);
+        const percentage = Math.min(Math.max((progressPoints / totalNeeded) * 100, 0), 100);
+
+        // DEBUG
+        console.log('=== PROGRESS CALC ===');
+        console.log('Base:', basePoints);
+        console.log('Current:', currentPoints);
+        console.log('Target:', nextReward.points_required);
+        console.log('Progress points:', progressPoints);
+        console.log('Total needed:', totalNeeded);
+        console.log('Percentage:', percentage);
+        console.log('====================');
+
+        return percentage;
     };
 
     const progress = getProgress();
@@ -70,9 +83,14 @@ export default function LoyaltyRewards({ currentPoints, rewards }: LoyaltyReward
                         <div className="space-y-1">
                             <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden relative">
                                 <div
-                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-500"
+                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-full transition-all duration-500"
                                     style={{ width: `${progress}%` }}
-                                />
+                                >
+                                    {/* DEBUG: Mostrar % exacto */}
+                                    <span className="text-[8px] text-white font-bold px-1">
+                                        {progress.toFixed(1)}%
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Etiquetas de rango */}
