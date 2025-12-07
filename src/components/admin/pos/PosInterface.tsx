@@ -6,13 +6,15 @@ import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X } from 'lucide-react'
+import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X, Gift } from 'lucide-react'
 import QRScanner from '@/components/admin/QRScanner'
-import PointsRedemption from './PointsRedemption'
+import RewardsSelector from './RewardsSelector';
+import { getClientLoyaltyStatus } from '@/app/admin/pos/actions'
+import type { LoyaltyReward } from '@/types/loyalty'
 import { calculatePointsDiscount } from '@/types/loyalty'
 import { createTransactionWithPoints, getClientPoints } from '@/app/admin/pos/actions'
 
-// --- TIPOS ---
+// ... (Tipos Staff, Service, Ticket, WebBooking se mantienen igual)
 type Staff = {
     id: string;
     full_name: string;
@@ -104,37 +106,54 @@ export default function PosInterface({
     const [selectedServices, setSelectedServices] = useState<Service[]>([])
     const [selectedProducts, setSelectedProducts] = useState<any[]>([])
 
+    // NUEVOS ESTADOS PARA RECOMPENSAS
+    const [availableRewards, setAvailableRewards] = useState<LoyaltyReward[]>([]);
+    const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null);
+    const [rewardPointsToRedeem, setRewardPointsToRedeem] = useState(0);
+
     useEffect(() => {
-        async function loadClientPoints() {
-            console.log('=== DEBUG POINTS ===');
-            console.log('selectedClient:', selectedClient);
+        async function loadClientPointsAndRewards() {
+            if (selectedClient) {
+                try {
+                    let clientId: string;
 
-            if (!selectedClient || !selectedClient.id) {
-                console.log('No selectedClient or no id, setting points to 0');
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    if ('client' in selectedClient && (selectedClient as any).client) {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        clientId = (selectedClient as any).client.id;
+                    } else if ('id' in selectedClient) {
+                        clientId = selectedClient.id;
+                    } else {
+                        console.error('No se pudo obtener el ID del cliente:', selectedClient);
+                        setClientPoints(0);
+                        setAvailableRewards([]);
+                        return;
+                    }
+
+                    // Cargar puntos y recompensas
+                    const loyaltyStatus = await getClientLoyaltyStatus(clientId, tenantId);
+
+                    if (loyaltyStatus.success && loyaltyStatus.data) {
+                        setClientPoints(loyaltyStatus.data.current_points);
+                        setAvailableRewards(loyaltyStatus.data.available_rewards);
+                    } else {
+                        setClientPoints(0);
+                        setAvailableRewards([]);
+                    }
+                } catch (error) {
+                    console.error('Error loading client loyalty:', error);
+                    setClientPoints(0);
+                    setAvailableRewards([]);
+                }
+            } else {
                 setClientPoints(0);
-                setPointsToRedeem(0);
-                return;
-            }
-
-            const clientId = selectedClient.id;
-            console.log('Calling getClientPoints with:', clientId);
-
-            setIsLoadingPoints(true);
-
-            try {
-                const points = await getClientPoints(clientId);
-                console.log('getClientPoints returned:', points);
-                setClientPoints(points);
-            } catch (error) {
-                console.error('Error in loadClientPoints:', error);
-                setClientPoints(0);
-            } finally {
-                setIsLoadingPoints(false);
+                setAvailableRewards([]);
+                setSelectedRewardId(null);
+                setRewardPointsToRedeem(0);
             }
         }
-
-        loadClientPoints();
-    }, [selectedClient]);
+        loadClientPointsAndRewards();
+    }, [selectedClient, tenantId])
 
 
     // --- LÓGICA INTELIGENTE ---
@@ -180,16 +199,17 @@ export default function PosInterface({
             serviceId: selFinalService.id,
             paymentMethod,
             tenantId,
-            pointsRedeemed: pointsToRedeem
+            pointsRedeemed: rewardPointsToRedeem,
+            rewardId: selectedRewardId  // <- AGREGAR ESTA LÍNEA
         })
 
         if (res.success && res.transactionId) {
             setSuccessTx({ id: res.transactionId, points: res.points || 0 })
             setTickets(prev => prev.filter(t => t.id !== selectedTicket.id))
 
-            if (pointsToRedeem > 0) {
-                const discount = calculatePointsDiscount(pointsToRedeem)
-                toast.success(`¡Cobro exitoso! Descuento de $${discount.toFixed(2)} aplicado`)
+            if (rewardPointsToRedeem > 0) {
+                // Si se usó una recompensa, el descuento es el valor de la recompensa, o puntos
+                toast.success(`¡Cobro exitoso con recompensa!`)
             } else {
                 toast.success('¡Cobro exitoso!')
             }
@@ -198,6 +218,8 @@ export default function PosInterface({
         }
         setIsProcessing(false)
     }
+
+    // ... (handleVoid and helpers remain same until reset)
 
     const handleVoid = async () => {
         if (!selectedTicket || !confirm("¿Anular ticket? Esto quedará registrado.")) return
@@ -286,6 +308,9 @@ export default function PosInterface({
         setSelectedClient(null)
         setSelectedServices([])
         setSelectedProducts([])
+        setSelectedRewardId(null);
+        setRewardPointsToRedeem(0);
+        setAvailableRewards([]);
     }
 
     const groupedServices = useMemo(() => {
@@ -299,15 +324,21 @@ export default function PosInterface({
     const categories = Object.keys(groupedServices);
     const [activeCategory, setActiveCategory] = useState(categories[0] || 'General');
 
-    // Calculate total with points discount
+    // Calculate total
     const subtotal = useMemo(() => {
-        return [...selectedServices, ...selectedProducts].reduce(
-            (sum, item) => sum + item.price,
-            0
-        );
-    }, [selectedServices, selectedProducts]);
-    const pointsDiscount = calculatePointsDiscount(pointsToRedeem);
-    const total = Math.max(subtotal - pointsDiscount, 0);
+        return selFinalService ? selFinalService.price : 0;
+    }, [selFinalService]);
+
+    // Calcular descuento de recompensa si aplica
+    const rewardDiscount = useMemo(() => {
+        if (selectedRewardId) {
+            const reward = availableRewards.find(r => r.reward_id === selectedRewardId);
+            return reward ? reward.service_price : 0;
+        }
+        return 0;
+    }, [selectedRewardId, availableRewards]);
+
+    const total = Math.max(subtotal - rewardDiscount, 0);
 
     // --- VISTA: PANTALLA DE ÉXITO ---
     if (successTx) {
@@ -361,6 +392,7 @@ export default function PosInterface({
     return (
         <div className="flex flex-col md:flex-row w-full h-full bg-gray-100 relative">
             <div className={`md:w-96 bg-white border-r border-gray-200 flex-col h-full ${mobileTab === 'list' ? 'flex w-full' : 'hidden md:flex'}`}>
+                {/* ... (Sidebar logic remains mostly same) ... */}
                 <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center sticky top-0 z-10">
                     <div className="flex items-center gap-3">
                         <Link href="/admin" className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full flex items-center gap-1">
@@ -469,7 +501,9 @@ export default function PosInterface({
                     </div>
                 )}
             </div>
+
             <div className={`flex-1 flex-col bg-gray-50 h-full ${mobileTab === 'action' ? 'flex w-full absolute inset-0 z-20 md:static' : 'hidden md:flex'}`}>
+                {/* ... (Right panel logic) ... */}
                 <div className="md:hidden p-4 bg-white border-b border-gray-200 flex items-center gap-3 sticky top-0 z-30">
                     <button onClick={handleBackToList} className="p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
                         <ChevronLeft size={24} />
@@ -546,18 +580,29 @@ export default function PosInterface({
                                 </div>
                             </section>
 
-                            {/* LOYALTY POINTS REDEMPTION */}
-                            {selectedClient && selFinalService && (
+                            {/* REWARDS SELECTOR (Updated) */}
+                            {selectedClient && (selFinalService || selectedTicket) && (
                                 <div className="mb-6">
                                     {isLoadingPoints ? (
                                         <div className="bg-gray-100 rounded-lg p-6 text-center text-gray-500">
                                             Cargando puntos del cliente...
                                         </div>
                                     ) : (
-                                        <PointsRedemption
-                                            clientPoints={clientPoints}
-                                            totalAmount={selFinalService.price}
-                                            onPointsChange={setPointsToRedeem}
+                                        <RewardsSelector
+                                            clientId={
+                                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                'client' in selectedClient && (selectedClient as any).client
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                    ? (selectedClient as any).client.id
+                                                    : selectedClient.id
+                                            }
+                                            tenantId={tenantId}
+                                            currentPoints={clientPoints}
+                                            availableRewards={availableRewards}
+                                            onRewardSelect={(rewardId, points) => {
+                                                setSelectedRewardId(rewardId);
+                                                setRewardPointsToRedeem(points);
+                                            }}
                                         />
                                     )}
                                 </div>
@@ -567,20 +612,25 @@ export default function PosInterface({
                                 <div className="bg-gray-50 rounded-lg p-4 space-y-2 mb-6">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">Subtotal:</span>
-                                        <span className="font-medium">${selFinalService?.price.toFixed(2) || '0.00'}</span>
+                                        <span className="font-medium">${subtotal.toFixed(2)}</span>
                                     </div>
 
-                                    {pointsToRedeem > 0 && (
+                                    {selectedRewardId && (
                                         <div className="flex justify-between text-sm text-green-600">
-                                            <span>Descuento por puntos ({pointsToRedeem}):</span>
-                                            <span className="font-medium">-${pointsDiscount.toFixed(2)}</span>
+                                            <span className="flex items-center gap-1">
+                                                <Gift className="w-4 h-4" />
+                                                Recompensa aplicada:
+                                            </span>
+                                            <span className="font-medium">
+                                                -{availableRewards.find(r => r.reward_id === selectedRewardId)?.service_price || 0} ({rewardPointsToRedeem} pts)
+                                            </span>
                                         </div>
                                     )}
 
                                     <div className="border-t pt-2 flex justify-between">
                                         <span className="font-semibold text-lg">Total:</span>
                                         <span className="font-bold text-2xl text-blue-600">
-                                            ${selFinalService ? (selFinalService.price - pointsDiscount).toFixed(2) : '0.00'}
+                                            ${total.toFixed(2)}
                                         </span>
                                     </div>
                                 </div>
