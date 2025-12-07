@@ -62,26 +62,46 @@ export default function LoyaltyRewards({ currentPoints, rewards }: LoyaltyReward
                         <div className="flex justify-between text-sm mb-2">
                             <span className="font-medium text-gray-700">{nextReward.reward_name}</span>
                             <span className="text-purple-600 font-bold">
-                                {nextReward.points_needed} pts restantes
+                                {nextReward.points_needed} pts más
                             </span>
                         </div>
 
-                        <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                            <div
-                                className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-500"
-                                style={{ width: `${progress}%` }}
-                            />
+                        {/* Barra de progreso mejorada */}
+                        <div className="space-y-1">
+                            <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden relative">
+                                <div
+                                    className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${progress}%` }}
+                                />
+                            </div>
+
+                            {/* Etiquetas de rango */}
+                            <div className="flex justify-between text-xs text-gray-600">
+                                <span>
+                                    {(() => {
+                                        const previousReward = rewards.find(r =>
+                                            r.points_required < nextReward.points_required && r.can_redeem
+                                        );
+                                        return previousReward ? previousReward.points_required : 0;
+                                    })()}
+                                </span>
+                                <span className="font-semibold text-purple-600">
+                                    {currentPoints} puntos
+                                </span>
+                                <span>{nextReward.points_required}</span>
+                            </div>
                         </div>
 
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>{Math.round(progress)}% completado</span>
-                            <span>{nextReward.points_required} pts</span>
-                        </div>
+                        {/* Mensaje más claro */}
+                        <p className="text-sm text-gray-600 mt-3">
+                            Te faltan <strong className="text-purple-600">{nextReward.points_needed} puntos</strong> para
+                            alcanzar {nextReward.reward_name.toLowerCase()}
+                        </p>
                     </div>
 
-                    <p className="text-sm text-gray-600">
+                    <div className="bg-purple-50 rounded-lg p-3 text-xs text-purple-800">
                         {nextReward.reward_description}
-                    </p>
+                    </div>
                 </div>
             )}
 
