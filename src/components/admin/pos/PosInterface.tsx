@@ -489,11 +489,9 @@ export default function PosInterface({
                                             {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between items-center mt-2">
-                                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-dashed border-gray-100">
+                                        <div className="flex items-center gap-2 text-xs text-gray-400 font-medium">
                                             <span>{booking.serviceName}</span>
-                                            <span>•</span>
-                                            <span>${booking.servicePrice}</span>
                                             <span>•</span>
                                             <span>{booking.staffName.split(' ')[0]}</span>
                                         </div>
@@ -509,10 +507,11 @@ export default function PosInterface({
                                                     }
                                                 }
                                             }}
-                                            className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs flex items-center gap-1 hover:bg-red-200 transition-colors z-10"
+                                            className="ml-2 p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors group flex items-center gap-1.5"
+                                            title="Marcar como No-Show"
                                         >
-                                            <UserX className="w-3 h-3" />
-                                            No-Show
+                                            <span className="text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap hidden sm:inline-block">Marcar Falta</span>
+                                            <UserX className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </button>

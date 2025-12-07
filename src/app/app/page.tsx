@@ -33,6 +33,7 @@ export default async function ClientAppPage() {
         .gte("start_time", new Date().toISOString())
         .neq("status", "cancelled")
         .neq("status", "completed")
+        .neq("status", "no_show")
         .order("start_time", { ascending: true })
         .limit(1);
 
@@ -47,6 +48,21 @@ export default async function ClientAppPage() {
 
     // Cargar estado de lealtad
     const loyaltyStatus = await getMyLoyaltyStatus();
+
+    // Ver si hubo un no-show reciente (últimas 24h)
+    const { data: lastNoShow } = await supabase
+        .from("bookings")
+        .select("start_time, services(name)")
+        .eq("customer_id", user.id)
+        .eq("status", "no_show")
+        // .gt("start_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Opcional: solo recientes
+        .order("start_time", { ascending: false })
+        .limit(1)
+        .single();
+
+    // Check si es reciente (ej. hoy o ayer)
+    const showNoShowAlert = lastNoShow &&
+        new Date(lastNoShow.start_time).getTime() > Date.now() - 48 * 60 * 60 * 1000;
 
     // DEBUG: Logs para troubleshooting
     console.log('=== LOYALTY DEBUG ===');
@@ -82,6 +98,41 @@ export default async function ClientAppPage() {
                         </div>
                     </Link>
                 </div>
+
+                {/* ALERTA DE NO-SHOW */}
+                {showNoShowAlert && (
+                    <div className="mb-6 animate-in slide-in-from-top-4 duration-500">
+                        <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-4 flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                                <span className="text-xl">⚠️</span>
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-red-500">Cita Cancelada</h3>
+                                <p className="text-sm text-red-200 mt-1">
+                                    Tu cita reciente fue marcada como <strong>no presentadose</strong>.
+                                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                                    {(profile as any)?.no_show_count > 0 && (
+                                        <span className="block mt-1">
+                                            Tienes <strong>{(profile as any)?.no_show_count} faltas</strong> en tu historial.
+                                        </span>
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* VISUALIZADOR DE ESTADO DE CUENTA (WARNINGS) */}
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {(profile as any)?.no_show_count > 0 && !showNoShowAlert && (
+                    <div className="mb-6 px-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-orange-500/80 bg-orange-500/10 py-2 px-3 rounded-lg border border-orange-500/20 w-fit">
+                            <span>⚠️</span>
+                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                            <span>{(profile as any).no_show_count} falta(s) registrada(s)</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* SECCIÓN PRÓXIMA CITA */}
                 <div className="mb-2">

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 // FIX: Agregamos Settings a los imports (LogOut ya estaba bien)
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 
 export default function Sidebar({
@@ -19,10 +19,11 @@ export default function Sidebar({
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
         { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+        { name: 'Clientes', href: '/admin/clients', icon: Users },
         { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
         { name: 'Servicios', href: '/admin/services', icon: Scissors },
         { name: 'Horarios', href: '/admin/schedule', icon: Clock },
-        { name: 'Configuración', href: '/admin/settings', icon: Settings }, // <--- NUEVO
+        { name: 'Configuración', href: '/admin/settings', icon: Settings },
         { name: 'Ajustes', href: '/admin/profile', icon: User },
     ]
 
@@ -41,7 +42,7 @@ export default function Sidebar({
             menuToRender = adminMenu.filter(item =>
                 item.href !== '/admin/team' &&
                 item.href !== '/admin/services' &&
-                item.href !== '/admin/settings' // <--- FILTRO NUEVO
+                item.href !== '/admin/settings'
             );
         }
     }
