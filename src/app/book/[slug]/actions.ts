@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { sendBookingEmail } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
+import { revalidatePath } from 'next/cache'
 
 const TIMEZONE = 'America/Mexico_City';
 
@@ -139,6 +140,11 @@ export async function createBooking(data: {
         date: dateStr,
         time: timeStr
     });
+
+    // Revalidar rutas para que aparezca en POS y Schedule
+    revalidatePath('/admin/pos');
+    revalidatePath('/admin/schedule');
+    revalidatePath('/app');
 
     return { success: true }
 }
