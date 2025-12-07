@@ -110,15 +110,6 @@ export default async function ClientAppPage() {
 
                 {/* Sección de Lealtad */}
                 <section className="mb-8">
-                    {/* DEBUG INFO */}
-                    <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-xs text-black">
-                        <p className="font-bold mb-2">DEBUG INFO:</p>
-                        <p>Success: {loyaltyStatus.success ? 'SI' : 'NO'}</p>
-                        <p>Error: {loyaltyStatus.error || 'ninguno'}</p>
-                        <p>Puntos: {loyaltyStatus.data?.current_points || 0}</p>
-                        <p>Recompensas: {loyaltyStatus.data?.available_rewards?.length || 0}</p>
-                    </div>
-
                     {loyaltyStatus.success && loyaltyStatus.data ? (
                         <LoyaltyRewards
                             currentPoints={loyaltyStatus.data.current_points}
@@ -129,11 +120,6 @@ export default async function ClientAppPage() {
                             <p className="text-sm text-yellow-800">
                                 No se pudo cargar tu información de recompensas.
                             </p>
-                            {loyaltyStatus.error && (
-                                <p className="text-xs text-yellow-700 mt-2">
-                                    Error: {loyaltyStatus.error}
-                                </p>
-                            )}
                         </div>
                     )}
                 </section>
