@@ -57,13 +57,20 @@ export async function createTicket(data: {
 }
 
 // --- ACCIÓN 2: CHECKOUT (Cerrar Venta y Registrar Dinero) ---
-export async function finalizeTicket(data: {
-    bookingId: string
-    serviceId: string
-    paymentMethod: string
-    amount: number
-    tenantId: string
-    pointsRedeemed?: number
+export async function finalizeTicket({
+    bookingId,
+    amount,
+    serviceId,
+    paymentMethod,
+    tenantId,
+    pointsRedeemed = 0
+}: {
+    bookingId: string;
+    amount: number;
+    serviceId: string;
+    paymentMethod: string;
+    tenantId: string;
+    pointsRedeemed?: number;
 }) {
     const supabase = await createClient()
 
@@ -71,101 +78,51 @@ export async function finalizeTicket(data: {
     const { data: booking } = await supabase
         .from('bookings')
         .select('staff_id, customer_id')
-        .eq('id', data.bookingId)
+        .eq('id', bookingId)
         .single()
 
     if (!booking) {
         return { success: false, error: 'Ticket no encontrado.' }
     }
 
-    // 2. Si hay puntos a redimir, validar y descontar
-    let finalAmount = data.amount
-    const pointsRedeemed = data.pointsRedeemed || 0
+    try {
+        // Usar la función RPC que maneja puntos
+        const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
+            p_client_id: booking.customer_id, // Mapeado de booking.customer_id
+            p_total: amount,
+            p_services: [{ id: serviceId, price: amount }],
+            p_products: [],
+            p_payment_method: paymentMethod,
+            p_barber_id: booking.staff_id, // Mapeado de booking.staff_id
+            p_points_redeemed: pointsRedeemed
+        });
 
-    if (pointsRedeemed > 0 && booking.customer_id) {
-        // Obtener puntos actuales del cliente
-        const { data: customer } = await supabase
-            .from('profiles')
-            .select('loyalty_points')
-            .eq('id', booking.customer_id)
-            .single()
+        if (txError) throw txError;
 
-        if (!customer || (customer.loyalty_points || 0) < pointsRedeemed) {
-            return { success: false, error: 'Puntos insuficientes.' }
+        // 6. Cerrar la Cita y actualizar el servicio realizado
+        const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+                status: 'completed',
+                service_id: serviceId
+            })
+            .eq('id', bookingId)
+
+        if (updateError) {
+            console.error('Update Booking Error:', updateError)
         }
 
-        // Calcular descuento (100 puntos = $10 MXN)
-        const discount = (pointsRedeemed / 100) * 10
-        finalAmount = Math.max(0, data.amount - discount)
+        // Revalidar rutas para actualizar datos
+        revalidatePath('/admin/pos');
+        revalidatePath('/app');
+        revalidatePath('/admin/schedule');
 
-        // Descontar puntos del cliente
-        const { error: updatePointsError } = await supabase
-            .from('profiles')
-            .update({ loyalty_points: customer.loyalty_points - pointsRedeemed })
-            .eq('id', booking.customer_id)
+        return { success: true, transactionId: transactionId, points: 0, message: 'Cobro exitoso' }
 
-        if (updatePointsError) {
-            console.error('Error updating points:', updatePointsError)
-            return { success: false, error: 'Error al redimir puntos.' }
-        }
+    } catch (error: any) {
+        console.error('Finalize Ticket Error:', error)
+        return { success: false, error: error.message || 'Error al procesar el cobro.' }
     }
-
-    // 3. Calcular Puntos Ganados (10% del monto final pagado)
-    const pointsEarned = Math.floor(finalAmount * 0.10)
-
-    // 4. Crear la Transacción (El registro del dinero)
-    const { data: transaction, error: txError } = await supabase
-        .from('transactions')
-        .insert({
-            tenant_id: data.tenantId,
-            staff_id: booking.staff_id,
-            service_id: data.serviceId,
-            amount: finalAmount,
-            payment_method: data.paymentMethod,
-            status: 'completed',
-            created_at: new Date().toISOString(),
-            points_earned: pointsEarned,
-            points_redeemed: pointsRedeemed,
-            client_id: booking.customer_id
-        })
-        .select('id')
-        .single()
-
-    if (txError) {
-        console.error('Tx Error:', txError)
-        return { success: false, error: 'Error al registrar pago.' }
-    }
-
-    // 5. Sumar puntos ganados al cliente (si está registrado)
-    if (booking.customer_id && pointsEarned > 0) {
-        const { error: addPointsError } = await supabase.rpc('add_loyalty_points', {
-            user_id: booking.customer_id,
-            points: pointsEarned
-        })
-
-        if (addPointsError) {
-            console.error('Error adding loyalty points:', addPointsError)
-            // No retornamos error, la transacción ya se creó
-        }
-    }
-
-    // 6. Cerrar la Cita y actualizar el servicio realizado
-    const { error: updateError } = await supabase
-        .from('bookings')
-        .update({
-            status: 'completed',
-            service_id: data.serviceId
-        })
-        .eq('id', data.bookingId)
-
-    if (updateError) {
-        console.error('Update Booking Error:', updateError)
-        // Retornamos éxito parcial porque el dinero ya se cobró
-        return { success: true, transactionId: transaction.id, points: pointsEarned, message: 'Cobrado (Error al cerrar cita)' }
-    }
-
-    revalidatePath('/admin/pos')
-    return { success: true, transactionId: transaction.id, points: pointsEarned, message: 'Cobro exitoso' }
 }
 
 // --- ACCIÓN 3: ANULAR (Soft Delete / Auditoría) ---
