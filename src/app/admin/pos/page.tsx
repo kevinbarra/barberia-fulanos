@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import PosInterface from "@/components/admin/pos/PosInterface";
 import { getTodayRange } from "@/lib/dates";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PosPage() {
     const supabase = await createClient();
     const tenantId = await getTenantId();
