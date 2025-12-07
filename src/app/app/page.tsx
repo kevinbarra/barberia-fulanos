@@ -4,7 +4,9 @@ import QRCode from "react-qr-code";
 import Link from "next/link";
 import { Settings, User, Plus } from "lucide-react";
 import Image from "next/image";
-import NextAppointmentCard from "@/components/client/NextAppointmentCard"; // <--- IMPORTAR
+import LoyaltyRewards from '@/components/client/LoyaltyRewards';
+import { getMyLoyaltyStatus } from './loyalty-actions';
+import NextAppointmentCard from "@/components/client/NextAppointmentCard";
 
 export default async function ClientAppPage() {
     const supabase = await createClient();
@@ -41,10 +43,8 @@ export default async function ClientAppPage() {
         .order("created_at", { ascending: false })
         .limit(5);
 
-    const points = profile?.loyalty_points || 0;
-    const GOAL = 100;
-    const progress = Math.min((points / GOAL) * 100, 100);
-    const nextReward = GOAL - (points % GOAL);
+    // Cargar estado de lealtad
+    const loyaltyStatus = await getMyLoyaltyStatus();
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
@@ -101,33 +101,21 @@ export default async function ClientAppPage() {
                     )}
                 </div>
 
-                {/* WALLET */}
-                <div className="bg-zinc-900 rounded-[28px] p-6 mb-8 relative overflow-hidden border border-zinc-800 shadow-xl">
-                    <div className="flex justify-between items-center mb-6">
-                        <div>
-                            <p className="text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">Mi Saldo</p>
-                            <h3 className="text-3xl font-black text-white">{points} <span className="text-lg font-medium text-zinc-500">pts</span></h3>
+                {/* Sección de Lealtad */}
+                <section className="mb-8">
+                    {loyaltyStatus.success && loyaltyStatus.data ? (
+                        <LoyaltyRewards
+                            currentPoints={loyaltyStatus.data.current_points}
+                            rewards={loyaltyStatus.data.available_rewards}
+                        />
+                    ) : (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                            <p className="text-sm text-yellow-800">
+                                No se pudo cargar tu información de recompensas.
+                            </p>
                         </div>
-                        <div className="bg-white p-2 rounded-xl">
-                            <QRCode
-                                value={user.id}
-                                size={48}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                viewBox={`0 0 256 256`}
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between text-[10px] mb-2 font-bold uppercase tracking-wider">
-                            <span className="text-zinc-500">Nivel Bronce</span>
-                            <span className="text-blue-400">Meta: {GOAL} pts</span>
-                        </div>
-                        <div className="h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-blue-600 to-purple-500 rounded-full" style={{ width: `${progress}%` }}></div>
-                        </div>
-                        <p className="text-right text-[10px] text-zinc-500 mt-2">+{nextReward} pts para recompensa</p>
-                    </div>
-                </div>
+                    )}
+                </section>
 
                 {/* HISTORIAL */}
                 <div className="flex-1">
