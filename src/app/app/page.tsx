@@ -111,7 +111,7 @@ export default async function ClientAppPage() {
                 {/* Sección de Lealtad */}
                 <section className="mb-8">
                     {/* DEBUG INFO */}
-                    <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-xs">
+                    <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-xs text-black">
                         <p className="font-bold mb-2">DEBUG INFO:</p>
                         <p>Success: {loyaltyStatus.success ? 'SI' : 'NO'}</p>
                         <p>Error: {loyaltyStatus.error || 'ninguno'}</p>
