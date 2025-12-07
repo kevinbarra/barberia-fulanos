@@ -87,7 +87,7 @@ export default function LoyaltyRewards({ currentPoints, rewards }: LoyaltyReward
                                     })()}
                                 </span>
                                 <span className="font-semibold text-purple-600">
-                                    {currentPoints} puntos
+                                    {currentPoints} pts ({Math.round(progress)}%)
                                 </span>
                                 <span>{nextReward.points_required}</span>
                             </div>
