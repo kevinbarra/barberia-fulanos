@@ -108,8 +108,7 @@ export async function finalizeTicket({
             .from('bookings')
             .update({
                 status: 'completed',
-                service_id: serviceId,
-                updated_at: new Date().toISOString()
+                service_id: serviceId
             })
             .eq('id', bookingId)
 
