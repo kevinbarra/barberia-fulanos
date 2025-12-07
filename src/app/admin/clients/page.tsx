@@ -1,9 +1,14 @@
 import { getClientsWithWarnings } from '../no-shows/actions';
 import ClientWarningsTable from '@/components/admin/ClientWarningsTable';
+import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
+
     const clients = await getClientsWithWarnings();
 
     return (
@@ -15,7 +20,10 @@ export default async function ClientsPage() {
                 </div>
             </div>
 
-            <ClientWarningsTable clients={clients || []} />
+            <ClientWarningsTable
+                clients={clients || []}
+                userRole={profile?.role || 'staff'}
+            />
         </div>
     );
 }

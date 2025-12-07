@@ -47,28 +47,45 @@ export async function getClientsWithWarnings() {
     const supabase = await createClient();
 
     const { data, error } = await supabase
-        .from('clients_with_warnings')
+        .from('clients_with_warnings_v2')
         .select('*')
-        .order('no_show_count', { ascending: false });
+        .order('total_no_shows', { ascending: false });
 
     if (error) throw error;
     return data;
 }
 
-export async function getNoShowHistory(clientId: string) {
+export async function getNoShowHistory(email: string) {
     const supabase = await createClient();
 
-    const { data, error } = await supabase
-        .from('no_show_history')
-        .select(`
-      *,
-      booking:bookings(start_time, services(name)),
-      marked_by_profile:marked_by(full_name),
-      forgiven_by_profile:forgiven_by(full_name)
-    `)
-        .eq('client_id', clientId)
-        .order('marked_at', { ascending: false });
+    const { data, error } = await supabase.rpc('get_no_show_history_by_email', {
+        p_email: email
+    });
 
     if (error) throw error;
     return data;
+}
+
+export async function resetClientWarnings(email: string) {
+    const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No autenticado');
+
+    // Verificar rol (doble check en servidor)
+    const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+    if (profile?.role !== 'admin' && profile?.role !== 'owner') {
+        return { success: false, error: 'No autorizado' };
+    }
+
+    const { error } = await supabase.rpc('reset_warnings_by_email', {
+        p_target_email: email,
+        p_reset_by: user.id
+    });
+
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath('/admin/pos');
+    revalidatePath('/admin/clients');
+    return { success: true };
 }
