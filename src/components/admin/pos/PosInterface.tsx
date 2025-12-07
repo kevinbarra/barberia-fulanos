@@ -6,7 +6,8 @@ import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X, Gift } from 'lucide-react'
+import { CheckCircle, Banknote, CreditCard, ArrowRightLeft, QrCode, Trash2, Clock, Plus, ChevronLeft, Scissors, X, Gift, UserX } from 'lucide-react'
+import { markNoShow } from '@/app/admin/no-shows/actions';
 import QRScanner from '@/components/admin/QRScanner'
 import RewardsSelector from './RewardsSelector';
 import { getClientLoyaltyStatus } from '@/app/admin/pos/actions'
@@ -488,12 +489,31 @@ export default function PosInterface({
                                             {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
-                                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                                        <span>{booking.serviceName}</span>
-                                        <span>•</span>
-                                        <span>${booking.servicePrice}</span>
-                                        <span>•</span>
-                                        <span>{booking.staffName.split(' ')[0]}</span>
+                                    <div className="flex justify-between items-center mt-2">
+                                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                                            <span>{booking.serviceName}</span>
+                                            <span>•</span>
+                                            <span>${booking.servicePrice}</span>
+                                            <span>•</span>
+                                            <span>{booking.staffName.split(' ')[0]}</span>
+                                        </div>
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (confirm('¿Marcar como no-show? Esto incrementará el contador del cliente.')) {
+                                                    const result = await markNoShow(booking.id);
+                                                    if (result.success) {
+                                                        toast.success('Marcado como no-show');
+                                                    } else {
+                                                        toast.error(result.error);
+                                                    }
+                                                }
+                                            }}
+                                            className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs flex items-center gap-1 hover:bg-red-200 transition-colors z-10"
+                                        >
+                                            <UserX className="w-3 h-3" />
+                                            No-Show
+                                        </button>
                                     </div>
                                 </button>
                             ))
@@ -646,6 +666,6 @@ export default function PosInterface({
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Settings, User, Plus } from "lucide-react";
 import Image from "next/image";
 import LoyaltyRewards from '@/components/client/LoyaltyRewards';
+import QRPresentation from '@/components/client/QRPresentation';
 import { getMyLoyaltyStatus } from './loyalty-actions';
 import NextAppointmentCard from "@/components/client/NextAppointmentCard";
 
@@ -31,6 +32,7 @@ export default async function ClientAppPage() {
         .eq("customer_id", user.id)
         .gte("start_time", new Date().toISOString())
         .neq("status", "cancelled")
+        .neq("status", "completed")
         .order("start_time", { ascending: true })
         .limit(1);
 
@@ -123,6 +125,12 @@ export default async function ClientAppPage() {
                         </div>
                     )}
                 </section>
+
+                <QRPresentation
+                    qrValue={user.id}
+                    clientName={profile?.full_name || 'Cliente'}
+                    points={loyaltyStatus.data?.current_points || 0}
+                />
 
                 {/* HISTORIAL */}
                 <div className="flex-1">
