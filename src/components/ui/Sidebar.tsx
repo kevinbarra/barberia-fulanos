@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 // FIX: Agregamos Settings a los imports (LogOut ya estaba bien)
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3 } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 
 export default function Sidebar({
@@ -17,6 +17,7 @@ export default function Sidebar({
 
     const adminMenu = [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+        { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
         { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
         { name: 'Clientes', href: '/admin/clients', icon: Users },
@@ -37,14 +38,22 @@ export default function Sidebar({
     if (role === 'client') {
         menuToRender = clientMenu;
     } else {
-        // Staff: Le quitamos Equipo, Servicios y Configuración
-        if (role !== 'owner') {
+        // Staff: Le quitamos Equipo, Servicios, Configuración y Reportes
+        // Admin: (Si existe ese rol separado) usualmente tiene acceso a todo o casi todo. 
+        // Si la lógica anterior asumía que cualquiera != owner es staff, ajustamos.
+
+        if (role === 'staff') {
             menuToRender = adminMenu.filter(item =>
                 item.href !== '/admin/team' &&
                 item.href !== '/admin/services' &&
-                item.href !== '/admin/settings'
+                item.href !== '/admin/settings' &&
+                item.href !== '/admin/reports'
             );
         }
+        // Si el rol es 'admin' (y no 'owner'), por ahora le dejamos ver todo (incluyendo reportes),
+        // o aplicamos restricciones específicas si se solicitan.
+        // La solicitud dice: "solo las pueda ver el admin y no los staff".
+        // Entonces 'admin' y 'owner' ven reportes. 'staff' no.
     }
 
     return (
