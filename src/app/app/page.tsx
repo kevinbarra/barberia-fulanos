@@ -46,6 +46,13 @@ export default async function ClientAppPage() {
     // Cargar estado de lealtad
     const loyaltyStatus = await getMyLoyaltyStatus();
 
+    // DEBUG: Logs para troubleshooting
+    console.log('=== LOYALTY DEBUG ===');
+    console.log('Success:', loyaltyStatus.success);
+    console.log('Data:', loyaltyStatus.data);
+    console.log('Error:', loyaltyStatus.error);
+    console.log('====================');
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
 
@@ -103,6 +110,15 @@ export default async function ClientAppPage() {
 
                 {/* Sección de Lealtad */}
                 <section className="mb-8">
+                    {/* DEBUG INFO */}
+                    <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 mb-4 text-xs">
+                        <p className="font-bold mb-2">DEBUG INFO:</p>
+                        <p>Success: {loyaltyStatus.success ? 'SI' : 'NO'}</p>
+                        <p>Error: {loyaltyStatus.error || 'ninguno'}</p>
+                        <p>Puntos: {loyaltyStatus.data?.current_points || 0}</p>
+                        <p>Recompensas: {loyaltyStatus.data?.available_rewards?.length || 0}</p>
+                    </div>
+
                     {loyaltyStatus.success && loyaltyStatus.data ? (
                         <LoyaltyRewards
                             currentPoints={loyaltyStatus.data.current_points}
@@ -113,6 +129,11 @@ export default async function ClientAppPage() {
                             <p className="text-sm text-yellow-800">
                                 No se pudo cargar tu información de recompensas.
                             </p>
+                            {loyaltyStatus.error && (
+                                <p className="text-xs text-yellow-700 mt-2">
+                                    Error: {loyaltyStatus.error}
+                                </p>
+                            )}
                         </div>
                     )}
                 </section>
