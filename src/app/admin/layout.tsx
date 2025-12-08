@@ -25,7 +25,7 @@ export default async function AdminLayout({
         <div className="min-h-screen bg-gray-50 flex flex-row">
             <MobileAdminNav role={userRole} />
             <Sidebar role={userRole} />
-            <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 md:pt-0">
+            <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
                 {/* pt-16 added for mobile header space */}
                 <main className="flex-1 pb-8 w-full">
                     {children}

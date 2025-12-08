@@ -62,6 +62,7 @@ export default async function ClientAppPage() {
         <ClientDashboardUI
             user={user}
             profile={profile}
+            role={profile?.role || 'client'}
             nextBooking={nextBooking}
             history={history || []}
             loyaltyStatus={loyaltyStatus}

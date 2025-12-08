@@ -39,7 +39,7 @@ export default function MobileAdminNav({ role }: { role: string }) {
     const toggleMenu = () => setIsOpen(!isOpen);
 
     return (
-        <div className="md:hidden">
+        <div className="lg:hidden">
             {/* Top Bar fixed */}
             <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-sm">
                 <h1 className="font-black text-xl tracking-tighter text-gray-900">

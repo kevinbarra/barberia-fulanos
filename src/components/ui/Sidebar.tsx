@@ -57,7 +57,7 @@ export default function Sidebar({
     }
 
     return (
-        <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 hidden md:flex ${className}`}>
+        <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 hidden lg:flex ${className}`}>
             <div className="p-6 border-b border-gray-100 mb-4">
                 <h1 className="font-black text-2xl tracking-tighter text-gray-900">
                     FULANOS<span className="text-blue-600">.</span>

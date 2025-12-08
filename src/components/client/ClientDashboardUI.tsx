@@ -1,18 +1,20 @@
 'use client';
 
 import Link from "next/link";
-import { Settings, User, Plus } from "lucide-react";
+import { Settings, User, Plus, LogOut, LayoutDashboard } from "lucide-react";
 import Image from "next/image";
 import LoyaltyRewards from '@/components/client/LoyaltyRewards';
 import QRPresentation from '@/components/client/QRPresentation';
 import NextAppointmentCard from "@/components/client/NextAppointmentCard";
 import { motion } from 'framer-motion';
+import { signOut } from '@/app/auth/actions';
 
 interface ClientDashboardUIProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     user: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     profile: any;
+    role: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     nextBooking: any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,6 +27,7 @@ interface ClientDashboardUIProps {
 export default function ClientDashboardUI({
     user,
     profile,
+    role,
     nextBooking,
     history,
     loyaltyStatus,
@@ -45,6 +48,8 @@ export default function ClientDashboardUI({
         hidden: { opacity: 0, y: 20 },
         show: { opacity: 1, y: 0 }
     };
+
+    const isStaffOrOwner = role === 'owner' || role === 'staff';
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
@@ -75,13 +80,38 @@ export default function ClientDashboardUI({
             >
 
                 {/* HEADER */}
-                <motion.div variants={item} className="flex justify-between items-center mb-8">
+                <motion.div variants={item} className="flex justify-between items-start mb-8">
                     <div>
                         <h1 className="text-xl font-bold capitalize bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
                             Hola, {profile?.full_name?.split(" ")[0] || 'Cliente'}
                         </h1>
-                        <p className="text-zinc-500 text-xs font-medium">Bienvenido a Fulanos</p>
+                        <p className="text-zinc-500 text-xs font-medium mb-3">Bienvenido a Fulanos</p>
+
+                        <div className="flex gap-2">
+                            {/* STAFF BUTTON */}
+                            {isStaffOrOwner && (
+                                <Link href="/admin">
+                                    <motion.button
+                                        whileTap={{ scale: 0.95 }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800/50 border border-zinc-700/50 hover:bg-zinc-800 hover:border-zinc-600 text-[10px] font-bold text-zinc-300 transition-colors backdrop-blur-md"
+                                    >
+                                        <LayoutDashboard size={12} />
+                                        <span>ADMIN</span>
+                                    </motion.button>
+                                </Link>
+                            )}
+
+                            {/* SIGN OUT BUTTON */}
+                            <button
+                                onClick={() => signOut()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-[10px] font-bold text-red-400 transition-colors backdrop-blur-md"
+                            >
+                                <LogOut size={12} />
+                                <span>SALIR</span>
+                            </button>
+                        </div>
                     </div>
+
                     <Link href="/app/profile" className="relative group">
                         <motion.div
                             whileTap={{ scale: 0.95 }}
