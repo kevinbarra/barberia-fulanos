@@ -11,17 +11,9 @@ import { toast } from 'sonner'
 
 const TIMEZONE = 'America/Mexico_City';
 
-type BookingProps = {
-    id: string;
-    start_time: string;
-    status: string;
-    notes: string | null;
-    services: { name: string; price: number; duration_min: number } | null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    profiles?: any; // Supabase join a veces trae esto
-}
+import { PosBookingData } from "@/types/supabase-joined";
 
-export default function BookingCard({ booking }: { booking: BookingProps }) {
+export default function BookingCard({ booking }: { booking: PosBookingData }) {
     const router = useRouter()
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
@@ -34,11 +26,9 @@ export default function BookingCard({ booking }: { booking: BookingProps }) {
 
     const clientName = booking.notes?.split('|')[0]?.replace('Cliente:', '').trim() || 'Cliente Anónimo';
 
-    // Manejo seguro de datos opcionales
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const staffName = (booking as any).profiles?.full_name?.split(' ')[0] || 'Staff';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const avatarUrl = (booking as any).profiles?.avatar_url;
+    // Manejo seguro de datos opcionales con tipos estrictos
+    const staffName = booking.profiles?.full_name?.split(' ')[0] || 'Staff';
+    const avatarUrl = booking.profiles?.avatar_url;
 
     const serviceName = booking.services?.name || 'Servicio';
     const price = booking.services?.price || 0;

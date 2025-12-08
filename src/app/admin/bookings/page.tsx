@@ -1,5 +1,6 @@
 import { createClient, getTenantId } from "@/utils/supabase/server";
 import BookingCard from "@/components/admin/BookingCard";
+import { PosBookingData } from "@/types/supabase-joined";
 import AddBookingButton from "@/components/admin/AddBookingButton";
 import { redirect } from "next/navigation";
 // FIX: Importar funciones de zona horaria desde 'date-fns-tz'
@@ -47,9 +48,10 @@ export default async function AdminBookingsPage() {
 
     // Agrupación por Fecha (Lógica de Presentación)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const groupedBookings: Record<string, any[]> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const groupedBookings: Record<string, PosBookingData[]> = {};
 
-    bookings?.forEach((booking) => {
+    (bookings as unknown as PosBookingData[])?.forEach((booking) => {
         const date = toZonedTime(booking.start_time, TIMEZONE);
         let key = format(date, 'EEEE d MMMM', { timeZone: TIMEZONE }); // "lunes 4 diciembre"
 

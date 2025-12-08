@@ -2,6 +2,7 @@ import { createClient, getTenantId } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import PosInterface from "@/components/admin/pos/PosInterface";
 import { getTodayRange } from "@/lib/dates";
+import { PosTicketData, PosBookingData } from "@/types/supabase-joined";
 
 export const dynamic = 'force-dynamic';
 
@@ -61,33 +62,32 @@ export default async function PosPage() {
     console.log('endISO:', endISO);
     console.log('todayBookings:', todayBookings);
 
-    const formattedTickets = activeTickets?.map(t => ({
+
+
+    const formattedTickets = (activeTickets as unknown as PosTicketData[])?.map(t => ({
         id: t.id,
         startTime: t.start_time,
         clientName: t.notes?.replace("Walk-in: ", "") || "Anónimo",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        staffName: (t.profiles as any)?.full_name || "Staff",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        serviceName: (t.services as any)?.name || "Servicio",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        price: (t.services as any)?.price || 0
+        staffName: t.profiles?.full_name || "Staff",
+        serviceName: t.services?.name || "Servicio",
+        price: t.services?.price || 0
     })) || [];
 
-    const formattedBookings = todayBookings?.map(b => ({
+    const formattedBookings = (todayBookings as unknown as PosBookingData[])?.map(b => ({
         id: b.id,
         startTime: b.start_time,
         endTime: b.end_time,
-        clientName: (b.customer as any)?.full_name || b.notes?.split('|')[0]?.replace('Cliente:', '').trim() || "Cliente",
-        clientPhone: (b.customer as any)?.phone || "",
-        staffId: (b.profiles as any)?.id,
-        staffName: (b.profiles as any)?.full_name || "Staff",
-        serviceName: (b.services as any)?.name || "Servicio",
-        servicePrice: (b.services as any)?.price || 0,
-        duration: (b.services as any)?.duration_min || 30,
+        clientName: b.customer?.full_name || b.notes?.split('|')[0]?.replace('Cliente:', '').trim() || "Cliente",
+        clientPhone: b.customer?.phone || "",
+        staffId: b.profiles?.id || "",
+        staffName: b.profiles?.full_name || "Staff",
+        serviceName: b.services?.name || "Servicio",
+        servicePrice: b.services?.price || 0,
+        duration: b.services?.duration_min || 30,
         status: b.status,
         isWebBooking: true,
         customerId: b.customer_id || null,
-        noShowCount: (b.customer as any)?.no_show_count || 0,
+        noShowCount: b.customer?.no_show_count || 0,
     })) || [];
 
     console.log('formattedBookings:', formattedBookings);
