@@ -33,11 +33,12 @@ export default async function TeamPage() {
         .from('profiles')
         .select('id, full_name, email, avatar_url, role')
         .eq('tenant_id', tenantId)
+        .in('role', ['owner', 'staff']) // Solo mostrar equipo real
         .order('created_at', { ascending: true });
 
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];
 
-    if (currentUserRole === 'owner') {
+    if (currentUserRole === 'owner' || currentUserRole === 'super_admin') {
         const { data: invites } = await supabase
             .from('staff_invitations')
             .select('id, email, created_at')
@@ -71,7 +72,7 @@ export default async function TeamPage() {
                     <div>
                         <h1 className="text-3xl font-black text-gray-900">Equipo</h1>
                         <p className="text-gray-500 text-sm">
-                            {currentUserRole === 'owner' ? 'Gestiona el acceso al negocio.' : 'Compañeros de trabajo.'}
+                            {currentUserRole === 'owner' || currentUserRole === 'super_admin' ? 'Gestiona el acceso al negocio.' : 'Compañeros de trabajo.'}
                         </p>
                     </div>
                 </div>

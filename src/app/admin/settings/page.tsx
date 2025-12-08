@@ -17,7 +17,7 @@ export default async function SettingsPage() {
         .eq('id', user.id)
         .single();
 
-    if (profile?.role !== 'owner') {
+    if (profile?.role !== 'owner' && profile?.role !== 'super_admin') {
         return (
             <div className="p-8 text-center">
                 <h1 className="text-xl font-bold text-red-500">Acceso Restringido</h1>

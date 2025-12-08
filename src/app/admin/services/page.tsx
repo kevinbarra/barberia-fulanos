@@ -11,6 +11,19 @@ export default async function ServicesPage() {
 
     if (!tenantId) return redirect("/login");
 
+    // Traer perfil para verificar permisos
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Validar rol
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user?.id)
+        .single();
+
+    const userRole = profile?.role || 'staff';
+    const canManageServices = userRole === 'owner' || userRole === 'super_admin';
+
     // Traer TODOS los servicios
     const { data: services } = await supabase
         .from("services")
@@ -42,12 +55,18 @@ export default async function ServicesPage() {
 
                 {/* COLUMNA IZQUIERDA: CREAR */}
                 <div className="lg:col-span-1">
-                    <CreateServiceForm tenantId={tenantId} />
+                    {canManageServices ? (
+                        <CreateServiceForm tenantId={tenantId} />
+                    ) : (
+                        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-center">
+                            <p className="text-sm text-gray-400 font-medium">Solo administradores pueden crear servicios.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* COLUMNA DERECHA: LISTA */}
                 <div className="lg:col-span-2">
-                    <ServiceList services={services || []} />
+                    <ServiceList services={services || []} canManage={canManageServices} />
                 </div>
 
             </div>

@@ -16,7 +16,7 @@ type Service = {
 
 const CATEGORIES = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras'];
 
-export default function ServiceList({ services }: { services: Service[] }) {
+export default function ServiceList({ services, canManage }: { services: Service[], canManage: boolean }) {
     const [editingId, setEditingId] = useState<string | null>(null)
 
     const handleToggle = async (id: string, status: boolean) => {
@@ -106,34 +106,36 @@ export default function ServiceList({ services }: { services: Service[] }) {
                                 </div>
                             </div>
 
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => setEditingId(service.id)}
-                                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Editar"
-                                >
-                                    <Edit2 size={18} />
-                                </button>
+                            {canManage && (
+                                <div className="flex gap-1">
+                                    <button
+                                        onClick={() => setEditingId(service.id)}
+                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Editar"
+                                    >
+                                        <Edit2 size={18} />
+                                    </button>
 
-                                <button
-                                    onClick={() => handleToggle(service.id, service.is_active)}
-                                    className={`p-2 rounded-lg transition-colors ${service.is_active
-                                        ? 'text-green-500 hover:bg-green-50'
-                                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                                        }`}
-                                    title={service.is_active ? "Desactivar" : "Activar"}
-                                >
-                                    <Power size={18} />
-                                </button>
+                                    <button
+                                        onClick={() => handleToggle(service.id, service.is_active)}
+                                        className={`p-2 rounded-lg transition-colors ${service.is_active
+                                            ? 'text-green-500 hover:bg-green-50'
+                                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                        title={service.is_active ? "Desactivar" : "Activar"}
+                                    >
+                                        <Power size={18} />
+                                    </button>
 
-                                <button
-                                    onClick={() => handleDelete(service.id)}
-                                    className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Eliminar permanentemente"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                            </div>
+                                    <button
+                                        onClick={() => handleDelete(service.id)}
+                                        className="p-2 text-gray-300 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Eliminar permanentemente"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

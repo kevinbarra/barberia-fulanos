@@ -61,6 +61,23 @@ export async function createBooking(data: {
     const realServiceName = serviceResult.data?.name || "Servicio General";
     const realStaffName = staffResult.data?.full_name || "El equipo";
 
+    // 1.5. VINCULACIÓN INTELIGENTE (Anti-Duplicados)
+    // Si no viene customer_id (Guest), buscamos si ya existe alguien con ese email.
+    let finalCustomerId = data.customer_id;
+
+    if (!finalCustomerId && data.client_email) {
+        const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', data.client_email)
+            .single();
+
+        if (existingProfile) {
+            finalCustomerId = existingProfile.id;
+            console.log(`[SmartLink] Booking vinculado al perfil existente: ${finalCustomerId}`);
+        }
+    }
+
     // 2. CORRECCIÓN DE TIMEZONE CRÍTICA
     // Interpretamos la fecha string como hora CDMX, no como UTC.
     // Si data.start_time es "2023-10-25T10:00", esto crea un Date en UTC equivalente (16:00 UTC)
@@ -76,7 +93,7 @@ export async function createBooking(data: {
             tenant_id: data.tenant_id,
             service_id: data.service_id,
             staff_id: data.staff_id,
-            customer_id: data.customer_id || null,
+            customer_id: finalCustomerId || null,
             start_time: startDate.toISOString(),
             end_time: endDate.toISOString(),
             status: 'pending',

@@ -102,15 +102,15 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                                         </span>
                                     )}
                                 </p>
-                                {/* Mostrar email solo si es Owner (Privacidad) */}
-                                {currentUserRole === 'owner' && (
+                                {/* Mostrar email solo si es Owner/Super_Admin (Privacidad) */}
+                                {(currentUserRole === 'owner' || currentUserRole === 'super_admin') && (
                                     <p className="text-[10px] text-gray-400 mt-0.5">{member.email}</p>
                                 )}
                             </div>
                         </div>
 
-                        {/* ACCIONES (SOLO OWNER puede borrar, y no a sí mismo) */}
-                        {currentUserRole === 'owner' && member.role !== 'owner' && (
+                        {/* ACCIONES (SOLO OWNER/SUPER_ADMIN puede borrar, y no a sí mismo) */}
+                        {(currentUserRole === 'owner' || currentUserRole === 'super_admin') && member.role !== 'owner' && (
                             <button
                                 onClick={() => handleRemove(member.id)}
                                 className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

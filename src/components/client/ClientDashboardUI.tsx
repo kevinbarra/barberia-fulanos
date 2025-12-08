@@ -49,7 +49,7 @@ export default function ClientDashboardUI({
         show: { opacity: 1, y: 0 }
     };
 
-    const isStaffOrOwner = role === 'owner' || role === 'staff';
+    const isStaffOrOwner = role === 'owner' || role === 'staff' || role === 'super_admin';
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">

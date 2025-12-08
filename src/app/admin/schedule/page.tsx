@@ -29,8 +29,10 @@ export default async function SchedulePage({
     // 2. Determinar a quién estamos viendo (Lógica de Owner)
     let targetStaffId = user.id; // Por defecto: Yo mismo
 
-    // Si soy Owner Y hay un parámetro en la URL, cambio el objetivo
-    if (userRole === 'owner' && params.view_staff && typeof params.view_staff === 'string') {
+    // Si soy Owner/SuperAdmin Y hay un parámetro en la URL, cambio el objetivo
+    const isManager = userRole === 'owner' || userRole === 'super_admin';
+
+    if (isManager && params.view_staff && typeof params.view_staff === 'string') {
         targetStaffId = params.view_staff;
     }
 
@@ -41,7 +43,7 @@ export default async function SchedulePage({
         .eq("staff_id", targetStaffId);
 
     // 4. Cargar Bloqueos
-    // Si soy Owner, veo TODOS para tener contexto global en la lista inferior.
+    // Si soy Manager, veo TODOS para tener contexto global en la lista inferior.
     // Si soy Staff, solo veo los míos.
     let blocksQuery = supabase
         .from("time_blocks")
@@ -49,16 +51,16 @@ export default async function SchedulePage({
         .gte("end_time", new Date().toISOString())
         .order("start_time", { ascending: true });
 
-    if (userRole === 'owner') {
+    if (isManager) {
         blocksQuery = blocksQuery.eq("tenant_id", tenantId);
     } else {
         blocksQuery = blocksQuery.eq("staff_id", user.id);
     }
     const { data: blocks } = await blocksQuery;
 
-    // 5. Lista de Staff para el Dropdown (Solo Owner)
+    // 5. Lista de Staff para el Dropdown (Solo Manager)
     let staffList: { id: string, full_name: string }[] = [];
-    if (userRole === 'owner') {
+    if (isManager) {
         const { data: staff } = await supabase
             .from('profiles')
             .select('id, full_name')
@@ -87,7 +89,7 @@ export default async function SchedulePage({
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900">Gestión de Tiempo</h1>
                     <p className="text-gray-600 text-sm">
-                        {userRole === 'owner' ? 'Configura horarios globales.' : 'Configura tu disponibilidad.'}
+                        {(userRole === 'owner' || userRole === 'super_admin') ? 'Configura horarios globales.' : 'Configura tu disponibilidad.'}
                     </p>
                 </div>
             </div>
