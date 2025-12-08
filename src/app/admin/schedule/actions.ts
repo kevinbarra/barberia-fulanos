@@ -56,8 +56,8 @@ export async function saveSchedule(formData: FormData) {
         .upsert(updates, { onConflict: 'staff_id, day' })
 
     if (error) {
-        console.error('Schedule error:', error)
-        return { error: 'Error al guardar horario.' }
+        console.error('Schedule Save Error:', error, { targetStaffId, tenantId, role: requester?.role })
+        return { error: `Error al guardar horario: ${error.message}` }
     }
 
     revalidatePath('/admin/schedule')
