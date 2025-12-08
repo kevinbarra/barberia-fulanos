@@ -12,14 +12,15 @@ export async function inviteStaff(formData: FormData) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    // 2. Verificar Permisos (Solo Owner invita)
+    // 2. Verificar Permisos (Owner o Super Admin)
     const { data: requester } = await supabase
         .from('profiles')
         .select('role, tenant_id, tenants(name)')
         .eq('id', user.id)
         .single()
 
-    if (requester?.role !== 'owner') return { error: 'Solo el dueño puede enviar invitaciones.' }
+    const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
+    if (!isManager) return { error: 'Solo el dueño o admin puede enviar invitaciones.' }
 
     const emailRaw = formData.get('email') as string
     if (!emailRaw) return { error: 'Email requerido' }
@@ -89,7 +90,8 @@ export async function removeStaff(targetId: string) {
         .eq('id', user?.id)
         .single()
 
-    if (requester?.role !== 'owner') return { error: 'No autorizado' }
+    const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
+    if (!isManager) return { error: 'No autorizado' }
 
     const { error: invError } = await supabase.from('staff_invitations').delete().eq('id', targetId)
     const { error: profError } = await supabase.from('profiles').update({ role: 'customer', tenant_id: null }).eq('id', targetId)
