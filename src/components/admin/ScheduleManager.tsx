@@ -124,7 +124,7 @@ export default function ScheduleManager({
                     </div>
 
                     {/* SELECTOR MAESTRO (Controla toda la página) */}
-                    {userRole === 'owner' && (
+                    {(userRole === 'owner' || userRole === 'super_admin') && (
                         <div className="relative">
                             <select
                                 value={targetStaffId}
@@ -188,7 +188,7 @@ export default function ScheduleManager({
                     </h3>
 
                     {/* Feedback Visual de Contexto */}
-                    {userRole === 'owner' && targetStaffId !== userId && (
+                    {(userRole === 'owner' || userRole === 'super_admin') && targetStaffId !== userId && (
                         <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2 text-xs text-yellow-800">
                             <Lock size={14} />
                             <span>Creando bloqueo para: <strong>{currentStaffName}</strong></span>
@@ -244,7 +244,7 @@ export default function ScheduleManager({
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="font-bold text-sm text-gray-900">{block.reason}</span>
                                             {/* Si estamos viendo "Mis Horarios" pero aparece un bloqueo de otro, lo etiquetamos */}
-                                            {userRole === 'owner' && (
+                                            {(userRole === 'owner' || userRole === 'super_admin') && (
                                                 <span className="bg-gray-100 text-gray-600 text-[10px] px-2 py-0.5 rounded-full font-bold truncate max-w-[100px]">
                                                     {isOwnBlock ? 'Tú' : block.staff_name}
                                                 </span>

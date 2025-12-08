@@ -41,8 +41,8 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
     return (
         <div className="space-y-8">
 
-            {/* FORMULARIO DE INVITACIÓN (SOLO OWNER) */}
-            {currentUserRole === 'owner' && (
+            {/* FORMULARIO DE INVITACIÓN (SOLO OWNER O SUPER ADMIN) */}
+            {(currentUserRole === 'owner' || currentUserRole === 'super_admin') && (
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
                     <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <Plus size={20} className="text-blue-600" />
