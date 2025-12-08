@@ -25,7 +25,8 @@
     "recharts": "^3.5.1",
     "resend": "^4.0.1",
     "sonner": "^1.7.4",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",

@@ -39,8 +39,10 @@ export default async function SettingsPage() {
                 </div>
             </div>
 
-            {/* @ts-ignore: Tipado simple para MVP */}
-            <TenantForm initialData={profile.tenants} />
+            {/* Formulario Seguro */}
+            {profile?.tenants && (
+                <TenantForm initialData={profile.tenants as unknown as { name: string; slug: string; logo_url: string | null }} />
+            )}
         </div>
     )
 }

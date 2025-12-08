@@ -545,7 +545,7 @@ export default function PosInterface({
                                             <button key={member.id} onClick={() => handleStaffSelect(member)} className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all relative ${selStaff?.id === member.id ? 'border-black bg-black text-white shadow-lg' : 'border-transparent bg-white hover:bg-gray-200'} ${isBusy ? 'opacity-75' : ''}`}>
                                                 {isBusy && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white shadow-sm" title="Ocupado"></span>}
                                                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 relative border border-white/20">
-                                                    {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">{member.full_name[0]}</div>}
+                                                    {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" sizes="48px" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold text-lg">{member.full_name[0]}</div>}
                                                 </div>
                                                 <span className="text-xs font-bold truncate w-full text-center">{member.full_name.split(' ')[0]}</span>
                                             </button>

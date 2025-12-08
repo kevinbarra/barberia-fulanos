@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { tenantSchema } from '@/lib/schemas'
 
 export async function updateTenant(formData: FormData) {
     const supabase = await createClient()
@@ -18,14 +19,29 @@ export async function updateTenant(formData: FormData) {
 
     if (profile?.role !== 'owner') return { error: 'Solo el dueño puede configurar el negocio.' }
 
-    const name = formData.get('name') as string
-    const slug = formData.get('slug') as string
-    const file = formData.get('logo') as File | null
+    // 2. Validación Zod
+    const rawData = {
+        name: formData.get('name'),
+        slug: formData.get('slug'),
+    }
+
+    const validatedFields = tenantSchema.safeParse(rawData);
+
+    if (!validatedFields.success) {
+        return { error: validatedFields.error.flatten().fieldErrors.name?.[0] || validatedFields.error.flatten().fieldErrors.slug?.[0] || 'Datos inválidos.' }
+    }
+
+    const { name, slug } = validatedFields.data;
+    const file = formData.get('logo') as File | null;
 
     let logoUrl = null
 
-    // 2. Subida de Logo
+    // 3. Subida de Logo
     if (file && file.size > 0) {
+        // Validación de Tipo MIME
+        if (!file.type.startsWith('image/')) {
+            return { error: 'El archivo debe ser una imagen.' };
+        }
         if (file.size > 2 * 1024 * 1024) return { error: 'El logo debe pesar menos de 2MB.' }
 
         const fileExt = file.name.split('.').pop()
@@ -41,7 +57,7 @@ export async function updateTenant(formData: FormData) {
         logoUrl = publicUrl
     }
 
-    // 3. Actualizar Tenant
+    // 4. Actualizar Tenant
     const updateData: Record<string, string> = { name, slug }
     if (logoUrl) updateData.logo_url = logoUrl
 
@@ -51,12 +67,12 @@ export async function updateTenant(formData: FormData) {
         .eq('id', profile.tenant_id)
 
     if (error) {
-        if (error.code === '23505') return { error: 'Ese enlace (slug) ya está ocupado.' }
+        if (error.code === '23505') return { error: 'Ese enlace (slug) ya está ocupado. Intenta con otro.' }
         return { error: 'Error al guardar configuración.' }
     }
 
     revalidatePath('/admin')
-    revalidatePath('/book/[slug]', 'layout') // Actualiza la página pública
+    revalidatePath('/book/[slug]', 'layout')
 
-    return { success: true, message: 'Negocio actualizado.' }
+    return { success: true, message: 'Negocio actualizado correctamente.' }
 }

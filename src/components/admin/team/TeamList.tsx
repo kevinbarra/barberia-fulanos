@@ -80,7 +80,7 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full bg-gray-100 overflow-hidden relative border border-gray-200">
                                 {member.avatar_url ? (
-                                    <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
+                                    <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" sizes="48px" />
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center text-gray-400">
                                         <User size={20} />
