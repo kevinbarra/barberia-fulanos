@@ -24,9 +24,10 @@ export async function saveSchedule(formData: FormData) {
         .single();
 
     // Regla de Seguridad:
-    // - Si soy Owner, puedo editar a quien quiera (formTargetId).
+    // - Si soy Owner o Super Admin, puedo editar a quien quiera (formTargetId).
     // - Si soy Staff, SOLO puedo editarme a mí mismo (user.id), ignoro el form.
-    const targetStaffId = requester?.role === 'owner' ? (formTargetId || user.id) : user.id;
+    const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
+    const targetStaffId = isManager ? (formTargetId || user.id) : user.id;
     const tenantId = requester?.tenant_id;
 
     if (!tenantId) return { error: 'Error de configuración de cuenta.' }
@@ -77,7 +78,8 @@ export async function addTimeBlock(formData: FormData) {
     const reason = formData.get('reason') as string
 
     // Misma lógica de seguridad para bloqueos
-    let targetStaffId = (requester?.role === 'owner' ? formData.get('staff_id') : user.id) as string;
+    const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
+    let targetStaffId = (isManager ? formData.get('staff_id') : user.id) as string;
     if (!targetStaffId) targetStaffId = user.id;
 
     if (!date || !startTime || !endTime) return { error: 'Faltan datos.' }

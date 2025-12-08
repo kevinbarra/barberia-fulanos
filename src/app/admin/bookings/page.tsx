@@ -44,8 +44,14 @@ export default async function AdminBookingsPage() {
         .from("profiles")
         .select("id, full_name, avatar_url")
         .eq("tenant_id", tenantId)
-        .in("role", ["owner", "staff"])
-        .eq("is_active_barber", true);
+        .in("role", ["owner", "staff", "super_admin"])
+        // Para dueños/admins, ignoramos is_active_barber si es necesario, o asumimos que deben salir.
+        // Pero para mantener limpieza, usamos OR: (is_active_barber is true OR role in (owner, super_admin))
+        // Supabase query builder para OR complejos es: .or('is_active_barber.eq.true,role.in.(owner,super_admin)')
+        // Simplificación: Traemos todos y filtramos en memoria si es 'staff' inactivo.
+        // O mejor aún: Asumimos que el script de datos fixing (merge_duplicates.sql) pondrá is_active_barber=true a los dueños.
+        // Pero por seguridad:
+        .or('is_active_barber.eq.true,role.eq.owner,role.eq.super_admin');
 
     return (
         <div className="max-w-[1600px] mx-auto p-4 md:p-6 pb-0 h-screen overflow-hidden">
