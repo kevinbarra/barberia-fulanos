@@ -6,15 +6,17 @@ import Image from 'next/image'
 import { cancelMyBooking } from '@/app/app/actions'
 import { toast } from 'sonner'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default function NextAppointmentCard({ booking }: { booking: any }) {
+// Flexible type for Supabase data
+type BookingData = Record<string, unknown>;
+
+export default function NextAppointmentCard({ booking }: { booking: BookingData }) {
     const [isCancelling, setIsCancelling] = useState(false)
 
     const handleCancel = async () => {
         if (!confirm('¿Estás seguro de que quieres cancelar tu cita?')) return
 
         setIsCancelling(true)
-        const res = await cancelMyBooking(booking.id)
+        const res = await cancelMyBooking(booking.id as string)
 
         if (res?.success) {
             toast.success(res.message)
@@ -24,8 +26,15 @@ export default function NextAppointmentCard({ booking }: { booking: any }) {
         setIsCancelling(false)
     }
 
-    // Helpers de formato visual
-    const dateObj = new Date(booking.start_time)
+    // Safe accessors for Supabase joined data
+    const services = booking.services as Record<string, unknown> | Record<string, unknown>[] | undefined;
+    const serviceName = Array.isArray(services) ? (services[0]?.name as string) : (services?.name as string) || 'Servicio';
+
+    const profiles = booking.profiles as Record<string, unknown> | Record<string, unknown>[] | undefined;
+    const staffName = Array.isArray(profiles) ? (profiles[0]?.full_name as string) : (profiles?.full_name as string) || 'Staff';
+    const staffAvatar = Array.isArray(profiles) ? (profiles[0]?.avatar_url as string) : (profiles?.avatar_url as string);
+
+    const dateObj = new Date(booking.start_time as string)
     const timeStr = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
     const dateStr = dateObj.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -39,18 +48,14 @@ export default function NextAppointmentCard({ booking }: { booking: any }) {
                 {/* Header Tarjeta */}
                 <div className="flex items-start justify-between mb-6">
                     <div>
-                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                        <h3 className="text-2xl font-bold text-white mb-1">{(booking.services as any)?.name}</h3>
+                        <h3 className="text-2xl font-bold text-white mb-1">{serviceName}</h3>
                         <div className="flex items-center gap-2 text-zinc-400 text-sm">
                             <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center overflow-hidden border border-zinc-700">
-                                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                {(booking.profiles as any)?.avatar_url ? (
-                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                    <Image src={(booking.profiles as any).avatar_url} alt="Staff" width={24} height={24} className="object-cover" />
+                                {staffAvatar ? (
+                                    <Image src={staffAvatar} alt="Staff" width={24} height={24} className="object-cover" />
                                 ) : <User size={14} />}
                             </div>
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            <span>con {(booking.profiles as any)?.full_name?.split(' ')[0]}</span>
+                            <span>con {staffName.split(' ')[0]}</span>
                         </div>
                     </div>
                     <div className="text-right">

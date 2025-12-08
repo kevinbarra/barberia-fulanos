@@ -74,7 +74,6 @@ export async function createBooking(data: {
 
         if (existingProfile) {
             finalCustomerId = existingProfile.id;
-            console.log(`[SmartLink] Booking vinculado al perfil existente: ${finalCustomerId}`);
         }
     }
 

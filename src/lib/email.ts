@@ -11,12 +11,11 @@ export async function sendBookingEmail(data: {
   time: string;
   barberName: string;
 }) {
-  // Validación básica: Si no hay email, no hacemos nada
   if (!data.clientEmail) return;
 
   try {
     await resend.emails.send({
-      from: 'Barbería Fulanos <onboarding@resend.dev>', // Usar dominio verificado en Prod
+      from: 'Barbería Fulanos <onboarding@resend.dev>',
       to: [data.clientEmail],
       subject: `✅ Cita Confirmada: ${data.serviceName}`,
       html: `
@@ -36,13 +35,12 @@ export async function sendBookingEmail(data: {
         </div>
       `,
     });
-    console.log(`📧 Email cita enviado a ${data.clientEmail}`);
-  } catch (error) {
-    console.error("❌ Error enviando email cita:", error);
+  } catch {
+    // Email is non-critical, silently fail
   }
 }
 
-// 2. NUEVO: Invitación a Staff (Barbero/Admin)
+// 2. Invitación a Staff (Barbero/Admin)
 export async function sendStaffInvitation(data: {
   email: string;
   businessName: string;
@@ -83,15 +81,12 @@ export async function sendStaffInvitation(data: {
     });
 
     if (error) {
-      console.error("Resend API Error:", error);
       return { success: false, error: error.message };
     }
 
-    console.log(`📧 Invitación enviada correctamente a ${data.email}`);
     return { success: true, id: emailData?.id };
 
-  } catch (error) {
-    console.error("❌ Error inesperado enviando invitación:", error);
+  } catch {
     return { success: false, error: 'Fallo de conexión con servicio de correo.' };
   }
 }

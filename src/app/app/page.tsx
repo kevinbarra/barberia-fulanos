@@ -63,7 +63,7 @@ export default async function ClientAppPage() {
             user={user}
             profile={profile}
             role={profile?.role || 'client'}
-            nextBooking={nextBooking}
+            nextBooking={nextBooking ?? null}
             history={history || []}
             loyaltyStatus={loyaltyStatus}
             showNoShowAlert={!!showNoShowAlert}

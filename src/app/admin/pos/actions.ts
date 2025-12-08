@@ -57,16 +57,7 @@ export async function createTicket(data: {
 }
 
 // --- ACCIÓN 2: CHECKOUT (Cerrar Venta y Registrar Dinero) ---
-// --- ACCIÓN 2: CHECKOUT (Cerrar Venta y Registrar Dinero) ---
-export async function finalizeTicket({
-    bookingId,
-    amount,
-    serviceId,
-    paymentMethod,
-    tenantId,
-    pointsRedeemed = 0,
-    rewardId = null
-}: {
+export async function finalizeTicket(input: {
     bookingId: string;
     amount: number;
     serviceId: string;
@@ -75,6 +66,18 @@ export async function finalizeTicket({
     pointsRedeemed?: number;
     rewardId?: string | null;
 }) {
+    // Input validation
+    if (!input.bookingId || !input.serviceId || !input.tenantId) {
+        return { success: false, error: 'Datos incompletos.' };
+    }
+    if (typeof input.amount !== 'number' || input.amount < 0) {
+        return { success: false, error: 'Monto inválido.' };
+    }
+    if (!['cash', 'card', 'transfer'].includes(input.paymentMethod)) {
+        return { success: false, error: 'Método de pago inválido.' };
+    }
+
+    const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null } = input;
     const supabase = await createClient()
 
     // 1. Obtener datos de la cita original (para saber quién atendió)

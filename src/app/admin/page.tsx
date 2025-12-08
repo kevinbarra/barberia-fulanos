@@ -53,17 +53,17 @@ export default async function AdminDashboard() {
         .lte("created_at", endISO)
         .order("created_at", { ascending: false });
 
-    if (error) console.error("Error fetching transactions:", error);
-
-    const formattedTransactions = transactionsData?.map(t => ({
-        id: t.id,
-        amount: t.amount,
-        created_at: t.created_at,
-        client_id: t.client_id,
-        points_earned: t.points_earned,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        service_name: (t.services as any)?.name || 'Venta Rápida'
-    })) || [];
+    const formattedTransactions = transactionsData?.map(t => {
+        const services = t.services as unknown as Record<string, string> | null;
+        return {
+            id: t.id,
+            amount: t.amount,
+            created_at: t.created_at,
+            client_id: t.client_id,
+            points_earned: t.points_earned,
+            service_name: (services?.name as string) || 'Venta Rápida'
+        };
+    }) || [];
 
     const formatMoney = (amount: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
