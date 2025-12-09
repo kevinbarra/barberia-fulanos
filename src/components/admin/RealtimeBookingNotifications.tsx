@@ -23,70 +23,29 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     const [notifications, setNotifications] = useState<BookingNotification[]>([])
     const [showPanel, setShowPanel] = useState(false)
 
-    // Persistent AudioContext - created ONCE on user interaction
-    const audioContextRef = useRef<AudioContext | null>(null)
+    // Audio element for reliable cross-platform sound
+    const audioRef = useRef<HTMLAudioElement | null>(null)
 
-    // Function to play notification sound using persistent AudioContext
+    // Base64-encoded notification beep sound (short WAV)
+    const NOTIFICATION_SOUND = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleM00teleM00N/OoIABo4e7+/sntsVF1pfZOQgVpbC+vpztqpb0c6aJu/0MCMWjcrS4u/0MCMWjcrS4u/yblsQR8XP4THzc2PVz4qQW+Rt7ytfFxYXWqBi4Z9aWJbYGp0e36AhIOBenNsZl9hbnV5fIF/fnx4c21mX11kaXB0d3l5d3RxbWhjX11mbXN3eXl3dXJuamZhXV1lanF1eHh2c29saWVgXV1lanF1eHh2c25rZ2RgXl5lbHJ2eXl3dHBsaGNfXl9mbXN3eXl3dHBsaGRgXl9lbHJ2eHh2c29sZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBl"
+
+    // Create audio element on mount
+    useEffect(() => {
+        audioRef.current = new Audio(NOTIFICATION_SOUND)
+        audioRef.current.volume = 0.7
+    }, [])
+
+    // Function to play notification sound
     const playNotificationSound = () => {
-        console.log('[SOUND] playNotificationSound called, audioContext exists:', !!audioContextRef.current)
-
-        if (!audioContextRef.current) {
-            console.log('[SOUND] Creating new AudioContext...')
-            try {
-                audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
-                console.log('[SOUND] AudioContext created, state:', audioContextRef.current.state)
-            } catch (err) {
-                console.error('[SOUND] AudioContext creation failed:', err)
-                return
-            }
-        }
-
-        const audioContext = audioContextRef.current
-
-        // Resume if suspended (needed after tab is backgrounded)
-        if (audioContext.state === 'suspended') {
-            console.log('[SOUND] Resuming suspended AudioContext...')
-            audioContext.resume()
-        }
-
-        try {
-            // Create oscillator for a pleasant beep
-            const oscillator = audioContext.createOscillator()
-            const gainNode = audioContext.createGain()
-
-            oscillator.connect(gainNode)
-            gainNode.connect(audioContext.destination)
-
-            oscillator.frequency.value = 880 // A5 note
-            oscillator.type = 'sine'
-
-            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-
-            oscillator.start(audioContext.currentTime)
-            oscillator.stop(audioContext.currentTime + 0.3)
-
-            console.log('[SOUND] Beep 1 started')
-
-            // Play a second beep for emphasis
-            setTimeout(() => {
-                if (!audioContextRef.current) return
-                const osc2 = audioContextRef.current.createOscillator()
-                const gain2 = audioContextRef.current.createGain()
-                osc2.connect(gain2)
-                gain2.connect(audioContextRef.current.destination)
-                osc2.frequency.value = 1100 // Higher note
-                osc2.type = 'sine'
-                gain2.gain.setValueAtTime(0.5, audioContextRef.current.currentTime)
-                gain2.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + 0.2)
-                osc2.start(audioContextRef.current.currentTime)
-                osc2.stop(audioContextRef.current.currentTime + 0.2)
-                console.log('[SOUND] Beep 2 started')
-            }, 150)
-        } catch (err) {
-            console.error('[SOUND] Oscillator failed:', err)
+        console.log('[SOUND] playNotificationSound called')
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0
+            audioRef.current.play()
+                .then(() => console.log('[SOUND] Audio played successfully'))
+                .catch(err => console.error('[SOUND] Audio play failed:', err))
         }
     }
+
 
     // Sound needs user interaction first to work in browsers
     // Using ref + localStorage for persistence across page changes
