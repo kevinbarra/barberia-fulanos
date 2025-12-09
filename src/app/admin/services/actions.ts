@@ -29,6 +29,8 @@ export async function createService(formData: FormData) {
     if (error) return { error: 'Error al crear servicio' }
 
     revalidatePath('/admin/services')
+    revalidatePath('/admin/pos')
+    revalidatePath('/admin/bookings')
     return { success: true, message: 'Servicio creado' }
 }
 
@@ -54,6 +56,8 @@ export async function updateService(formData: FormData) {
     if (error) return { error: 'Error al actualizar' }
 
     revalidatePath('/admin/services')
+    revalidatePath('/admin/pos')
+    revalidatePath('/admin/bookings')
     return { success: true, message: 'Servicio actualizado' }
 }
 

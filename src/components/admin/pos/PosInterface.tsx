@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { createTicket, finalizeTicket, voidTicket } from '@/app/admin/pos/actions'
 import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { toast } from 'sonner'
@@ -72,6 +73,9 @@ export default function PosInterface({
     todayBookings?: WebBooking[],
     tenantId: string
 }) {
+    // --- ROUTER ---
+    const router = useRouter()
+
     // --- ESTADO LOCAL ---
     const [tickets, setTickets] = useState<Ticket[]>(initialTickets)
     const [bookings, setBookings] = useState<WebBooking[]>(todayBookings)
@@ -95,6 +99,7 @@ export default function PosInterface({
     const [duration, setDuration] = useState<number>(30)
     const [clientName, setClientName] = useState('')
     const [isProcessing, setIsProcessing] = useState(false)
+    const [selCheckInService, setSelCheckInService] = useState<Service | null>(null)  // Pre-selección de servicio
 
     // Checkout
     const [selFinalService, setSelFinalService] = useState<Service | null>(null)
@@ -177,13 +182,16 @@ export default function PosInterface({
             tenantId,
             staffId: selStaff.id,
             clientName: clientName || "Cliente Walk-in",
-            duration: duration
+            duration: selCheckInService?.duration_min || duration,
+            serviceId: selCheckInService?.id,
+            servicePrice: selCheckInService?.price
         })
 
         if (res.success) {
             toast.success('Ticket Abierto')
             resetCheckIn()
             setMobileTab('list')
+            router.refresh()  // Actualizar lista de tickets desde el servidor
         } else {
             toast.error(res.error)
             setIsProcessing(false)
@@ -296,6 +304,7 @@ export default function PosInterface({
         setDuration(30)
         setClientName('')
         setIsProcessing(false)
+        setSelCheckInService(null)
     }
 
     const fullReset = () => {
@@ -554,7 +563,37 @@ export default function PosInterface({
                                 </div>
                             </section>
                             <section>
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">2. Tiempo Estimado</h3>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">2. Servicio (Opcional)</h3>
+                                <div className="flex gap-2 overflow-x-auto pb-2 mb-3 hide-scrollbar">
+                                    {categories.map(cat => (
+                                        <button key={cat} onClick={() => setActiveCategory(cat)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-black text-white' : 'bg-white border border-gray-200 text-gray-500'}`}>{cat}</button>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                                    <button
+                                        onClick={() => setSelCheckInService(null)}
+                                        className={`p-2 rounded-xl border-2 text-left transition-all ${!selCheckInService ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-400'}`}
+                                    >
+                                        <div className="font-bold text-sm text-gray-600">Sin definir</div>
+                                        <div className="text-[10px] text-gray-400">Elegir al cobrar</div>
+                                    </button>
+                                    {groupedServices[activeCategory]?.map(service => (
+                                        <button
+                                            key={service.id}
+                                            onClick={() => {
+                                                setSelCheckInService(service)
+                                                setDuration(service.duration_min)
+                                            }}
+                                            className={`p-2 rounded-xl border-2 text-left transition-all ${selCheckInService?.id === service.id ? 'border-green-500 bg-green-50' : 'border-gray-200 bg-white hover:border-gray-400'}`}
+                                        >
+                                            <div className="font-bold text-xs text-gray-900 truncate">{service.name}</div>
+                                            <div className="text-[10px] text-gray-500">${service.price} • {service.duration_min}m</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </section>
+                            <section>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">3. Tiempo Estimado</h3>
                                 <div className="flex gap-3 overflow-x-auto pb-2">
                                     {DURATIONS.map(min => (
                                         <button key={min} onClick={() => setDuration(min)} className={`px-6 py-4 rounded-xl font-bold text-lg border-2 transition-all ${duration === min ? 'border-black bg-black text-white shadow-lg' : 'bg-white border-gray-200 text-gray-500'}`}>{min}m</button>
@@ -562,7 +601,7 @@ export default function PosInterface({
                                 </div>
                             </section>
                             <section>
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">3. Cliente</h3>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">4. Cliente</h3>
                                 <input type="text" placeholder="Nombre (Opcional)" value={clientName} onChange={(e) => setClientName(e.target.value)} className="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-black outline-none bg-white font-medium" />
                             </section>
                         </div>

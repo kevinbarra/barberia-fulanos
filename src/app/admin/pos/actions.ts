@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 // --- ACCIÓN 1: CHECK-IN (Abrir Ticket / Bloquear Horario) ---
@@ -9,8 +10,11 @@ export async function createTicket(data: {
     staffId: string
     clientName: string
     duration: number
+    serviceId?: string  // Opcional: Pre-seleccionar servicio para walk-ins
+    servicePrice?: number
 }) {
-    const supabase = await createClient()
+    // Usamos cliente admin para bypass RLS en operaciones del POS
+    const supabase = createAdminClient()
 
     // Validación: 1 barbero = 1 cliente a la vez
     const { count: activeTickets } = await supabase
@@ -31,13 +35,13 @@ export async function createTicket(data: {
     const endTime = new Date(now.getTime() + data.duration * 60000)
 
     // Creamos la cita en estado 'seated' (En silla)
-    // service_id va NULL porque aún no sabemos qué se hizo realmente
+    // service_id puede pre-seleccionarse si el walk-in ya sabe qué quiere
     const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
             tenant_id: data.tenantId,
             staff_id: data.staffId,
-            service_id: null,
+            service_id: data.serviceId || null,
             start_time: now.toISOString(),
             end_time: endTime.toISOString(),
             status: 'seated',
@@ -48,8 +52,11 @@ export async function createTicket(data: {
         .single()
 
     if (error) {
-        console.error('Check-in error:', error)
-        return { success: false, error: 'No se pudo abrir el ticket.' }
+        console.error('Check-in error:', error.message, error.details, error.hint)
+        return {
+            success: false,
+            error: `No se pudo abrir el ticket: ${error.message}`
+        }
     }
 
     revalidatePath('/admin/pos')
@@ -78,7 +85,7 @@ export async function finalizeTicket(input: {
     }
 
     const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null } = input;
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // 1. Obtener datos de la cita original (para saber quién atendió)
     const { data: booking } = await supabase
@@ -135,7 +142,8 @@ export async function finalizeTicket(input: {
 
 // --- ACCIÓN 3: ANULAR (Soft Delete / Auditoría) ---
 export async function voidTicket(bookingId: string) {
-    const supabase = await createClient()
+    // Usamos cliente admin para bypass RLS
+    const supabase = createAdminClient()
 
     // Cambiamos estado a 'cancelled' en lugar de borrar.
     // Esto permite al dueño ver quién canceló citas en la base de datos.
@@ -153,9 +161,86 @@ export async function voidTicket(bookingId: string) {
     return { success: true, message: 'Ticket anulado.' }
 }
 
-// --- ACCIÓN 4: SENTAR RESERVA WEB (Convertir reserva a ticket activo) ---
+// --- ACCIÓN V2: CHECKOUT CON MÚLTIPLES SERVICIOS ---
+export async function finalizeTicketV2(input: {
+    bookingId: string;
+    services: { id: string; price: number }[];
+    totalAmount: number;
+    paymentMethod: string;
+    tenantId: string;
+}) {
+    const { bookingId, services, totalAmount, paymentMethod, tenantId } = input;
+
+    // Validación
+    if (!bookingId || !tenantId) {
+        return { success: false, error: 'Datos incompletos.' };
+    }
+    if (!services || services.length === 0) {
+        return { success: false, error: 'Selecciona al menos un servicio.' };
+    }
+    if (!['cash', 'card', 'transfer'].includes(paymentMethod)) {
+        return { success: false, error: 'Método de pago inválido.' };
+    }
+
+    // Usamos cliente admin para bypass RLS
+    const supabase = createAdminClient();
+
+    // Obtener datos del booking
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('staff_id, customer_id, tenant_id')
+        .eq('id', bookingId)
+        .single();
+
+    if (!booking) {
+        return { success: false, error: 'Ticket no encontrado.' };
+    }
+
+    try {
+        // Crear transacción con múltiples servicios
+        const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
+            p_client_id: booking.customer_id,
+            p_total: totalAmount,
+            p_services: services,
+            p_products: [],
+            p_payment_method: paymentMethod,
+            p_barber_id: booking.staff_id,
+            p_points_redeemed: 0,
+            p_reward_id: null
+        });
+
+        if (txError) throw txError;
+
+        // Actualizar booking como completado (usar primer servicio como referencia)
+        const { error: updateError } = await supabase
+            .from('bookings')
+            .update({
+                status: 'completed',
+                service_id: services[0].id
+            })
+            .eq('id', bookingId);
+
+        if (updateError) throw updateError;
+
+        // Revalidar rutas
+        revalidatePath('/admin/pos');
+        revalidatePath('/admin');
+        revalidatePath('/app');
+
+        return {
+            success: true,
+            transactionId: transactionId,
+            message: 'Venta registrada exitosamente'
+        };
+
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Error al registrar la venta.';
+        return { success: false, error: errorMessage };
+    }
+}
 export async function seatBooking(bookingId: string) {
-    const supabase = await createClient()
+    // Usamos cliente admin para bypass RLS
+    const supabase = createAdminClient()
 
     // 1. Obtener la reserva
     const { data: booking } = await supabase
