@@ -1,11 +1,12 @@
 'use client';
 
 import Link from "next/link";
-import { Settings, User, Plus, LogOut, LayoutDashboard } from "lucide-react";
+import { Settings, User, Plus, LogOut, LayoutDashboard, History } from "lucide-react";
 import Image from "next/image";
 import LoyaltyRewards from '@/components/client/LoyaltyRewards';
 import QRPresentation from '@/components/client/QRPresentation';
 import NextAppointmentCard from "@/components/client/NextAppointmentCard";
+import AppointmentHistory from "@/components/client/AppointmentHistory";
 import { motion } from 'framer-motion';
 import { signOut } from '@/app/auth/actions';
 
@@ -15,6 +16,7 @@ interface ClientDashboardUIProps {
     profile: Record<string, unknown> | null;
     role: string;
     nextBooking: Record<string, unknown> | null;
+    pastBookings: Record<string, unknown>[];
     history: Record<string, unknown>[];
     loyaltyStatus: {
         success: boolean;
@@ -32,6 +34,7 @@ export default function ClientDashboardUI({
     profile,
     role,
     nextBooking,
+    pastBookings,
     history,
     loyaltyStatus,
     showNoShowAlert
@@ -223,9 +226,18 @@ export default function ClientDashboardUI({
                     />
                 </motion.div>
 
-                {/* HISTORIAL */}
+                {/* HISTORIAL DE CITAS */}
+                <motion.div variants={item} className="mt-8">
+                    <div className="flex items-center gap-2 mb-4 pl-1">
+                        <History size={14} className="text-zinc-500" />
+                        <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Historial de Citas</h3>
+                    </div>
+                    <AppointmentHistory bookings={pastBookings} />
+                </motion.div>
+
+                {/* HISTORIAL TRANSACCIONES */}
                 <motion.div variants={item} className="flex-1 mt-8">
-                    <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4 pl-1">Historial Reciente</h3>
+                    <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4 pl-1">Puntos Ganados</h3>
                     <div className="space-y-3">
                         {!history || history.length === 0 ? (
                             <div className="text-center py-8"><p className="text-zinc-600 text-sm">Tu historial aparecerá aquí.</p></div>
