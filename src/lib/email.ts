@@ -94,7 +94,50 @@ export async function sendStaffNewBookingNotification(data: {
   }
 }
 
-// 3. Invitación a Staff (Barbero/Admin)
+// 3. Recordatorio de Cita (24h antes)
+export async function sendBookingReminder(data: {
+  clientName: string;
+  clientEmail: string;
+  serviceName: string;
+  barberName: string;
+  date: string;
+  time: string;
+  businessName?: string;
+}) {
+  if (!data.clientEmail) return;
+
+  const business = data.businessName || 'AgendaBarber';
+
+  try {
+    await resend.emails.send({
+      from: `${business} <onboarding@resend.dev>`,
+      to: [data.clientEmail],
+      subject: `⏰ Recordatorio: Tu cita es mañana`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #000;">¡Hola, ${data.clientName}!</h1>
+          <p>Te recordamos que tienes una cita <strong>mañana</strong>.</p>
+          
+          <div style="background: linear-gradient(135deg, #3b82f620 0%, #8b5cf620 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #3b82f6;">
+            <p style="margin: 0; font-size: 18px;"><strong>${data.serviceName}</strong></p>
+            <p style="margin: 8px 0; color: #666;">con ${data.barberName}</p>
+            <p style="margin: 0; font-size: 16px;">📅 ${data.date} a las ${data.time}</p>
+          </div>
+
+          <p>Te esperamos en <strong>${business}</strong>.</p>
+          
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #888;">Si no puedes asistir, por favor avísanos con anticipación.</p>
+        </div>
+      `,
+    });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
+}
+
+// 4. Invitación a Staff (Barbero/Admin)
 export async function sendStaffInvitation(data: {
   email: string;
   businessName: string;
