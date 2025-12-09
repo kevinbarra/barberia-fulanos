@@ -23,11 +23,33 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     const [notifications, setNotifications] = useState<BookingNotification[]>([])
     const [showPanel, setShowPanel] = useState(false)
 
-    // Function to play notification sound using Web Audio API
-    const playNotificationSound = () => {
-        try {
-            const audioContext = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+    // Persistent AudioContext - created ONCE on user interaction
+    const audioContextRef = useRef<AudioContext | null>(null)
 
+    // Function to play notification sound using persistent AudioContext
+    const playNotificationSound = () => {
+        console.log('[SOUND] playNotificationSound called, audioContext exists:', !!audioContextRef.current)
+
+        if (!audioContextRef.current) {
+            console.log('[SOUND] Creating new AudioContext...')
+            try {
+                audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+                console.log('[SOUND] AudioContext created, state:', audioContextRef.current.state)
+            } catch (err) {
+                console.error('[SOUND] AudioContext creation failed:', err)
+                return
+            }
+        }
+
+        const audioContext = audioContextRef.current
+
+        // Resume if suspended (needed after tab is backgrounded)
+        if (audioContext.state === 'suspended') {
+            console.log('[SOUND] Resuming suspended AudioContext...')
+            audioContext.resume()
+        }
+
+        try {
             // Create oscillator for a pleasant beep
             const oscillator = audioContext.createOscillator()
             const gainNode = audioContext.createGain()
@@ -38,27 +60,31 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             oscillator.frequency.value = 880 // A5 note
             oscillator.type = 'sine'
 
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5)
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime)
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
 
             oscillator.start(audioContext.currentTime)
-            oscillator.stop(audioContext.currentTime + 0.5)
+            oscillator.stop(audioContext.currentTime + 0.3)
+
+            console.log('[SOUND] Beep 1 started')
 
             // Play a second beep for emphasis
             setTimeout(() => {
-                const osc2 = audioContext.createOscillator()
-                const gain2 = audioContext.createGain()
+                if (!audioContextRef.current) return
+                const osc2 = audioContextRef.current.createOscillator()
+                const gain2 = audioContextRef.current.createGain()
                 osc2.connect(gain2)
-                gain2.connect(audioContext.destination)
+                gain2.connect(audioContextRef.current.destination)
                 osc2.frequency.value = 1100 // Higher note
                 osc2.type = 'sine'
-                gain2.gain.setValueAtTime(0.3, audioContext.currentTime)
-                gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3)
-                osc2.start(audioContext.currentTime)
-                osc2.stop(audioContext.currentTime + 0.3)
-            }, 200)
+                gain2.gain.setValueAtTime(0.5, audioContextRef.current.currentTime)
+                gain2.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + 0.2)
+                osc2.start(audioContextRef.current.currentTime)
+                osc2.stop(audioContextRef.current.currentTime + 0.2)
+                console.log('[SOUND] Beep 2 started')
+            }, 150)
         } catch (err) {
-            console.log('[REALTIME] Audio failed:', err)
+            console.error('[SOUND] Oscillator failed:', err)
         }
     }
 
