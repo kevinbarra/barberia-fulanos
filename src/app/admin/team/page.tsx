@@ -17,8 +17,6 @@ export default async function TeamPage() {
     const supabase = await createClient();
     const tenantId = await getTenantId();
 
-    console.log('[TEAM] tenantId:', tenantId);
-
     if (!tenantId) return redirect("/login");
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -30,24 +28,19 @@ export default async function TeamPage() {
         .single();
 
     const currentUserRole = profile?.role || 'staff';
-    console.log('[TEAM] currentUserRole:', currentUserRole);
 
-    // Query without role filter first to debug
-    const { data: activeStaff, error: staffError } = await supabase
+    // Get all profiles for this tenant
+    const { data: activeStaff } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url, role')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
 
-    console.log('[TEAM] activeStaff:', activeStaff?.length, 'error:', staffError);
-    console.log('[TEAM] roles found:', activeStaff?.map(s => s.role));
-
-    // Filter to team roles in JS (for debugging)
+    // Filter to team roles (exclude customers)
     const teamRoles = ['super_admin', 'owner', 'staff', 'kiosk'];
     const filteredStaff = activeStaff?.filter(s => teamRoles.includes(s.role)) || [];
 
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];
-
 
     if (currentUserRole === 'owner' || currentUserRole === 'super_admin') {
         const { data: invites } = await supabase
@@ -83,7 +76,7 @@ export default async function TeamPage() {
                     <div>
                         <h1 className="text-3xl font-black text-gray-900">Equipo</h1>
                         <p className="text-gray-500 text-sm">
-                            {currentUserRole === 'owner' || currentUserRole === 'super_admin' ? 'Gestiona el acceso al negocio.' : 'Compañeros de trabajo.'}
+                            {currentUserRole === 'owner' || currentUserRole === 'super_admin' ? 'Gestiona el acceso y roles del equipo.' : 'Compañeros de trabajo.'}
                         </p>
                     </div>
                 </div>
