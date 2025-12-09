@@ -92,7 +92,7 @@ export async function saveKioskPin(pin: string) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'owner') return { error: 'Solo el dueño puede configurar el PIN.' }
+    if (profile?.role !== 'owner' && profile?.role !== 'super_admin') return { error: 'Solo el dueño puede configurar el PIN.' }
 
     if (!/^\d{4}$/.test(pin)) return { error: 'El PIN debe ser de 4 dígitos.' }
 

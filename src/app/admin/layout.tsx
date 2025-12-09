@@ -26,10 +26,10 @@ export default async function AdminLayout({
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-row">
-            <MobileAdminNav role={userRole} />
+            <MobileAdminNav role={userRole} tenantId={tenantId} />
             <Sidebar role={userRole} />
             <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
-                {/* Realtime notifications - positioned fixed */}
+                {/* Realtime notifications - Desktop only (Mobile has it in header) */}
                 {tenantId && (
                     <div className="fixed top-4 right-4 z-50 hidden lg:block">
                         <RealtimeBookingNotifications tenantId={tenantId} />

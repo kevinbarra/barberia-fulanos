@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
+import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 
-export default function MobileAdminNav({ role }: { role: string }) {
+export default function MobileAdminNav({ role, tenantId }: { role: string; tenantId: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 
@@ -53,12 +54,18 @@ export default function MobileAdminNav({ role }: { role: string }) {
                 <h1 className="font-black text-xl tracking-tighter text-gray-900">
                     FULANOS<span className="text-blue-600">.</span>
                 </h1>
-                <button
-                    onClick={toggleMenu}
-                    className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    {isOpen ? <X size={24} /> : <Menu size={24} />}
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Notification Bell for Mobile */}
+                    {tenantId && (
+                        <RealtimeBookingNotifications tenantId={tenantId} />
+                    )}
+                    <button
+                        onClick={toggleMenu}
+                        className="p-2 -mr-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        {isOpen ? <X size={24} /> : <Menu size={24} />}
+                    </button>
+                </div>
             </div>
 
             {/* Spacer for content below header */}
