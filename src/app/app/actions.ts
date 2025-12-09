@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { broadcastBookingEvent } from '@/lib/broadcast'
 // import { addHours, isBefore } from 'date-fns' // Desactivado para pruebas
 
 export async function cancelMyBooking(bookingId: string) {
@@ -10,10 +11,14 @@ export async function cancelMyBooking(bookingId: string) {
 
     if (!user) return { error: 'Debes iniciar sesión.' }
 
-    // 1. Obtener la cita para validar que sea suya
+    // 1. Obtener la cita para validar que sea suya y obtener datos para broadcast
     const { data: booking } = await supabase
         .from('bookings')
-        .select('start_time, status')
+        .select(`
+            start_time, status, tenant_id,
+            services:service_id(name),
+            profiles:staff_id(full_name)
+        `)
         .eq('id', bookingId)
         .eq('customer_id', user.id) // Seguridad: Solo sus propias citas
         .single()
@@ -39,8 +44,22 @@ export async function cancelMyBooking(bookingId: string) {
 
     if (error) return { error: 'Error al cancelar.' }
 
+    // 4. Broadcast para actualización en tiempo real
+    if (booking.tenant_id) {
+        const service = Array.isArray(booking.services) ? booking.services[0] : booking.services
+        const staff = Array.isArray(booking.profiles) ? booking.profiles[0] : booking.profiles
+
+        await broadcastBookingEvent(booking.tenant_id, 'booking-cancelled', {
+            id: bookingId,
+            serviceName: service?.name || 'Servicio',
+            staffName: staff?.full_name || 'Staff',
+            status: 'cancelled'
+        })
+    }
+
     revalidatePath('/app')
     revalidatePath('/admin/bookings')
+    revalidatePath('/admin/pos')
 
     return { success: true, message: 'Cita cancelada correctamente.' }
 }

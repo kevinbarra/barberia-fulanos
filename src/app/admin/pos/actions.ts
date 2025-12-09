@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { broadcastBookingEvent } from '@/lib/broadcast'
 
 // --- ACCIÓN 1: CHECK-IN (Abrir Ticket / Bloquear Horario) ---
 export async function createTicket(data: {
@@ -245,7 +246,7 @@ export async function seatBooking(bookingId: string) {
     // 1. Obtener la reserva
     const { data: booking } = await supabase
         .from('bookings')
-        .select('staff_id, status')
+        .select('staff_id, status, tenant_id')
         .eq('id', bookingId)
         .single()
 
@@ -283,6 +284,14 @@ export async function seatBooking(bookingId: string) {
     if (error) {
         console.error('Seat booking error:', error)
         return { success: false, error: 'Error al procesar la reserva.' }
+    }
+
+    // Broadcast for real-time update
+    if (booking.tenant_id) {
+        await broadcastBookingEvent(booking.tenant_id, 'booking-seated', {
+            id: bookingId,
+            status: 'seated'
+        })
     }
 
     revalidatePath('/admin/pos')

@@ -2,6 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { broadcastBookingEvent } from '@/lib/broadcast'
 
 // --- FUNCIÓN 1: PROCESAR COBRO (OPTIMIZADA) ---
 export async function processPayment(data: {
@@ -62,7 +63,14 @@ export async function processPayment(data: {
         console.error('Error actualizando cita:', bookingError)
     }
 
+    // Broadcast for real-time update
+    await broadcastBookingEvent(booking.tenant_id, 'booking-completed', {
+        id: data.booking_id,
+        status: 'completed'
+    })
+
     revalidatePath('/admin/bookings')
+    revalidatePath('/admin/pos')
 
     return { success: true, transactionId: transaction.id, points: pointsEarned }
 }
@@ -165,6 +173,21 @@ export async function createWalkIn(formData: FormData) {
         return { error: 'No se pudo registrar.' }
     }
 
+    // Get service and staff names for broadcast
+    const { data: serviceData } = await supabase.from('services').select('name').eq('id', serviceId).single()
+    const { data: staffData } = await supabase.from('profiles').select('full_name').eq('id', staffId).single()
+
+    const timeStr = startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+
+    // Broadcast for real-time notification
+    await broadcastBookingEvent(tenantId, 'new-booking', {
+        id: 'walkin-' + Date.now(),
+        clientName: clientName,
+        serviceName: serviceData?.name || 'Servicio',
+        staffName: staffData?.full_name || 'Staff',
+        time: timeStr
+    })
+
     revalidatePath('/admin/bookings')
     revalidatePath('/admin/pos')
     revalidatePath('/admin/schedule')
@@ -178,6 +201,13 @@ export async function cancelBookingAdmin(bookingId: string, reason: string) {
     // 1. Auth Check
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
+
+    // Get booking info for broadcast
+    const { data: bookingInfo } = await supabase
+        .from('bookings')
+        .select('tenant_id')
+        .eq('id', bookingId)
+        .single()
 
     // 2. Cancelar y guardar motivo
     const { error } = await supabase
@@ -193,8 +223,17 @@ export async function cancelBookingAdmin(bookingId: string, reason: string) {
         return { error: 'Error al cancelar la cita.' }
     }
 
+    // Broadcast for real-time update
+    if (bookingInfo?.tenant_id) {
+        await broadcastBookingEvent(bookingInfo.tenant_id, 'booking-cancelled', {
+            id: bookingId,
+            status: 'cancelled'
+        })
+    }
+
     revalidatePath('/admin/bookings')
-    revalidatePath('/app') // Actualizar al cliente también
+    revalidatePath('/admin/pos')
+    revalidatePath('/app')
 
     return { success: true, message: 'Cita cancelada.' }
 }
@@ -209,7 +248,7 @@ export async function markNoShow(bookingId: string) {
     // 1. Obtener la cita
     const { data: booking } = await supabase
         .from('bookings')
-        .select('status, customer_id')
+        .select('status, customer_id, tenant_id')
         .eq('id', bookingId)
         .single()
 
@@ -243,6 +282,14 @@ export async function markNoShow(bookingId: string) {
             console.error('Error incrementando no-show:', profileError)
             // No retornamos error, la cita ya se marcó
         }
+    }
+
+    // Broadcast for real-time update
+    if (booking.tenant_id) {
+        await broadcastBookingEvent(booking.tenant_id, 'booking-noshow', {
+            id: bookingId,
+            status: 'no_show'
+        })
     }
 
     revalidatePath('/admin/bookings')

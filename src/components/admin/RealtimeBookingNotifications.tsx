@@ -62,55 +62,50 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
         }
     }
 
-    useEffect(() => {
+    // Sound needs user interaction first to work in browsers
+    const [soundEnabled, setSoundEnabled] = useState(false)
 
+    const enableSound = () => {
+        playNotificationSound() // Play once to "unlock" audio
+        setSoundEnabled(true)
+    }
+
+    useEffect(() => {
         const supabase = createClient()
 
         // Subscribe to broadcast channel for this tenant
-        // Broadcast doesn't depend on RLS - works when server sends explicitly
+        // Listen to ALL booking events
         const channel = supabase
             .channel(`booking-notifications-${tenantId}`)
             .on(
                 'broadcast',
                 { event: 'new-booking' },
-                (payload) => {
-                    console.log('[REALTIME] New booking broadcast received:', payload)
-
-                    const data = payload.payload as {
-                        id: string
-                        clientName: string
-                        serviceName: string
-                        staffName: string
-                        time: string
-                        date: string
-                    }
-
-                    const notification: BookingNotification = {
-                        id: data.id,
-                        clientName: data.clientName,
-                        serviceName: data.serviceName,
-                        staffName: data.staffName,
-                        time: data.time,
-                        timestamp: new Date()
-                    }
-
-                    // Add to notifications
-                    setNotifications(prev => [notification, ...prev].slice(0, 5))
-
-                    // Play sound
-                    playNotificationSound()
-
-                    // Refresh page data to show new booking in lists
-                    router.refresh()
-
-                    // Show browser notification if permitted
-                    if (Notification.permission === 'granted') {
-                        new Notification('Nueva Reserva', {
-                            body: `${data.clientName} - ${data.serviceName} a las ${data.time}`,
-                            icon: '/icon-192.png'
-                        })
-                    }
-                }
+                (payload) => handleBookingEvent('new-booking', payload)
+            )
+            .on(
+                'broadcast',
+                { event: 'booking-cancelled' },
+                (payload) => handleBookingEvent('booking-cancelled', payload)
+            )
+            .on(
+                'broadcast',
+                { event: 'booking-completed' },
+                (payload) => handleBookingEvent('booking-completed', payload)
+            )
+            .on(
+                'broadcast',
+                { event: 'booking-seated' },
+                (payload) => handleBookingEvent('booking-seated', payload)
+            )
+            .on(
+                'broadcast',
+                { event: 'booking-noshow' },
+                (payload) => handleBookingEvent('booking-noshow', payload)
+            )
+            .on(
+                'broadcast',
+                { event: 'booking-updated' },
+                (payload) => handleBookingEvent('booking-updated', payload)
             )
             .subscribe((status) => {
                 console.log('[REALTIME] Broadcast subscription status:', status)
@@ -125,6 +120,44 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             supabase.removeChannel(channel)
         }
     }, [tenantId])
+
+    // Handle any booking event
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleBookingEvent = (eventType: string, payload: Record<string, any>) => {
+        console.log(`[REALTIME] ${eventType} received:`, payload)
+
+        const data = payload.payload || payload
+
+        // For new bookings, show notification
+        if (eventType === 'new-booking' && data.clientName) {
+            const notification: BookingNotification = {
+                id: data.id,
+                clientName: data.clientName,
+                serviceName: data.serviceName || 'Servicio',
+                staffName: data.staffName || 'Staff',
+                time: data.time || '',
+                timestamp: new Date()
+            }
+
+            setNotifications(prev => [notification, ...prev].slice(0, 5))
+
+            // Play sound if enabled
+            if (soundEnabled) {
+                playNotificationSound()
+            }
+
+            // Show browser notification
+            if (Notification.permission === 'granted') {
+                new Notification('Nueva Reserva', {
+                    body: `${data.clientName} - ${data.serviceName}`,
+                    icon: '/icon-192.png'
+                })
+            }
+        }
+
+        // Always refresh page data for any booking event
+        router.refresh()
+    }
 
     const dismissNotification = (id: string) => {
         setNotifications(prev => prev.filter(n => n.id !== id))
@@ -151,8 +184,17 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             {/* Notification Panel */}
             {showPanel && (
                 <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-gray-50">
+                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                         <h3 className="font-semibold text-gray-800">Nuevas Reservas</h3>
+                        <button
+                            onClick={enableSound}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${soundEnabled
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                }`}
+                        >
+                            {soundEnabled ? '🔔 Sonido ON' : '🔕 Activar Sonido'}
+                        </button>
                     </div>
 
                     <div className="max-h-80 overflow-y-auto">
