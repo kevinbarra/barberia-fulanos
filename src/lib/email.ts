@@ -18,7 +18,7 @@ export async function sendBookingEmail(data: {
 
   try {
     await resend.emails.send({
-      from: `${business} <onboarding@resend.dev>`,
+      from: `${business} <reservas@agendabarber.pro>`,
       to: [data.clientEmail],
       subject: `✅ Cita Confirmada: ${data.serviceName}`,
       html: `
@@ -63,7 +63,7 @@ export async function sendStaffNewBookingNotification(data: {
 
   try {
     await resend.emails.send({
-      from: `${business} <onboarding@resend.dev>`,
+      from: `${business} <reservas@agendabarber.pro>`,
       to: [data.staffEmail],
       subject: `📅 Nueva Reserva: ${data.clientName} - ${data.serviceName}`,
       html: `
@@ -110,7 +110,7 @@ export async function sendBookingReminder(data: {
 
   try {
     await resend.emails.send({
-      from: `${business} <onboarding@resend.dev>`,
+      from: `${business} <reservas@agendabarber.pro>`,
       to: [data.clientEmail],
       subject: `⏰ Recordatorio: Tu cita es mañana`,
       html: `
@@ -145,7 +145,7 @@ export async function sendStaffInvitation(data: {
 }) {
   try {
     const { data: emailData, error } = await resend.emails.send({
-      from: 'Barbería Fulanos <onboarding@resend.dev>',
+      from: 'AgendaBarber <reservas@agendabarber.pro>',
       to: [data.email],
       subject: `Invitación: Únete al equipo de ${data.businessName}`,
       html: `
