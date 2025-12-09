@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { Bell, X } from 'lucide-react'
+import { Bell, X, Volume2, VolumeX, Check } from 'lucide-react'
 
 interface BookingNotification {
     id: string
@@ -12,6 +12,7 @@ interface BookingNotification {
     staffName: string
     time: string
     timestamp: Date
+    read: boolean
 }
 
 interface RealtimeBookingNotificationsProps {
@@ -23,103 +24,101 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     const [notifications, setNotifications] = useState<BookingNotification[]>([])
     const [showPanel, setShowPanel] = useState(false)
 
-    // Audio element for reliable cross-platform sound
+    // Refs for click-outside detection
+    const panelRef = useRef<HTMLDivElement>(null)
+    const buttonRef = useRef<HTMLButtonElement>(null)
+
+    // Audio for notification sound
     const audioRef = useRef<HTMLAudioElement | null>(null)
 
-    // Base64-encoded notification beep sound (short WAV)
-    const NOTIFICATION_SOUND = "data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleM00teleM00N/OoIABo4e7+/sntsVF1pfZOQgVpbC+vpztqpb0c6aJu/0MCMWjcrS4u/0MCMWjcrS4u/yblsQR8XP4THzc2PVz4qQW+Rt7ytfFxYXWqBi4Z9aWJbYGp0e36AhIOBenNsZl9hbnV5fIF/fnx4c21mX11kaXB0d3l5d3RxbWhjX11mbXN3eXl3dXJuamZhXV1lanF1eHh2c29saWVgXV1lanF1eHh2c25rZ2RgXl5lbHJ2eXl3dHBsaGNfXl9mbXN3eXl3dHBsaGRgXl9lbHJ2eHh2c29sZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBlbHJ2eHd1cm9rZ2ReXmBl"
+    // Professional notification sound (pleasant chime)
+    // Using a royalty-free notification sound
+    const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
 
     // Create audio element on mount
     useEffect(() => {
         audioRef.current = new Audio(NOTIFICATION_SOUND)
-        audioRef.current.volume = 0.7
+        audioRef.current.volume = 0.5
     }, [])
 
-    // Function to play notification sound
-    const playNotificationSound = () => {
-        console.log('[SOUND] playNotificationSound called')
-        if (audioRef.current) {
-            audioRef.current.currentTime = 0
-            audioRef.current.play()
-                .then(() => console.log('[SOUND] Audio played successfully'))
-                .catch(err => console.error('[SOUND] Audio play failed:', err))
-        }
-    }
-
-
-    // Sound needs user interaction first to work in browsers
-    // We do NOT restore from localStorage because that doesn't count as user interaction
+    // Sound state management
     const [soundEnabled, setSoundEnabled] = useState(false)
     const soundEnabledRef = useRef(false)
-    const audioUnlockedRef = useRef(false)
 
     // Toggle sound on/off
-    const toggleSound = () => {
+    const toggleSound = useCallback(() => {
         if (!soundEnabled) {
-            // Enabling sound - play once to "unlock" audio
             console.log('[SOUND] Enabling sound...')
             if (audioRef.current) {
                 audioRef.current.currentTime = 0
                 audioRef.current.play()
                     .then(() => {
                         console.log('[SOUND] Audio unlocked successfully')
-                        audioUnlockedRef.current = true
+                        setSoundEnabled(true)
+                        soundEnabledRef.current = true
                     })
                     .catch(err => console.error('[SOUND] Audio unlock failed:', err))
             }
-            setSoundEnabled(true)
-            soundEnabledRef.current = true
         } else {
-            // Disabling sound
             console.log('[SOUND] Disabling sound...')
             setSoundEnabled(false)
             soundEnabledRef.current = false
         }
-    }
+    }, [soundEnabled])
 
+    // Play notification sound
+    const playNotificationSound = useCallback(() => {
+        if (soundEnabledRef.current && audioRef.current) {
+            audioRef.current.currentTime = 0
+            audioRef.current.play().catch(() => { })
+        }
+    }, [])
 
+    // Click-outside-to-close
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                showPanel &&
+                panelRef.current &&
+                buttonRef.current &&
+                !panelRef.current.contains(event.target as Node) &&
+                !buttonRef.current.contains(event.target as Node)
+            ) {
+                setShowPanel(false)
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [showPanel])
+
+    // Escape key to close panel
+    useEffect(() => {
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape' && showPanel) {
+                setShowPanel(false)
+            }
+        }
+        document.addEventListener('keydown', handleEscape)
+        return () => document.removeEventListener('keydown', handleEscape)
+    }, [showPanel])
+
+    // Supabase subscription
     useEffect(() => {
         const supabase = createClient()
 
-        // Subscribe to broadcast channel for this tenant
-        // Listen to ALL booking events
         const channel = supabase
             .channel(`booking-notifications-${tenantId}`)
-            .on(
-                'broadcast',
-                { event: 'new-booking' },
-                (payload) => handleBookingEvent('new-booking', payload)
-            )
-            .on(
-                'broadcast',
-                { event: 'booking-cancelled' },
-                (payload) => handleBookingEvent('booking-cancelled', payload)
-            )
-            .on(
-                'broadcast',
-                { event: 'booking-completed' },
-                (payload) => handleBookingEvent('booking-completed', payload)
-            )
-            .on(
-                'broadcast',
-                { event: 'booking-seated' },
-                (payload) => handleBookingEvent('booking-seated', payload)
-            )
-            .on(
-                'broadcast',
-                { event: 'booking-noshow' },
-                (payload) => handleBookingEvent('booking-noshow', payload)
-            )
-            .on(
-                'broadcast',
-                { event: 'booking-updated' },
-                (payload) => handleBookingEvent('booking-updated', payload)
-            )
+            .on('broadcast', { event: 'new-booking' }, (payload) => handleBookingEvent('new-booking', payload))
+            .on('broadcast', { event: 'booking-cancelled' }, (payload) => handleBookingEvent('booking-cancelled', payload))
+            .on('broadcast', { event: 'booking-completed' }, (payload) => handleBookingEvent('booking-completed', payload))
+            .on('broadcast', { event: 'booking-seated' }, (payload) => handleBookingEvent('booking-seated', payload))
+            .on('broadcast', { event: 'booking-noshow' }, (payload) => handleBookingEvent('booking-noshow', payload))
+            .on('broadcast', { event: 'booking-updated' }, (payload) => handleBookingEvent('booking-updated', payload))
             .subscribe((status) => {
                 console.log('[REALTIME] Broadcast subscription status:', status)
             })
 
-        // Request notification permission
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission()
         }
@@ -129,14 +128,11 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
         }
     }, [tenantId])
 
-    // Handle any booking event
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleBookingEvent = (eventType: string, payload: Record<string, any>) => {
         console.log(`[REALTIME] ${eventType} received:`, payload)
-
         const data = payload.payload || payload
 
-        // For new bookings, show notification
         if (eventType === 'new-booking' && data.clientName) {
             const notification: BookingNotification = {
                 id: data.id,
@@ -144,19 +140,13 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                 serviceName: data.serviceName || 'Servicio',
                 staffName: data.staffName || 'Staff',
                 time: data.time || '',
-                timestamp: new Date()
+                timestamp: new Date(),
+                read: false
             }
 
-            setNotifications(prev => [notification, ...prev].slice(0, 5))
+            setNotifications(prev => [notification, ...prev].slice(0, 10))
+            playNotificationSound()
 
-            // Play sound if enabled (using ref to avoid closure issues)
-            console.log('[SOUND] Should play? soundEnabledRef.current =', soundEnabledRef.current)
-            if (soundEnabledRef.current) {
-                console.log('[SOUND] Playing notification sound...')
-                playNotificationSound()
-            }
-
-            // Show browser notification
             if (Notification.permission === 'granted') {
                 new Notification('Nueva Reserva', {
                     body: `${data.clientName} - ${data.serviceName}`,
@@ -165,123 +155,209 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             }
         }
 
-        // Always refresh page data for any booking event
         router.refresh()
+    }
+
+    const markAsRead = (id: string) => {
+        setNotifications(prev =>
+            prev.map(n => n.id === id ? { ...n, read: true } : n)
+        )
+    }
+
+    const markAllAsRead = () => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })))
     }
 
     const dismissNotification = (id: string) => {
         setNotifications(prev => prev.filter(n => n.id !== id))
     }
 
-    const unreadCount = notifications.length
+    const clearAll = () => {
+        setNotifications([])
+        setShowPanel(false)
+    }
+
+    const unreadCount = notifications.filter(n => !n.read).length
+
+    // Format relative time
+    const formatTime = (date: Date) => {
+        const now = new Date()
+        const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
+        if (diff < 60) return 'Ahora'
+        if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`
+        if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`
+        return date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+    }
 
     return (
-        <>
-            {/* Notification Bell Button */}
+        <div className="relative">
+            {/* Bell Button */}
             <button
+                ref={buttonRef}
                 onClick={() => setShowPanel(!showPanel)}
-                className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-                aria-label="Notificaciones"
+                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
             >
-                <Bell size={24} className="text-gray-600" />
+                <Bell size={22} className="text-gray-600 dark:text-gray-300" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center animate-pulse">
-                        {unreadCount}
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 animate-pulse">
+                        {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
             </button>
 
             {/* Notification Panel */}
             {showPanel && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                        <h3 className="font-semibold text-gray-800">Nuevas Reservas</h3>
-                        <button
-                            onClick={toggleSound}
-                            className={`text-xs px-2 py-1 rounded-full transition-colors ${soundEnabled
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                                }`}
-                        >
-                            {soundEnabled ? '🔔 Sonido ON' : '🔕 Activar Sonido'}
-                        </button>
-                    </div>
+                <>
+                    {/* Backdrop for mobile */}
+                    <div className="fixed inset-0 bg-black/20 z-40 md:hidden" onClick={() => setShowPanel(false)} />
 
-                    <div className="max-h-80 overflow-y-auto">
-                        {notifications.length === 0 ? (
-                            <div className="p-6 text-center text-gray-500">
-                                <Bell size={32} className="mx-auto mb-2 opacity-50" />
-                                <p>Sin notificaciones nuevas</p>
+                    <div
+                        ref={panelRef}
+                        className="absolute right-0 top-full mt-2 w-96 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden"
+                    >
+                        {/* Header */}
+                        <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-gray-800 dark:text-white">Notificaciones</h3>
+                                {unreadCount > 0 && (
+                                    <span className="bg-red-100 text-red-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                                        {unreadCount} nuevas
+                                    </span>
+                                )}
                             </div>
-                        ) : (
-                            notifications.map((notification) => (
-                                <div
-                                    key={notification.id}
-                                    className="p-4 border-b border-gray-100 hover:bg-blue-50 transition-colors"
+                            <div className="flex items-center gap-1">
+                                {/* Sound Toggle */}
+                                <button
+                                    onClick={toggleSound}
+                                    className={`p-2 rounded-lg transition-colors ${soundEnabled
+                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
+                                        }`}
+                                    title={soundEnabled ? 'Sonido activado' : 'Activar sonido'}
                                 >
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex-1">
-                                            <p className="font-medium text-gray-900">
-                                                {notification.clientName}
-                                            </p>
-                                            <p className="text-sm text-gray-600">
-                                                {notification.serviceName} con {notification.staffName}
-                                            </p>
-                                            <p className="text-sm text-blue-600 font-medium mt-1">
-                                                🕐 {notification.time}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => dismissNotification(notification.id)}
-                                            className="p-1 hover:bg-gray-200 rounded-full"
-                                        >
-                                            <X size={16} className="text-gray-400" />
-                                        </button>
-                                    </div>
+                                    {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                                </button>
+
+                                {/* Mark all as read */}
+                                {unreadCount > 0 && (
+                                    <button
+                                        onClick={markAllAsRead}
+                                        className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 transition-colors"
+                                        title="Marcar todo como leído"
+                                    >
+                                        <Check size={18} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Notifications List */}
+                        <div className="max-h-[400px] overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="p-8 text-center">
+                                    <Bell size={40} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+                                    <p className="text-gray-500 dark:text-gray-400">Sin notificaciones</p>
+                                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
+                                        Las nuevas reservas aparecerán aquí
+                                    </p>
                                 </div>
-                            ))
+                            ) : (
+                                notifications.map((notification) => (
+                                    <div
+                                        key={notification.id}
+                                        onClick={() => markAsRead(notification.id)}
+                                        className={`p-4 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors ${notification.read
+                                                ? 'bg-white dark:bg-gray-900'
+                                                : 'bg-blue-50 dark:bg-blue-900/20'
+                                            } hover:bg-gray-50 dark:hover:bg-gray-800`}
+                                    >
+                                        <div className="flex gap-3">
+                                            {/* Icon */}
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${notification.read
+                                                    ? 'bg-gray-100 dark:bg-gray-800'
+                                                    : 'bg-blue-100 dark:bg-blue-900/50'
+                                                }`}>
+                                                <span className="text-lg">📅</span>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <p className={`font-medium truncate ${notification.read
+                                                            ? 'text-gray-700 dark:text-gray-300'
+                                                            : 'text-gray-900 dark:text-white'
+                                                        }`}>
+                                                        {notification.clientName}
+                                                    </p>
+                                                    <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
+                                                        {formatTime(notification.timestamp)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                                    {notification.serviceName}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                                    🕐 {notification.time} • {notification.staffName}
+                                                </p>
+                                            </div>
+
+                                            {/* Dismiss */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    dismissNotification(notification.id)
+                                                }}
+                                                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                                            >
+                                                <X size={16} className="text-gray-400" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        {notifications.length > 0 && (
+                            <div className="px-4 py-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                                <button
+                                    onClick={clearAll}
+                                    className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                >
+                                    Limpiar todas las notificaciones
+                                </button>
+                            </div>
                         )}
                     </div>
-
-                    {notifications.length > 0 && (
-                        <div className="p-3 bg-gray-50 border-t border-gray-100">
-                            <button
-                                onClick={() => setNotifications([])}
-                                className="w-full text-sm text-gray-600 hover:text-gray-900"
-                            >
-                                Limpiar todas
-                            </button>
-                        </div>
-                    )}
-                </div>
+                </>
             )}
 
-            {/* Toast notifications for new bookings */}
-            <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-                {notifications.slice(0, 1).map((notification) => (
-                    <div
-                        key={`toast-${notification.id}`}
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4 rounded-xl shadow-2xl animate-bounce-in flex items-center gap-4 max-w-sm"
-                    >
-                        <div className="text-2xl">🔔</div>
-                        <div className="flex-1">
-                            <p className="font-bold">Nueva Reserva</p>
-                            <p className="text-sm opacity-90">
-                                {notification.clientName} - {notification.serviceName}
+            {/* Toast for latest notification */}
+            {notifications.length > 0 && !notifications[0].read && (
+                <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-sm flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                            <span className="text-lg">🔔</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-white">Nueva Reserva</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                {notifications[0].clientName} - {notifications[0].serviceName}
                             </p>
-                            <p className="text-sm opacity-90">
-                                {notification.time} con {notification.staffName}
+                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                {notifications[0].time} • {notifications[0].staffName}
                             </p>
                         </div>
                         <button
-                            onClick={() => dismissNotification(notification.id)}
-                            className="p-1 hover:bg-white/20 rounded-full"
+                            onClick={() => markAsRead(notifications[0].id)}
+                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
                         >
-                            <X size={18} />
+                            <X size={18} className="text-gray-400" />
                         </button>
                     </div>
-                ))}
-            </div>
-        </>
+                </div>
+            )}
+        </div>
     )
 }
