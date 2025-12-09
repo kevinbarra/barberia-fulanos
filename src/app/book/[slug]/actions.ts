@@ -51,26 +51,44 @@ export async function createBooking(data: {
     duration_min: number;
     customer_id?: string | null;
 }) {
-    // Usar admin client para bypass RLS (guest users no pueden query profiles)
-    const supabase = createAdminClient()
+    // Usar cliente normal para el booking (funciona con RLS para guests)
+    const supabase = await createClient()
 
-    // 1. Validaciones - Obtener info del servicio, staff y tenant
-    const [serviceResult, staffResult, tenantResult] = await Promise.all([
+    // 1. Validaciones - Obtener info del servicio y tenant (públicas, no necesitan admin)
+    const [serviceResult, tenantResult] = await Promise.all([
         supabase.from('services').select('name').eq('id', data.service_id).single(),
-        supabase.from('profiles').select('full_name, email').eq('id', data.staff_id).single(),
         supabase.from('tenants').select('name').eq('id', data.tenant_id).single()
     ]);
 
     const realServiceName = serviceResult.data?.name || "Servicio General";
-    const realStaffName = staffResult.data?.full_name || "El equipo";
-    const staffEmail = staffResult.data?.email;
     const businessName = tenantResult.data?.name || "AgendaBarber";
 
-    console.log('[BOOKING] Staff data fetched:', {
-        staffId: data.staff_id,
-        staffName: realStaffName,
-        staffEmail,
-        businessName
+    // 1.1 Obtener datos del staff con admin client (bypass RLS para email)
+    let staffEmail: string | undefined;
+    let realStaffName = "El equipo";
+
+    try {
+        const adminClient = createAdminClient();
+        const { data: staffData } = await adminClient
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', data.staff_id)
+            .single();
+
+        if (staffData) {
+            realStaffName = staffData.full_name || "El equipo";
+            staffEmail = staffData.email;
+        }
+    } catch (adminError) {
+        // Si admin client falla, continuamos sin notificaciones a staff
+        console.warn('[BOOKING] Admin client failed, staff notifications disabled:', adminError);
+    }
+
+    console.log('[BOOKING] Data fetched:', {
+        service: realServiceName,
+        staff: realStaffName,
+        staffEmail: staffEmail ? '(exists)' : '(none)',
+        business: businessName
     });
 
     // 1.5. VINCULACIÓN INTELIGENTE (Anti-Duplicados)
