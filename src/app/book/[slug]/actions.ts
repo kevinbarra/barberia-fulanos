@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { sendBookingEmail, sendStaffNewBookingNotification } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
 import { revalidatePath } from 'next/cache'
@@ -50,7 +51,8 @@ export async function createBooking(data: {
     duration_min: number;
     customer_id?: string | null;
 }) {
-    const supabase = await createClient()
+    // Usar admin client para bypass RLS (guest users no pueden query profiles)
+    const supabase = createAdminClient()
 
     // 1. Validaciones - Obtener info del servicio, staff y tenant
     const [serviceResult, staffResult, tenantResult] = await Promise.all([
@@ -63,6 +65,13 @@ export async function createBooking(data: {
     const realStaffName = staffResult.data?.full_name || "El equipo";
     const staffEmail = staffResult.data?.email;
     const businessName = tenantResult.data?.name || "AgendaBarber";
+
+    console.log('[BOOKING] Staff data fetched:', {
+        staffId: data.staff_id,
+        staffName: realStaffName,
+        staffEmail,
+        businessName
+    });
 
     // 1.5. VINCULACIÓN INTELIGENTE (Anti-Duplicados)
     // Si no viene customer_id (Guest), buscamos si ya existe alguien con ese email.
