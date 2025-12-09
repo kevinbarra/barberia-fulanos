@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import TenantForm from "@/components/admin/TenantForm";
+import KioskPinForm from "@/components/admin/KioskPinForm";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -27,6 +28,9 @@ export default async function SettingsPage() {
         )
     }
 
+    // Get tenant data including kiosk_pin
+    const tenantData = profile?.tenants as unknown as { name: string; slug: string; logo_url: string | null; kiosk_pin: string | null } | undefined;
+
     return (
         <div className="max-w-4xl mx-auto p-6 pb-32">
             <div className="flex items-center gap-4 mb-8">
@@ -39,10 +43,15 @@ export default async function SettingsPage() {
                 </div>
             </div>
 
-            {/* Formulario Seguro */}
-            {profile?.tenants && (
-                <TenantForm initialData={profile.tenants as unknown as { name: string; slug: string; logo_url: string | null }} />
-            )}
+            <div className="space-y-8">
+                {/* Formulario del Negocio */}
+                {tenantData && (
+                    <TenantForm initialData={tenantData} />
+                )}
+
+                {/* Configuración Modo Kiosko */}
+                <KioskPinForm initialPin={tenantData?.kiosk_pin || null} />
+            </div>
         </div>
     )
 }

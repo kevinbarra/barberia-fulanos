@@ -76,3 +76,83 @@ export async function updateTenant(formData: FormData) {
 
     return { success: true, message: 'Negocio actualizado correctamente.' }
 }
+
+// ==================== KIOSK PIN ACTIONS ====================
+
+export async function saveKioskPin(pin: string) {
+    const supabase = await createClient()
+
+    // Auth & Permissions - only owner can set PIN
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'owner') return { error: 'Solo el dueño puede configurar el PIN.' }
+
+    if (!/^\d{4}$/.test(pin)) return { error: 'El PIN debe ser de 4 dígitos.' }
+
+    // Save PIN to tenant (stored as plain text - can hash later if needed)
+    const { error } = await supabase
+        .from('tenants')
+        .update({ kiosk_pin: pin })
+        .eq('id', profile.tenant_id)
+
+    if (error) {
+        console.error('Error saving PIN:', error)
+        return { error: 'Error al guardar el PIN.' }
+    }
+
+    revalidatePath('/admin/settings')
+    return { success: true, message: 'PIN de kiosko guardado correctamente.' }
+}
+
+export async function verifyKioskPin(pin: string, tenantId: string) {
+    const supabase = await createClient()
+
+    // Get tenant's PIN
+    const { data: tenant, error } = await supabase
+        .from('tenants')
+        .select('kiosk_pin')
+        .eq('id', tenantId)
+        .single()
+
+    if (error || !tenant) {
+        console.error('Error verifying PIN:', error)
+        return { valid: false, error: 'Error al verificar el PIN.' }
+    }
+
+    if (!tenant.kiosk_pin) {
+        // No PIN set - allow access (for backwards compatibility)
+        return { valid: true, noPinSet: true }
+    }
+
+    return { valid: tenant.kiosk_pin === pin }
+}
+
+export async function getKioskPin() {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'owner') return { error: 'No autorizado' }
+
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('kiosk_pin')
+        .eq('id', profile.tenant_id)
+        .single()
+
+    return { pin: tenant?.kiosk_pin || null }
+}

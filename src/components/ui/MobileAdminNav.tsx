@@ -27,7 +27,15 @@ export default function MobileAdminNav({ role }: { role: string }) {
     let menuToRender = adminMenu;
 
     // Filter logic similar to Sidebar.tsx
-    if (role === 'staff') {
+    if (role === 'kiosk') {
+        // Kiosk: Only sees Dashboard, Agenda, POS, and Profile
+        menuToRender = adminMenu.filter(item =>
+            item.href === '/admin' ||
+            item.href === '/admin/bookings' ||
+            item.href === '/admin/pos' ||
+            item.href === '/admin/profile'
+        );
+    } else if (role === 'staff') {
         menuToRender = adminMenu.filter(item =>
             item.href !== '/admin/team' &&
             item.href !== '/admin/services' &&

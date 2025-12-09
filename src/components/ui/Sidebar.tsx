@@ -37,24 +37,24 @@ export default function Sidebar({
 
     if (role === 'client') {
         menuToRender = clientMenu;
-    } else {
-        // Staff: Le quitamos Equipo, Servicios, Configuración y Reportes
-        // Admin: (Si existe ese rol separado) usualmente tiene acceso a todo o casi todo. 
-        // Si la lógica anterior asumía que cualquiera != owner es staff, ajustamos.
-
-        if (role === 'staff') {
-            menuToRender = adminMenu.filter(item =>
-                item.href !== '/admin/team' &&
-                item.href !== '/admin/services' &&
-                item.href !== '/admin/settings' &&
-                item.href !== '/admin/reports'
-            );
-        }
-        // Si el rol es 'admin' (y no 'owner'), por ahora le dejamos ver todo (incluyendo reportes),
-        // o aplicamos restricciones específicas si se solicitan.
-        // La solicitud dice: "solo las pueda ver el admin y no los staff".
-        // Entonces 'admin' y 'owner' ven reportes. 'staff' no.
+    } else if (role === 'kiosk') {
+        // Kiosk: Only sees Dashboard, Agenda, POS, and Profile
+        menuToRender = adminMenu.filter(item =>
+            item.href === '/admin' ||
+            item.href === '/admin/bookings' ||
+            item.href === '/admin/pos' ||
+            item.href === '/admin/profile'
+        );
+    } else if (role === 'staff') {
+        // Staff: No access to Team, Services, Settings, Reports
+        menuToRender = adminMenu.filter(item =>
+            item.href !== '/admin/team' &&
+            item.href !== '/admin/services' &&
+            item.href !== '/admin/settings' &&
+            item.href !== '/admin/reports'
+        );
     }
+    // Owner and admin see everything
 
     return (
         <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 hidden lg:flex ${className}`}>
