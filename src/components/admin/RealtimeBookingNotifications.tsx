@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Bell, X } from 'lucide-react'
@@ -63,11 +63,14 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     }
 
     // Sound needs user interaction first to work in browsers
+    // Using ref to avoid closure issues in subscription callback
     const [soundEnabled, setSoundEnabled] = useState(false)
+    const soundEnabledRef = useRef(false)
 
     const enableSound = () => {
         playNotificationSound() // Play once to "unlock" audio
         setSoundEnabled(true)
+        soundEnabledRef.current = true
     }
 
     useEffect(() => {
@@ -141,8 +144,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
 
             setNotifications(prev => [notification, ...prev].slice(0, 5))
 
-            // Play sound if enabled
-            if (soundEnabled) {
+            // Play sound if enabled (using ref to avoid closure issues)
+            if (soundEnabledRef.current) {
                 playNotificationSound()
             }
 
@@ -189,8 +192,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                         <button
                             onClick={enableSound}
                             className={`text-xs px-2 py-1 rounded-full transition-colors ${soundEnabled
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                                 }`}
                         >
                             {soundEnabled ? '🔔 Sonido ON' : '🔕 Activar Sonido'}
