@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
-import { sendBookingEmail } from '@/lib/email'
+import { sendBookingEmail, sendStaffNewBookingNotification } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
 import { revalidatePath } from 'next/cache'
 
@@ -52,14 +52,17 @@ export async function createBooking(data: {
 }) {
     const supabase = await createClient()
 
-    // 1. Validaciones
-    const [serviceResult, staffResult] = await Promise.all([
+    // 1. Validaciones - Obtener info del servicio, staff y tenant
+    const [serviceResult, staffResult, tenantResult] = await Promise.all([
         supabase.from('services').select('name').eq('id', data.service_id).single(),
-        supabase.from('profiles').select('full_name').eq('id', data.staff_id).single()
+        supabase.from('profiles').select('full_name, email').eq('id', data.staff_id).single(),
+        supabase.from('tenants').select('name').eq('id', data.tenant_id).single()
     ]);
 
     const realServiceName = serviceResult.data?.name || "Servicio General";
     const realStaffName = staffResult.data?.full_name || "El equipo";
+    const staffEmail = staffResult.data?.email;
+    const businessName = tenantResult.data?.name || "AgendaBarber";
 
     // 1.5. VINCULACIÓN INTELIGENTE (Anti-Duplicados)
     // Si no viene customer_id (Guest), buscamos si ya existe alguien con ese email.
@@ -138,7 +141,7 @@ export async function createBooking(data: {
         .update({ status: 'confirmed' })
         .eq('id', newBooking.id)
 
-    // 6. Email
+    // 6. Formatear fecha/hora para emails
     const dateStr = startDate.toLocaleDateString('es-MX', {
         timeZone: TIMEZONE,
         weekday: 'long', day: 'numeric', month: 'long'
@@ -148,14 +151,53 @@ export async function createBooking(data: {
         hour: '2-digit', minute: '2-digit'
     });
 
-    await sendBookingEmail({
+    // 7. ENVIAR NOTIFICACIONES (en paralelo, no bloqueantes)
+
+    // 7.1 Email de confirmación al cliente
+    sendBookingEmail({
         clientName: data.client_name,
         clientEmail: data.client_email,
         serviceName: realServiceName,
         barberName: realStaffName,
         date: dateStr,
-        time: timeStr
+        time: timeStr,
+        businessName
     });
+
+    // 7.2 Email al barbero asignado
+    if (staffEmail) {
+        sendStaffNewBookingNotification({
+            staffEmail,
+            staffName: realStaffName,
+            clientName: data.client_name,
+            serviceName: realServiceName,
+            date: dateStr,
+            time: timeStr,
+            businessName,
+            isOwnerNotification: false
+        });
+    }
+
+    // 7.3 Email al owner del negocio
+    const { data: ownerData } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('tenant_id', data.tenant_id)
+        .eq('role', 'owner')
+        .single();
+
+    if (ownerData?.email && ownerData.email !== staffEmail) {
+        sendStaffNewBookingNotification({
+            staffEmail: ownerData.email,
+            staffName: realStaffName,
+            clientName: data.client_name,
+            serviceName: realServiceName,
+            date: dateStr,
+            time: timeStr,
+            businessName,
+            isOwnerNotification: true
+        });
+    }
 
     // Revalidar rutas para que aparezca en POS y Schedule
     revalidatePath('/admin/pos');

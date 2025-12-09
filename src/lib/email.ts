@@ -10,12 +10,15 @@ export async function sendBookingEmail(data: {
   date: string;
   time: string;
   barberName: string;
+  businessName?: string;
 }) {
   if (!data.clientEmail) return;
 
+  const business = data.businessName || 'AgendaBarber';
+
   try {
     await resend.emails.send({
-      from: 'Barbería Fulanos <onboarding@resend.dev>',
+      from: `${business} <onboarding@resend.dev>`,
       to: [data.clientEmail],
       subject: `✅ Cita Confirmada: ${data.serviceName}`,
       html: `
@@ -29,7 +32,7 @@ export async function sendBookingEmail(data: {
             <p style="margin: 0;"><strong>Fecha:</strong> ${data.date} a las ${data.time}</p>
           </div>
 
-          <p>Te esperamos en <strong>Barbería Fulanos</strong>.</p>
+          <p>Te esperamos en <strong>${business}</strong>.</p>
           <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
           <p style="font-size: 12px; color: #888;">Si necesitas cancelar o reagendar, por favor contáctanos.</p>
         </div>
@@ -40,7 +43,58 @@ export async function sendBookingEmail(data: {
   }
 }
 
-// 2. Invitación a Staff (Barbero/Admin)
+// 2. Notificación de Nueva Reserva (Staff/Owner)
+export async function sendStaffNewBookingNotification(data: {
+  staffEmail: string;
+  staffName: string;
+  clientName: string;
+  serviceName: string;
+  date: string;
+  time: string;
+  businessName?: string;
+  isOwnerNotification?: boolean;
+}) {
+  if (!data.staffEmail) return;
+
+  const business = data.businessName || 'AgendaBarber';
+  const forWhom = data.isOwnerNotification
+    ? `para <strong>${data.staffName}</strong>`
+    : 'para ti';
+
+  try {
+    await resend.emails.send({
+      from: `${business} <onboarding@resend.dev>`,
+      to: [data.staffEmail],
+      subject: `📅 Nueva Reserva: ${data.clientName} - ${data.serviceName}`,
+      html: `
+        <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #000;">Nueva Reserva ${forWhom}</h1>
+          
+          <div style="background: linear-gradient(135deg, #f59e0b20 0%, #f97316 20 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+            <p style="margin: 0; font-size: 18px;"><strong>${data.clientName}</strong></p>
+            <p style="margin: 8px 0; color: #666;">${data.serviceName}</p>
+            <p style="margin: 0; font-size: 16px;">📅 ${data.date} a las ${data.time}</p>
+          </div>
+
+          <p style="color: #666;">Prepárate para recibir a tu cliente.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://agendabarber.pro/admin" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 100px; text-decoration: none; font-weight: bold; display: inline-block;">
+              Ver en Agenda
+            </a>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;" />
+          <p style="font-size: 12px; color: #888;">Este es un mensaje automático de ${business}.</p>
+        </div>
+      `,
+    });
+  } catch {
+    // Email is non-critical, silently fail
+  }
+}
+
+// 3. Invitación a Staff (Barbero/Admin)
 export async function sendStaffInvitation(data: {
   email: string;
   businessName: string;
