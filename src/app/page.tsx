@@ -1,6 +1,29 @@
+import { headers } from "next/headers";
 import Link from "next/link";
+import SaaSLandingPage from "@/components/marketing/SaaSLandingPage";
+import { getTenantSlug } from "@/lib/tenant";
 
-export default function LandingPage() {
+export default async function HomePage() {
+  // Detectar si estamos en el dominio raíz o en un subdominio
+  const headersList = await headers();
+  const hostname = headersList.get('host') || '';
+  const tenantSlug = await getTenantSlug();
+
+  // Si estamos en agendabarber.pro (sin subdominio) o www.agendabarber.pro
+  // Mostrar la landing page del SaaS
+  const isRootDomain = hostname === 'agendabarber.pro' ||
+    hostname === 'www.agendabarber.pro' ||
+    hostname.includes('vercel.app');
+
+  // Si NO hay tenant slug y estamos en root domain, mostrar SaaS landing
+  if (!tenantSlug && isRootDomain) {
+    return <SaaSLandingPage />;
+  }
+
+  // Si hay tenant slug o estamos en localhost, mostrar la landing del tenant
+  // Por ahora usamos "fulanos" como default para desarrollo
+  const slug = tenantSlug || 'fulanos';
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col justify-between relative overflow-hidden selection:bg-blue-500 selection:text-white">
 
@@ -10,8 +33,7 @@ export default function LandingPage() {
 
       {/* NAV SUPERIOR */}
       <nav className="p-6 z-10 flex justify-between items-center">
-        <div className="font-bold text-xl tracking-tight">FULANOS</div>
-        {/* CORRECCIÓN CRÍTICA: Apuntamos a /admin en lugar de /login */}
+        <div className="font-bold text-xl tracking-tight uppercase">{slug}</div>
         <Link
           href="/admin"
           className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
@@ -34,7 +56,7 @@ export default function LandingPage() {
         <div className="w-full max-w-sm space-y-3">
 
           <Link
-            href="/book/fulanos"
+            href={`/book/${slug}`}
             className="group block w-full bg-white text-black font-bold py-4 rounded-xl text-lg hover:bg-zinc-200 transition-all active:scale-95 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
           >
             Reservar Cita
@@ -54,7 +76,7 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="p-6 text-center z-10">
         <p className="text-zinc-600 text-xs">
-          © {new Date().getFullYear()} Barbería Fulanos. Powered by KevinBarra.
+          © {new Date().getFullYear()} Barbería {slug}. Powered by AgendaBarber.
         </p>
       </footer>
 
