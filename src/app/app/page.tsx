@@ -2,6 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { getMyLoyaltyStatus } from './loyalty-actions';
+import { getUserTenantSlug } from '@/lib/tenant';
 import ClientDashboardUI from "@/components/client/ClientDashboardUI";
 
 export default async function ClientAppPage() {
@@ -71,6 +72,9 @@ export default async function ClientAppPage() {
     const showNoShowAlert = lastNoShow &&
         new Date(lastNoShow.start_time).getTime() > Date.now() - 48 * 60 * 60 * 1000;
 
+    // Obtener slug del tenant del usuario para booking dinámico
+    const tenantSlug = await getUserTenantSlug() || 'fulanos'; // Fallback para compatibilidad
+
     return (
         <ClientDashboardUI
             user={user}
@@ -81,6 +85,7 @@ export default async function ClientAppPage() {
             history={history || []}
             loyaltyStatus={loyaltyStatus}
             showNoShowAlert={!!showNoShowAlert}
+            tenantSlug={tenantSlug}
         />
     );
 }

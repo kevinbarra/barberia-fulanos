@@ -5,12 +5,12 @@ import { usePathname } from 'next/navigation';
 import { Home, User, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function BottomNav() {
+export default function BottomNav({ tenantSlug }: { tenantSlug: string }) {
     const pathname = usePathname();
 
     const menuItems = [
         { name: 'Inicio', href: '/app', icon: Home },
-        { name: 'Agendar', href: '/book/fulanos', icon: Plus, isSpecial: true },
+        { name: 'Agendar', href: `/book/${tenantSlug}`, icon: Plus, isSpecial: true },
         { name: 'Perfil', href: '/app/profile', icon: User },
     ];
 

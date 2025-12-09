@@ -53,3 +53,35 @@ export async function getTenantIdFromContext(): Promise<string | null> {
     const { getTenantId } = await import('@/utils/supabase/server')
     return getTenantId()
 }
+
+/**
+ * Obtiene el slug del tenant del usuario autenticado
+ * Útil para construir URLs dinámicas como /book/{slug}
+ */
+export async function getUserTenantSlug(): Promise<string | null> {
+    const { createClient } = await import('@/utils/supabase/server')
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    // Obtener tenant_id del perfil del usuario
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!profile?.tenant_id) return null
+
+    // Obtener slug del tenant
+    const adminSupabase = createAdminClient()
+    const { data: tenant } = await adminSupabase
+        .from('tenants')
+        .select('slug')
+        .eq('id', profile.tenant_id)
+        .single()
+
+    return tenant?.slug || null
+}
+

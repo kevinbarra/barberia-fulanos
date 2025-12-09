@@ -27,6 +27,7 @@ interface ClientDashboardUIProps {
         error?: string;
     };
     showNoShowAlert: boolean;
+    tenantSlug: string;
 }
 
 export default function ClientDashboardUI({
@@ -37,7 +38,8 @@ export default function ClientDashboardUI({
     pastBookings,
     history,
     loyaltyStatus,
-    showNoShowAlert
+    showNoShowAlert,
+    tenantSlug
 }: ClientDashboardUIProps) {
 
     const container = {
@@ -184,7 +186,7 @@ export default function ClientDashboardUI({
                     {nextBooking ? (
                         <NextAppointmentCard booking={nextBooking} />
                     ) : (
-                        <Link href="/book/fulanos" className="block group mb-8">
+                        <Link href={`/book/${tenantSlug}`} className="block group mb-8">
                             <motion.div
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}

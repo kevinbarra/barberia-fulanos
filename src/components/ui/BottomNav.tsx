@@ -6,10 +6,12 @@ import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, Scissors, Cal
 
 export default function BottomNav({
     role,
-    showAdminEntry = false
+    showAdminEntry = false,
+    tenantSlug = 'fulanos' // Default for backwards compatibility
 }: {
     role: 'admin' | 'client',
-    showAdminEntry?: boolean
+    showAdminEntry?: boolean,
+    tenantSlug?: string
 }) {
     const pathname = usePathname()
 
@@ -25,7 +27,7 @@ export default function BottomNav({
 
     const clientMenu = [
         { name: 'Wallet', href: '/app', icon: Wallet },
-        { name: 'Reservar', href: '/book/fulanos', icon: CalendarPlus }, // <--- NUEVO ACCESO
+        { name: 'Reservar', href: `/book/${tenantSlug}`, icon: CalendarPlus },
         { name: 'Perfil', href: '/app/profile', icon: User },
     ]
 
