@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import { Bell, X } from 'lucide-react'
 
@@ -18,6 +19,7 @@ interface RealtimeBookingNotificationsProps {
 }
 
 export default function RealtimeBookingNotifications({ tenantId }: RealtimeBookingNotificationsProps) {
+    const router = useRouter()
     const [notifications, setNotifications] = useState<BookingNotification[]>([])
     const [showPanel, setShowPanel] = useState(false)
 
@@ -97,6 +99,9 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
 
                     // Play sound
                     playNotificationSound()
+
+                    // Refresh page data to show new booking in lists
+                    router.refresh()
 
                     // Show browser notification if permitted
                     if (Notification.permission === 'granted') {
