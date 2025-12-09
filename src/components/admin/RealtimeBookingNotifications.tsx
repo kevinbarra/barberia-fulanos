@@ -63,14 +63,25 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     }
 
     // Sound needs user interaction first to work in browsers
-    // Using ref to avoid closure issues in subscription callback
+    // Using ref + localStorage for persistence across page changes
     const [soundEnabled, setSoundEnabled] = useState(false)
     const soundEnabledRef = useRef(false)
 
+    // Load sound preference from localStorage on mount
+    useEffect(() => {
+        const stored = localStorage.getItem('notification-sound-enabled')
+        if (stored === 'true') {
+            setSoundEnabled(true)
+            soundEnabledRef.current = true
+        }
+    }, [])
+
     const enableSound = () => {
+        console.log('[SOUND] Enabling sound...')
         playNotificationSound() // Play once to "unlock" audio
         setSoundEnabled(true)
         soundEnabledRef.current = true
+        localStorage.setItem('notification-sound-enabled', 'true')
     }
 
     useEffect(() => {
@@ -145,7 +156,9 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             setNotifications(prev => [notification, ...prev].slice(0, 5))
 
             // Play sound if enabled (using ref to avoid closure issues)
+            console.log('[SOUND] Should play? soundEnabledRef.current =', soundEnabledRef.current)
             if (soundEnabledRef.current) {
+                console.log('[SOUND] Playing notification sound...')
                 playNotificationSound()
             }
 
