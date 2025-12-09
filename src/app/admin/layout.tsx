@@ -2,6 +2,7 @@ import MobileAdminNav from "@/components/ui/MobileAdminNav";
 import Sidebar from "@/components/ui/Sidebar";
 import { createClient } from "@/utils/supabase/server";
 import RealtimeBookingNotifications from "@/components/admin/RealtimeBookingNotifications";
+import KioskProtectedRouteProvider from "@/components/admin/KioskProtectedRouteProvider";
 
 export default async function AdminLayout({
     children,
@@ -36,7 +37,10 @@ export default async function AdminLayout({
                     </div>
                 )}
                 <main className="flex-1 pb-8 w-full">
-                    {children}
+                    {/* Kiosk PIN protection for sensitive routes */}
+                    <KioskProtectedRouteProvider userRole={userRole} tenantId={tenantId}>
+                        {children}
+                    </KioskProtectedRouteProvider>
                 </main>
             </div>
         </div>
