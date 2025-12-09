@@ -48,26 +48,35 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
 
 
     // Sound needs user interaction first to work in browsers
-    // Using ref + localStorage for persistence across page changes
+    // We do NOT restore from localStorage because that doesn't count as user interaction
     const [soundEnabled, setSoundEnabled] = useState(false)
     const soundEnabledRef = useRef(false)
+    const audioUnlockedRef = useRef(false)
 
-    // Load sound preference from localStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem('notification-sound-enabled')
-        if (stored === 'true') {
+    // Toggle sound on/off
+    const toggleSound = () => {
+        if (!soundEnabled) {
+            // Enabling sound - play once to "unlock" audio
+            console.log('[SOUND] Enabling sound...')
+            if (audioRef.current) {
+                audioRef.current.currentTime = 0
+                audioRef.current.play()
+                    .then(() => {
+                        console.log('[SOUND] Audio unlocked successfully')
+                        audioUnlockedRef.current = true
+                    })
+                    .catch(err => console.error('[SOUND] Audio unlock failed:', err))
+            }
             setSoundEnabled(true)
             soundEnabledRef.current = true
+        } else {
+            // Disabling sound
+            console.log('[SOUND] Disabling sound...')
+            setSoundEnabled(false)
+            soundEnabledRef.current = false
         }
-    }, [])
-
-    const enableSound = () => {
-        console.log('[SOUND] Enabling sound...')
-        playNotificationSound() // Play once to "unlock" audio
-        setSoundEnabled(true)
-        soundEnabledRef.current = true
-        localStorage.setItem('notification-sound-enabled', 'true')
     }
+
 
     useEffect(() => {
         const supabase = createClient()
@@ -188,7 +197,7 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                     <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                         <h3 className="font-semibold text-gray-800">Nuevas Reservas</h3>
                         <button
-                            onClick={enableSound}
+                            onClick={toggleSound}
                             className={`text-xs px-2 py-1 rounded-full transition-colors ${soundEnabled
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
