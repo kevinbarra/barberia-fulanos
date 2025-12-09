@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
 
         // Enviar email usando Resend
         const emailData = await resend.emails.send({
-            from: 'AgendaBarber <onboarding@resend.dev>', // Cambiar cuando tengas dominio verificado
-            to: ['kevinbarra2001@gmail.com'], // IMPORTANTE: En modo testing solo funciona con el email de tu cuenta Resend
+            from: 'AgendaBarber <contacto@agendabarber.pro>', // Dominio verificado
+            to: ['kevinbarra2001@gmail.com'], // Email donde recibes los leads
             replyTo: email,
             subject: `🚀 Nuevo Lead: ${businessName}`,
             html: `
