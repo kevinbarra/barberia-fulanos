@@ -33,7 +33,7 @@ export default async function TeamPage() {
         .from('profiles')
         .select('id, full_name, email, avatar_url, role')
         .eq('tenant_id', tenantId)
-        .in('role', ['owner', 'staff']) // Solo mostrar equipo real
+        .in('role', ['owner', 'staff', 'kiosk']) // Include kiosk for role management
         .order('created_at', { ascending: true });
 
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];

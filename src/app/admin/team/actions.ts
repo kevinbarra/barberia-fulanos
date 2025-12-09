@@ -103,3 +103,83 @@ export async function removeStaff(targetId: string) {
     revalidatePath('/admin/team')
     return { success: true, message: 'Acceso revocado correctamente.' }
 }
+
+// --- CAMBIAR ROL DE USUARIO ---
+export async function changeUserRole(targetId: string, newRole: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Get requester's info
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester) return { error: 'No autorizado' }
+
+    // Get target user's info
+    const { data: targetUser } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', targetId)
+        .single()
+
+    if (!targetUser) return { error: 'Usuario no encontrado' }
+
+    // Permission logic:
+    // super_admin: can change any role
+    // owner: can only change staff/kiosk roles within their tenant
+    // staff/kiosk: cannot change roles
+
+    if (requester.role === 'super_admin') {
+        // Super admin can set any role
+        const validRoles = ['owner', 'staff', 'kiosk', 'customer', 'super_admin']
+        if (!validRoles.includes(newRole)) {
+            return { error: 'Rol no válido' }
+        }
+    } else if (requester.role === 'owner') {
+        // Owner can only change roles within their tenant
+        if (targetUser.tenant_id !== requester.tenant_id) {
+            return { error: 'No puedes modificar usuarios de otro negocio' }
+        }
+
+        // Owner cannot assign owner or super_admin roles
+        if (newRole === 'owner' || newRole === 'super_admin') {
+            return { error: 'No tienes permiso para asignar este rol' }
+        }
+
+        // Owner cannot demote another owner
+        if (targetUser.role === 'owner') {
+            return { error: 'No puedes modificar el rol de otro dueño' }
+        }
+
+        const validRoles = ['staff', 'kiosk']
+        if (!validRoles.includes(newRole)) {
+            return { error: 'Rol no válido' }
+        }
+    } else {
+        return { error: 'No tienes permisos para cambiar roles' }
+    }
+
+    // Cannot change own role (except super_admin)
+    if (targetId === user.id && requester.role !== 'super_admin') {
+        return { error: 'No puedes cambiar tu propio rol' }
+    }
+
+    // Apply role change
+    const { error } = await supabase
+        .from('profiles')
+        .update({ role: newRole })
+        .eq('id', targetId)
+
+    if (error) {
+        console.error('Error changing role:', error)
+        return { error: 'Error al cambiar el rol' }
+    }
+
+    revalidatePath('/admin/team')
+    return { success: true, message: `Rol cambiado a ${newRole} correctamente` }
+}
