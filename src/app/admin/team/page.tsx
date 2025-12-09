@@ -17,6 +17,8 @@ export default async function TeamPage() {
     const supabase = await createClient();
     const tenantId = await getTenantId();
 
+    console.log('[TEAM] tenantId:', tenantId);
+
     if (!tenantId) return redirect("/login");
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -28,15 +30,24 @@ export default async function TeamPage() {
         .single();
 
     const currentUserRole = profile?.role || 'staff';
+    console.log('[TEAM] currentUserRole:', currentUserRole);
 
-    const { data: activeStaff } = await supabase
+    // Query without role filter first to debug
+    const { data: activeStaff, error: staffError } = await supabase
         .from('profiles')
         .select('id, full_name, email, avatar_url, role')
         .eq('tenant_id', tenantId)
-        .in('role', ['super_admin', 'owner', 'staff', 'kiosk']) // All team roles
         .order('created_at', { ascending: true });
 
+    console.log('[TEAM] activeStaff:', activeStaff?.length, 'error:', staffError);
+    console.log('[TEAM] roles found:', activeStaff?.map(s => s.role));
+
+    // Filter to team roles in JS (for debugging)
+    const teamRoles = ['super_admin', 'owner', 'staff', 'kiosk'];
+    const filteredStaff = activeStaff?.filter(s => teamRoles.includes(s.role)) || [];
+
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];
+
 
     if (currentUserRole === 'owner' || currentUserRole === 'super_admin') {
         const { data: invites } = await supabase
@@ -51,7 +62,7 @@ export default async function TeamPage() {
     }
 
     const staffList: StaffMember[] = [
-        ...(activeStaff || []).map(s => ({ ...s, status: 'active' as const })),
+        ...filteredStaff.map(s => ({ ...s, status: 'active' as const })),
         ...(pendingInvites || []).map(inv => ({
             id: inv.id,
             full_name: 'Invitado',
