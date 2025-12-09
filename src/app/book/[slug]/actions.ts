@@ -68,26 +68,36 @@ export async function createBooking(data: {
     let realStaffName = "El equipo";
 
     try {
+        console.log('[BOOKING] Creating admin client for staff data...');
         const adminClient = createAdminClient();
-        const { data: staffData } = await adminClient
+        console.log('[BOOKING] Admin client created, querying staff_id:', data.staff_id);
+
+        const { data: staffData, error: staffError } = await adminClient
             .from('profiles')
             .select('full_name, email')
             .eq('id', data.staff_id)
             .single();
 
-        if (staffData) {
+        if (staffError) {
+            console.error('[BOOKING] Staff query error:', staffError);
+        } else if (staffData) {
             realStaffName = staffData.full_name || "El equipo";
             staffEmail = staffData.email;
+            console.log('[BOOKING] Staff data found:', {
+                name: realStaffName,
+                email: staffEmail || '(no email)'
+            });
+        } else {
+            console.warn('[BOOKING] No staff data returned');
         }
     } catch (adminError) {
-        // Si admin client falla, continuamos sin notificaciones a staff
-        console.warn('[BOOKING] Admin client failed, staff notifications disabled:', adminError);
+        console.error('[BOOKING] Admin client exception:', adminError);
     }
 
-    console.log('[BOOKING] Data fetched:', {
+    console.log('[BOOKING] Final data:', {
         service: realServiceName,
         staff: realStaffName,
-        staffEmail: staffEmail ? '(exists)' : '(none)',
+        hasStaffEmail: !!staffEmail,
         business: businessName
     });
 
