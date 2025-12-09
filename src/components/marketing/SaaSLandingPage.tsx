@@ -18,12 +18,26 @@ export default function SaaSLandingPage() {
         e.preventDefault()
         setIsSubmitting(true)
 
-        // Simulate form submission (replace with actual API call)
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        try {
+            const response = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
 
-        toast.success('¡Mensaje enviado! Te contactaremos para tu demo.')
-        setFormData({ businessName: '', email: '', phone: '', message: '' })
-        setIsSubmitting(false)
+            const data = await response.json()
+
+            if (response.ok && data.success) {
+                toast.success('¡Mensaje enviado! Te contactaremos en menos de 24 horas.')
+                setFormData({ businessName: '', email: '', phone: '', message: '' })
+            } else {
+                toast.error(data.error || 'Error al enviar. Intenta de nuevo.')
+            }
+        } catch (error) {
+            toast.error('Error de conexión. Verifica tu internet.')
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const plans = [
@@ -105,7 +119,7 @@ export default function SaaSLandingPage() {
             <section className="relative z-10 px-6 pt-20 pb-32 max-w-6xl mx-auto text-center">
                 <div className="inline-flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-2 mb-8">
                     <Star className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm text-zinc-300">Usado por +50 barberías en México</span>
+                    <span className="text-sm text-zinc-300">Sistema Probado en Operación Real</span>
                 </div>
 
                 <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tight mb-6 leading-[0.9]">
@@ -124,13 +138,13 @@ export default function SaaSLandingPage() {
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link
-                        href="/login"
+                    <a
+                        href="#contact"
                         className="group bg-white text-black font-bold px-8 py-4 rounded-2xl text-lg hover:bg-zinc-100 transition-all hover:scale-105 shadow-[0_0_40px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2"
                     >
-                        Prueba Gratis 14 Días
+                        Agenda tu Demo
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    </a>
                     <a
                         href="#features"
                         className="bg-zinc-900 border border-zinc-800 text-white font-medium px-8 py-4 rounded-2xl text-lg hover:bg-zinc-800 transition-all"
@@ -143,15 +157,15 @@ export default function SaaSLandingPage() {
                 <div className="mt-16 flex flex-wrap justify-center gap-6 sm:gap-8 text-zinc-500 text-sm">
                     <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
-                        <span>Setup en 5 minutos</span>
+                        <span>Setup en 5 días</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        <span>Sin tarjeta requerida</span>
+                        <Users className="w-4 h-4" />
+                        <span>Capacitación incluida</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <Smartphone className="w-4 h-4" />
-                        <span>App para clientes</span>
+                        <span>Soporte directo WhatsApp</span>
                     </div>
                 </div>
             </section>
@@ -381,17 +395,17 @@ export default function SaaSLandingPage() {
                         ¿Listo para modernizar tu barbería?
                     </h2>
                     <p className="text-xl text-zinc-400 mb-10">
-                        Únete a las barberías que ya gestionan todo desde un solo lugar.
+                        Agenda una demo y descubre cómo AgendaBarber puede multiplicar tus ventas.
                     </p>
-                    <Link
-                        href="/login"
+                    <a
+                        href="#contact"
                         className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold px-10 py-5 rounded-2xl text-xl hover:opacity-90 transition-all hover:scale-105 shadow-[0_0_60px_rgba(245,158,11,0.3)]"
                     >
-                        Comenzar Ahora
+                        Solicitar Demo
                         <ArrowRight className="w-6 h-6" />
-                    </Link>
+                    </a>
                     <p className="text-zinc-500 text-sm mt-4">
-                        14 días gratis • Sin tarjeta • Cancela cuando quieras
+                        Setup profesional • Instalación incluida • Soporte dedicado
                     </p>
                 </div>
             </section>
