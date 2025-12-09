@@ -97,6 +97,26 @@ export async function createBooking(data: {
 
     const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
 
+    // Log para debugging
+    console.log('[BOOKING] Creating booking with data:', {
+        tenant_id: data.tenant_id,
+        service_id: data.service_id,
+        staff_id: data.staff_id,
+        start_time: startDate.toISOString(),
+        end_time: endDate.toISOString(),
+        customer_id: finalCustomerId
+    });
+
+    // Validar que los IDs sean válidos UUIDs antes de insertar
+    if (!data.tenant_id || !data.service_id || !data.staff_id) {
+        console.error('[BOOKING] Missing required IDs:', {
+            tenant_id: data.tenant_id,
+            service_id: data.service_id,
+            staff_id: data.staff_id
+        });
+        return { success: false, error: 'Datos incompletos para la reserva.' }
+    }
+
     // 3. INSERTAR CON ESTADO TEMPORAL
     const { data: newBooking, error: insertError } = await supabase
         .from('bookings')
@@ -114,9 +134,11 @@ export async function createBooking(data: {
         .single()
 
     if (insertError) {
-        console.error('Error al insertar:', insertError)
-        return { success: false, error: 'Error al crear reserva.' }
+        console.error('[BOOKING] Error al insertar:', insertError)
+        return { success: false, error: `Error al crear reserva: ${insertError.message}` }
     }
+
+    console.log('[BOOKING] Booking created successfully:', newBooking.id);
 
     // 4. VALIDAR CONFLICTOS POST-INSERT (anti race condition)
     const { count: conflictCount } = await supabase
