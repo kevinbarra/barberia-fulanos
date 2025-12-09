@@ -258,6 +258,30 @@ export async function createBooking(data: {
         });
     }
 
+    // 8. BROADCAST para notificación en tiempo real al admin
+    // Esto no depende de RLS, funciona siempre
+    try {
+        const broadcastClient = createAdminClient();
+        const channel = broadcastClient.channel(`booking-notifications-${data.tenant_id}`);
+
+        await channel.send({
+            type: 'broadcast',
+            event: 'new-booking',
+            payload: {
+                id: newBooking.id,
+                clientName: data.client_name,
+                serviceName: realServiceName,
+                staffName: realStaffName,
+                time: timeStr,
+                date: dateStr
+            }
+        });
+
+        console.log('[BOOKING] Broadcast sent to admin channel');
+    } catch (broadcastError) {
+        console.warn('[BOOKING] Broadcast failed (non-critical):', broadcastError);
+    }
+
     // Revalidar rutas para que aparezca en POS y Schedule
     revalidatePath('/admin/pos');
     revalidatePath('/admin/schedule');

@@ -64,82 +64,51 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
 
         const supabase = createClient()
 
-        // Subscribe to bookings table changes for this tenant
+        // Subscribe to broadcast channel for this tenant
+        // Broadcast doesn't depend on RLS - works when server sends explicitly
         const channel = supabase
-            .channel('booking-notifications')
+            .channel(`booking-notifications-${tenantId}`)
             .on(
-                'postgres_changes',
-                {
-                    event: 'INSERT',
-                    schema: 'public',
-                    table: 'bookings',
-                    filter: `tenant_id=eq.${tenantId}`
-                },
-                async (payload) => {
-                    console.log('[REALTIME] New booking received:', payload)
+                'broadcast',
+                { event: 'new-booking' },
+                (payload) => {
+                    console.log('[REALTIME] New booking broadcast received:', payload)
 
-                    // Fetch additional details
-                    const { data: booking } = await supabase
-                        .from('bookings')
-                        .select(`
-                            id,
-                            start_time,
-                            notes,
-                            services:service_id(name),
-                            profiles:staff_id(full_name)
-                        `)
-                        .eq('id', payload.new.id)
-                        .single()
+                    const data = payload.payload as {
+                        id: string
+                        clientName: string
+                        serviceName: string
+                        staffName: string
+                        time: string
+                        date: string
+                    }
 
-                    if (booking) {
-                        const startTime = new Date(booking.start_time)
-                        const timeStr = startTime.toLocaleTimeString('es-MX', {
-                            hour: '2-digit',
-                            minute: '2-digit'
+                    const notification: BookingNotification = {
+                        id: data.id,
+                        clientName: data.clientName,
+                        serviceName: data.serviceName,
+                        staffName: data.staffName,
+                        time: data.time,
+                        timestamp: new Date()
+                    }
+
+                    // Add to notifications
+                    setNotifications(prev => [notification, ...prev].slice(0, 5))
+
+                    // Play sound
+                    playNotificationSound()
+
+                    // Show browser notification if permitted
+                    if (Notification.permission === 'granted') {
+                        new Notification('Nueva Reserva', {
+                            body: `${data.clientName} - ${data.serviceName} a las ${data.time}`,
+                            icon: '/icon-192.png'
                         })
-
-                        // Extract client name from notes or use default
-                        let clientName = 'Cliente'
-                        if (booking.notes) {
-                            const match = booking.notes.match(/Cliente:\s*([^|]+)/i)
-                            if (match) clientName = match[1].trim()
-                        }
-
-                        // Handle Supabase relations (can be array or object)
-                        const service = Array.isArray(booking.services)
-                            ? booking.services[0]
-                            : booking.services
-                        const staff = Array.isArray(booking.profiles)
-                            ? booking.profiles[0]
-                            : booking.profiles
-
-                        const notification: BookingNotification = {
-                            id: booking.id,
-                            clientName,
-                            serviceName: service?.name || 'Servicio',
-                            staffName: staff?.full_name || 'Staff',
-                            time: timeStr,
-                            timestamp: new Date()
-                        }
-
-                        // Add to notifications
-                        setNotifications(prev => [notification, ...prev].slice(0, 5))
-
-                        // Play sound
-                        playNotificationSound()
-
-                        // Show browser notification if permitted
-                        if (Notification.permission === 'granted') {
-                            new Notification('Nueva Reserva', {
-                                body: `${clientName} - ${notification.serviceName} a las ${timeStr}`,
-                                icon: '/icon-192.png'
-                            })
-                        }
                     }
                 }
             )
             .subscribe((status) => {
-                console.log('[REALTIME] Subscription status:', status)
+                console.log('[REALTIME] Broadcast subscription status:', status)
             })
 
         // Request notification permission
