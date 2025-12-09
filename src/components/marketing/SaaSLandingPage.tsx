@@ -21,58 +21,49 @@ export default function SaaSLandingPage() {
         // Simulate form submission (replace with actual API call)
         await new Promise(resolve => setTimeout(resolve, 1500))
 
-        toast.success('¡Mensaje enviado! Te contactaremos pronto.')
+        toast.success('¡Mensaje enviado! Te contactaremos para tu demo.')
         setFormData({ businessName: '', email: '', phone: '', message: '' })
         setIsSubmitting(false)
     }
 
     const plans = [
         {
-            name: "Starter",
-            price: "Gratis",
-            period: "",
-            description: "Para barberías que inician",
-            features: [
-                "1 barbero",
-                "Reservas online",
-                "Calendario básico",
-                "App para clientes",
-                "Soporte por email"
-            ],
-            cta: "Comenzar Gratis",
-            popular: false
-        },
-        {
-            name: "Pro",
-            price: "$299",
+            name: "PRO",
+            price: "$1,299",
             period: "/mes",
-            description: "Para barberías en crecimiento",
+            description: "Todo incluido para tu barbería.",
             features: [
-                "Hasta 5 barberos",
-                "Punto de Venta completo",
-                "Programa de lealtad",
-                "Reportes avanzados",
-                "Notificaciones SMS",
-                "Soporte prioritario"
+                "Hasta 5 Barberos",
+                "Agenda y Citas Online",
+                "Punto de Venta (POS)",
+                "App Clientes + Kiosko iPad",
+                "Programa de Lealtad",
+                "Reportes Avanzados",
+                "Soporte WhatsApp Local",
+                "Instalación: $2,999 (Pago único)"
             ],
-            cta: "Prueba 14 Días Gratis",
-            popular: true
+            cta: "Agendar Demo",
+            popular: true,
+            href: "#contact"
         },
         {
             name: "Enterprise",
-            price: "Contactar",
+            price: "Cotizar",
             period: "",
-            description: "Para cadenas de barberías",
+            description: "Para cadenas y franquicias.",
             features: [
-                "Barberos ilimitados",
-                "Multi-sucursal",
-                "API personalizada",
-                "Integraciones custom",
-                "Onboarding dedicado",
-                "Account manager"
+                "Barberos Ilimitados",
+                "Multi-sucursal Centralizado",
+                "API Personalizada",
+                "Onboarding Presencial",
+                "Gerente de Cuenta Dedicado",
+                "SLA de Soporte 24/7",
+                "Whitelabel (Tu marca)",
+                "Instalación a la medida"
             ],
             cta: "Contactar Ventas",
-            popular: false
+            popular: false,
+            href: "#contact"
         }
     ]
 
@@ -237,13 +228,13 @@ export default function SaaSLandingPage() {
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+                    <div className="grid md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
                         {plans.map((plan, i) => (
                             <div
                                 key={i}
                                 className={`relative bg-zinc-900 border rounded-3xl p-6 sm:p-8 transition-all ${plan.popular
-                                        ? 'border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.15)]'
-                                        : 'border-zinc-800 hover:border-zinc-700'
+                                    ? 'border-amber-500 shadow-[0_0_40px_rgba(245,158,11,0.15)]'
+                                    : 'border-zinc-800 hover:border-zinc-700'
                                     }`}
                             >
                                 {plan.popular && (
@@ -273,15 +264,15 @@ export default function SaaSLandingPage() {
                                     ))}
                                 </ul>
 
-                                <Link
-                                    href={plan.name === 'Enterprise' ? '#contact' : '/login'}
+                                <a
+                                    href={plan.href}
                                     className={`w-full py-3 sm:py-4 rounded-xl font-bold text-center block transition-all hover:scale-105 ${plan.popular
-                                            ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black'
-                                            : 'bg-zinc-800 text-white hover:bg-zinc-700'
+                                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-black'
+                                        : 'bg-zinc-800 text-white hover:bg-zinc-700'
                                         }`}
                                 >
                                     {plan.cta}
-                                </Link>
+                                </a>
                             </div>
                         ))}
                     </div>
