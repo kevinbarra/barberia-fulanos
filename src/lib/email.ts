@@ -54,7 +54,16 @@ export async function sendStaffNewBookingNotification(data: {
   businessName?: string;
   isOwnerNotification?: boolean;
 }) {
-  if (!data.staffEmail) return;
+  console.log('[EMAIL] Attempting to send staff notification:', {
+    to: data.staffEmail,
+    staffName: data.staffName,
+    isOwner: data.isOwnerNotification
+  });
+
+  if (!data.staffEmail) {
+    console.log('[EMAIL] No staffEmail provided, skipping');
+    return;
+  }
 
   const business = data.businessName || 'AgendaBarber';
   const forWhom = data.isOwnerNotification
@@ -62,7 +71,7 @@ export async function sendStaffNewBookingNotification(data: {
     : 'para ti';
 
   try {
-    await resend.emails.send({
+    const result = await resend.emails.send({
       from: `${business} <reservas@agendabarber.pro>`,
       to: [data.staffEmail],
       subject: `📅 Nueva Reserva: ${data.clientName} - ${data.serviceName}`,
@@ -70,7 +79,7 @@ export async function sendStaffNewBookingNotification(data: {
         <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #000;">Nueva Reserva ${forWhom}</h1>
           
-          <div style="background: linear-gradient(135deg, #f59e0b20 0%, #f97316 20 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #f59e0b;">
+          <div style="background: linear-gradient(135deg, #f59e0b20 0%, #f9731620 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #f59e0b;">
             <p style="margin: 0; font-size: 18px;"><strong>${data.clientName}</strong></p>
             <p style="margin: 8px 0; color: #666;">${data.serviceName}</p>
             <p style="margin: 0; font-size: 16px;">📅 ${data.date} a las ${data.time}</p>
@@ -89,8 +98,9 @@ export async function sendStaffNewBookingNotification(data: {
         </div>
       `,
     });
-  } catch {
-    // Email is non-critical, silently fail
+    console.log('[EMAIL] Staff notification sent successfully:', result);
+  } catch (error) {
+    console.error('[EMAIL] Error sending staff notification:', error);
   }
 }
 
