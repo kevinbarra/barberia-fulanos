@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/login/LoginForm";
+import { getTenantSlug } from "@/lib/tenant";
+import { Scissors } from "lucide-react";
 
 export default async function LoginPage() {
     // --- LÓGICA INTELIGENTE: Redirección automática ---
@@ -25,11 +28,20 @@ export default async function LoginPage() {
     }
     // --------------------------------------------------
 
+    // Detectar contexto de dominio
+    const headersList = await headers();
+    const hostname = headersList.get('host') || '';
+    const tenantSlug = await getTenantSlug();
+
+    const isRootDomain = hostname === 'agendabarber.pro' ||
+        hostname === 'www.agendabarber.pro' ||
+        (!tenantSlug && hostname.includes('vercel.app'));
+
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
 
-            {/* Fondo Ambiental (Mantenido de tu versión) */}
-            <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+            {/* Fondo Ambiental */}
+            <div className={`absolute top-[-20%] right-[-20%] w-[60%] h-[60%] ${isRootDomain ? 'bg-amber-600/10' : 'bg-blue-600/10'} blur-[100px] rounded-full pointer-events-none`}></div>
             <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
             <div className="w-full max-w-sm z-10">
@@ -42,8 +54,24 @@ export default async function LoginPage() {
                     >
                         ← Volver al inicio
                     </Link>
-                    <h1 className="text-3xl font-black tracking-tight mb-2">Bienvenido</h1>
-                    <p className="text-zinc-400 text-sm">Ingresa para gestionar tus citas.</p>
+
+                    {isRootDomain ? (
+                        <>
+                            <div className="flex items-center justify-center gap-2 mb-4">
+                                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl flex items-center justify-center">
+                                    <Scissors className="w-5 h-5 text-white" />
+                                </div>
+                                <span className="font-black text-xl">AgendaBarber</span>
+                            </div>
+                            <h1 className="text-3xl font-black tracking-tight mb-2">Inicia Sesión</h1>
+                            <p className="text-zinc-400 text-sm">Accede a tu panel de administración.</p>
+                        </>
+                    ) : (
+                        <>
+                            <h1 className="text-3xl font-black tracking-tight mb-2">Bienvenido</h1>
+                            <p className="text-zinc-400 text-sm">Ingresa para gestionar tus citas.</p>
+                        </>
+                    )}
                 </div>
 
                 {/* FORMULARIO CLIENTE (Interactivo) */}
