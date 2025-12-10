@@ -40,12 +40,17 @@ export default async function LoginPage() {
         const hostname = headersList.get('host') || '';
         const isProduction = hostname.includes(ROOT_DOMAIN);
 
-        // Super Admin siempre va a www/admin/platform
-        if (isSuperAdmin && isProduction && !hostname.startsWith('www.')) {
-            return redirect(`https://www.${ROOT_DOMAIN}/admin/platform`);
+        // Super Admin SIEMPRE va a /admin/platform (sin importar qué subdominio)
+        if (isSuperAdmin) {
+            if (isProduction && !hostname.startsWith('www.')) {
+                // Si está en un subdominio de tenant, redirigir a www
+                return redirect(`https://www.${ROOT_DOMAIN}/admin/platform`);
+            }
+            // Ya está en www o en dev, ir directo a platform
+            return redirect('/admin/platform');
         }
 
-        // En producción, redirigir al subdominio correcto
+        // En producción, redirigir al subdominio correcto (solo para NO super_admins)
         if (isProduction && tenantSlug && isAdminOrStaff) {
             // Check if already on correct subdomain
             if (!hostname.startsWith(`${tenantSlug}.`)) {
@@ -54,7 +59,7 @@ export default async function LoginPage() {
         }
 
         // Fallback: redirigir a ruta relativa (funciona en desarrollo o si ya está en subdominio)
-        return redirect(isSuperAdmin ? '/admin/platform' : (isAdminOrStaff ? '/admin' : '/app'));
+        return redirect(isAdminOrStaff ? '/admin' : '/app');
     }
     // --------------------------------------------------
 
