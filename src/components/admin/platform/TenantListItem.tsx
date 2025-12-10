@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toggleTenantStatus } from '@/app/admin/platform/actions';
 import { toast } from 'sonner';
 import { MoreVertical, Pause, Play, ExternalLink, Loader2, Users, Calendar } from 'lucide-react';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Tenant {
     id: string;
@@ -16,6 +17,7 @@ interface Tenant {
 export default function TenantListItem({ tenant }: { tenant: Tenant }) {
     const [isLoading, setIsLoading] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(tenant.subscription_status);
 
     const isActive = currentStatus === 'active';
@@ -51,8 +53,8 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
             <div className="flex items-center gap-4">
                 {/* Avatar */}
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black uppercase flex-shrink-0 ${isActive
-                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-400'
+                    ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-400'
                     }`}>
                     {tenant.name.charAt(0)}
                 </div>
@@ -62,8 +64,8 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
                     <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-gray-900">{tenant.name}</h3>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive
-                                ? 'text-green-700 bg-green-100'
-                                : 'text-red-700 bg-red-100'
+                            ? 'text-green-700 bg-green-100'
+                            : 'text-red-700 bg-red-100'
                             }`}>
                             {isActive ? 'Activo' : 'Suspendido'}
                         </span>
@@ -79,7 +81,7 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
 
                 {/* Quick Action Button */}
                 <button
-                    onClick={handleToggleStatus}
+                    onClick={() => isActive ? setShowConfirmModal(true) : handleToggleStatus()}
                     disabled={isLoading}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all ${isActive
                             ? 'bg-red-50 text-red-600 hover:bg-red-100'
@@ -132,6 +134,21 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
                     )}
                 </div>
             </div>
+
+            {/* Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showConfirmModal}
+                onClose={() => setShowConfirmModal(false)}
+                onConfirm={() => {
+                    setShowConfirmModal(false);
+                    handleToggleStatus();
+                }}
+                title="¿Suspender barbería?"
+                message={`Estás a punto de suspender "${tenant.name}". Los usuarios de esta barbería no podrán acceder hasta que la reactives.`}
+                confirmText="Suspender"
+                confirmVariant="danger"
+                isLoading={isLoading}
+            />
         </div>
     );
 }

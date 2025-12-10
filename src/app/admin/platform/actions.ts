@@ -106,9 +106,15 @@ export async function toggleTenantStatus(tenantId: string, newStatus: 'active' |
     return { success: true, message: `Tenant ${newStatus === 'active' ? 'activado' : 'suspendido'} exitosamente.` };
 }
 
-// Get platform-wide stats
+// Get platform-wide stats with trends
 export async function getPlatformStats() {
     const supabase = await createClient();
+
+    // Current month dates
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Total tenants
     const { count: totalTenants } = await supabase
@@ -121,17 +127,23 @@ export async function getPlatformStats() {
         .select('*', { count: 'exact', head: true })
         .eq('subscription_status', 'active');
 
-    // Total bookings this month (all tenants)
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    // Suspended tenants
+    const suspendedTenants = (totalTenants || 0) - (activeTenants || 0);
 
+    // Current month bookings
     const { count: monthlyBookings } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .gte('created_at', startOfMonth.toISOString());
 
-    // Total revenue this month (all tenants)
+    // Last month bookings (for trend)
+    const { count: lastMonthBookings } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lte('created_at', endOfLastMonth.toISOString());
+
+    // Current month revenue
     const { data: revenueData } = await supabase
         .from('transactions')
         .select('total')
@@ -139,10 +151,49 @@ export async function getPlatformStats() {
 
     const monthlyRevenue = revenueData?.reduce((sum, t) => sum + (t.total || 0), 0) || 0;
 
+    // Last month revenue (for trend)
+    const { data: lastRevenueData } = await supabase
+        .from('transactions')
+        .select('total')
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lte('created_at', endOfLastMonth.toISOString());
+
+    const lastMonthRevenue = lastRevenueData?.reduce((sum, t) => sum + (t.total || 0), 0) || 0;
+
+    // Daily bookings for last 7 days (for chart)
+    const last7Days: { day: string; count: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+        const { count } = await supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', dayStart.toISOString())
+            .lt('created_at', dayEnd.toISOString());
+
+        last7Days.push({
+            day: dayStart.toLocaleDateString('es-MX', { weekday: 'short' }),
+            count: count || 0
+        });
+    }
+
+    // Calculate trends
+    const bookingTrend = lastMonthBookings ?
+        Math.round(((monthlyBookings || 0) - lastMonthBookings) / lastMonthBookings * 100) : 0;
+    const revenueTrend = lastMonthRevenue ?
+        Math.round((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue * 100) : 0;
+
     return {
         totalTenants: totalTenants || 0,
         activeTenants: activeTenants || 0,
+        suspendedTenants,
         monthlyBookings: monthlyBookings || 0,
-        monthlyRevenue
+        monthlyRevenue,
+        bookingTrend,
+        revenueTrend,
+        last7Days
     };
 }
