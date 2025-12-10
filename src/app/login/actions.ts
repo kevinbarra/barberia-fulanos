@@ -56,16 +56,21 @@ export async function verifyOtp(email: string, token: string) {
             }
         }
 
-        const isAdminOrStaff = profile?.role === 'owner' || profile?.role === 'staff' || profile?.role === 'super_admin'
+        const userRole = profile?.role
+        const isSuperAdmin = userRole === 'super_admin'
+        const isAdminOrStaff = userRole === 'owner' || userRole === 'staff' || isSuperAdmin
 
         // Determinar si estamos en producción
         const headersList = await headers()
         const hostname = headersList.get('host') || ''
         const isProduction = hostname.includes(ROOT_DOMAIN) || hostname.includes('vercel.app')
 
-        console.log('[verifyOtp] tenantSlug:', tenantSlug, 'hostname:', hostname, 'isProduction:', isProduction)
+        console.log('[verifyOtp] tenantSlug:', tenantSlug, 'role:', userRole, 'isProduction:', isProduction)
 
-        if (isProduction && tenantSlug && isAdminOrStaff) {
+        // Super Admin siempre va a www para acceder al platform panel
+        if (isSuperAdmin && isProduction) {
+            redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
+        } else if (isProduction && tenantSlug && isAdminOrStaff) {
             redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}/admin`
         } else if (isAdminOrStaff) {
             redirectUrl = '/admin'

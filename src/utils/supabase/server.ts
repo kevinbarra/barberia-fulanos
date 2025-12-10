@@ -1,6 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// Cookie domain for cross-subdomain auth
+const COOKIE_DOMAIN = process.env.NODE_ENV === 'production' ? '.agendabarber.pro' : undefined
+
 export async function createClient() {
     const cookieStore = await cookies()
 
@@ -16,11 +19,13 @@ export async function createClient() {
                     try {
                         cookiesToSet.forEach(({ name, value, options }) =>
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            (cookieStore as any).set(name, value, options)
+                            (cookieStore as any).set(name, value, {
+                                ...options,
+                                domain: COOKIE_DOMAIN, // Cross-subdomain sharing
+                            })
                         )
                     } catch {
                         // El método setAll fue llamado desde un Server Component.
-                        // Esto se puede ignorar.
                     }
                 },
             },

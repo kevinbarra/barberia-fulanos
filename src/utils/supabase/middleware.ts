@@ -28,6 +28,9 @@ export async function updateSession(request: NextRequest) {
         },
     })
 
+    // Cookie domain for cross-subdomain auth
+    const cookieDomain = hostname.includes('agendabarber.pro') ? '.agendabarber.pro' : undefined
+
     // 3. Manejar sesión Supabase
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +48,10 @@ export async function updateSession(request: NextRequest) {
                         request: { headers: requestHeaders }
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
+                        response.cookies.set(name, value, {
+                            ...options,
+                            domain: cookieDomain, // Cross-subdomain sharing
+                        })
                     )
                 },
             },
