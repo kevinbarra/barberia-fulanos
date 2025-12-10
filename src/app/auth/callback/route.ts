@@ -16,15 +16,29 @@ export async function GET(request: Request) {
             const isLocalEnv = process.env.NODE_ENV === 'development'
 
             // Obtener el tenant del usuario para redirigir al subdominio correcto
-            const { data: profile } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from('profiles')
                 .select('role, tenant_id, tenants(slug)')
                 .eq('id', data.user.id)
                 .single()
 
-            const tenantData = profile?.tenants as unknown as { slug: string } | null
-            const tenantSlug = tenantData?.slug
+            console.log('[Auth Callback] Profile query result:', JSON.stringify({ profile, profileError }))
+
+            // Supabase devuelve tenants como objeto { slug: "..." }
+            let tenantSlug: string | null = null
+
+            if (profile?.tenants) {
+                // Handle both array and object response from Supabase
+                const tenantData = profile.tenants as unknown
+                if (Array.isArray(tenantData) && tenantData.length > 0) {
+                    tenantSlug = tenantData[0]?.slug || null
+                } else if (typeof tenantData === 'object' && tenantData !== null) {
+                    tenantSlug = (tenantData as { slug: string }).slug || null
+                }
+            }
+
             const userRole = profile?.role
+            console.log('[Auth Callback] Extracted:', { tenantSlug, userRole, isLocalEnv })
 
             // En desarrollo, usar origin normal
             if (isLocalEnv) {
@@ -33,18 +47,18 @@ export async function GET(request: Request) {
 
             // En producción, redirigir al subdominio del tenant
             if (tenantSlug) {
-                // Usuario pertenece a un tenant → redirigir a su subdominio
-                return NextResponse.redirect(`https://${tenantSlug}.${ROOT_DOMAIN}${next}`)
+                const redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}${next}`
+                console.log('[Auth Callback] Redirecting to:', redirectUrl)
+                return NextResponse.redirect(redirectUrl)
             } else if (userRole === 'super_admin') {
-                // Super admin sin tenant → ir al dominio principal
                 return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/admin/platform`)
             } else {
-                // Usuario sin tenant (cliente genérico) → app principal
-                return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/app`)
+                // Fallback: usuario sin tenant va a www
+                console.log('[Auth Callback] No tenant found, falling back to www')
+                return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/admin`)
             }
         }
     }
 
-    // Si algo falla, lo regresamos al login con error
     return NextResponse.redirect(`${origin}/login?error=auth-code-error`)
 }
