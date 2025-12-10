@@ -43,20 +43,26 @@ export async function verifyOtp(email: string, token: string) {
     if (data.user) {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, tenant_id, tenants(slug)')
+            .select('role, tenant_id, tenants(slug, subscription_status)')
             .eq('id', data.user.id)
             .single()
 
-        // Extraer tenant slug
+        // Extraer tenant data
         let tenantSlug: string | null = null
+        let tenantStatus: string = 'active'
         if (profile?.tenants) {
             const tenantData = profile.tenants as unknown
-            if (typeof tenantData === 'object' && tenantData !== null && 'slug' in tenantData) {
-                tenantSlug = (tenantData as { slug: string }).slug
+            if (typeof tenantData === 'object' && tenantData !== null) {
+                if ('slug' in tenantData) {
+                    tenantSlug = (tenantData as { slug: string }).slug
+                }
+                if ('subscription_status' in tenantData) {
+                    tenantStatus = (tenantData as { subscription_status: string }).subscription_status || 'active'
+                }
             }
         }
 
-        const userRole = profile?.role?.trim() // Trim any whitespace
+        const userRole = profile?.role?.trim()
         const isSuperAdmin = userRole === 'super_admin'
         const isAdminOrStaff = userRole === 'owner' || userRole === 'staff' || isSuperAdmin
 
@@ -70,16 +76,23 @@ export async function verifyOtp(email: string, token: string) {
             isSuperAdmin,
             isProduction,
             tenantSlug,
-            hostname,
-            roleExact: JSON.stringify(userRole)
+            tenantStatus,
+            hostname
         })
 
         // Super Admin siempre va a www para acceder al platform panel
-        // Esta condición tiene prioridad sobre cualquier tenant
         if (isSuperAdmin && isProduction) {
             redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
             console.log('[verifyOtp] Super admin detected, redirecting to platform')
-        } else if (isProduction && tenantSlug && isAdminOrStaff) {
+        }
+        // Si tenant está suspendido, NO hacer cross-subdomain redirect
+        // Quedarse en mismo dominio para que admin layout muestre pantalla de suspensión
+        else if (tenantStatus !== 'active') {
+            redirectUrl = '/admin'
+            console.log('[verifyOtp] Tenant suspended, staying on current domain')
+        }
+        // Tenant activo, hacer redirect normal
+        else if (isProduction && tenantSlug && isAdminOrStaff) {
             redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}/admin`
         } else if (isAdminOrStaff) {
             redirectUrl = '/admin'
