@@ -6,6 +6,8 @@ import LoginForm from "@/components/login/LoginForm";
 import { getTenantSlug } from "@/lib/tenant";
 import { Scissors } from "lucide-react";
 
+const ROOT_DOMAIN = 'agendabarber.pro';
+
 export default async function LoginPage() {
     // --- LÓGICA INTELIGENTE: Redirección automática ---
     const supabase = await createClient();
@@ -13,17 +15,38 @@ export default async function LoginPage() {
 
     // Si el usuario ya está logueado, lo sacamos del login.
     if (user) {
-        // Consultamos su rol para mandarlo a la página correcta
+        // Consultamos su rol y tenant para mandarlo a la página correcta
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role')
+            .select('role, tenant_id, tenants(slug)')
             .eq('id', user.id)
             .single();
 
-        // Si es Owner o Staff -> Admin Panel
-        // Si es Customer (o null) -> App Cliente
-        const isAdminOrStaff = profile?.role === 'owner' || profile?.role === 'staff';
+        const isAdminOrStaff = profile?.role === 'owner' || profile?.role === 'staff' || profile?.role === 'super_admin';
 
+        // Extraer tenant slug
+        let tenantSlug: string | null = null;
+        if (profile?.tenants) {
+            const tenantData = profile.tenants as unknown;
+            if (typeof tenantData === 'object' && tenantData !== null && 'slug' in tenantData) {
+                tenantSlug = (tenantData as { slug: string }).slug;
+            }
+        }
+
+        // Determinar si estamos en producción vía headers
+        const headersList = await headers();
+        const hostname = headersList.get('host') || '';
+        const isProduction = hostname.includes(ROOT_DOMAIN);
+
+        // En producción, redirigir al subdominio correcto
+        if (isProduction && tenantSlug && isAdminOrStaff) {
+            // Check if already on correct subdomain
+            if (!hostname.startsWith(`${tenantSlug}.`)) {
+                return redirect(`https://${tenantSlug}.${ROOT_DOMAIN}/admin`);
+            }
+        }
+
+        // Fallback: redirigir a ruta relativa (funciona en desarrollo o si ya está en subdominio)
         return redirect(isAdminOrStaff ? '/admin' : '/app');
     }
     // --------------------------------------------------
