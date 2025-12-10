@@ -40,10 +40,9 @@ export default function LoginForm() {
 
         if (result.success && result.redirectUrl) {
             toast.success('¡Bienvenido!')
-            // Refresh the router cache to ensure session is synced
-            router.refresh()
-            // Small delay to allow session cookies to be properly set
-            await new Promise(resolve => setTimeout(resolve, 100))
+            // Give cookies time to propagate before redirect
+            // Don't use router.refresh() as it can invalidate the session
+            await new Promise(resolve => setTimeout(resolve, 500))
             // Hard redirect to target URL
             window.location.href = result.redirectUrl
         } else {
