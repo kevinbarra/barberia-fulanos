@@ -35,7 +35,7 @@ export async function createTenant(formData: FormData) {
         .insert({
             name,
             slug: slug.toLowerCase().trim().replace(/\s+/g, '-'),
-            subscription_status: 'active' // Default active for now
+            subscription_status: 'active'
         })
         .select()
         .single();
@@ -45,19 +45,7 @@ export async function createTenant(formData: FormData) {
         return { error: 'Error al crear el negocio (Tenant).' };
     }
 
-    // 4. Provisionar Owner (Si existe el usuario, actualizar perfil. Si no, invitar).
-    // NOTA: Por seguridad, no podemos "crear" usuarios de Auth directamente sin enviar correo de confirmación de Supabase.
-    // Estrategia:
-    // A) Buscar si el profile con ese email ya existe.
-    //    SI -> Actualizar su tenant_id y role = 'owner'.
-    //    NO -> Crear una invitación pendiente en 'staff_invitations' (o similar) para que cuando se registre, se le asigne.
-    //    PARA MVP RAPIDO: Asumiremos que el usuario ya se registró o lo hará. 
-    //    Lo mejor es crear una invitación en una tabla 'app_invitations' que un trigger procese al registrarse,
-    //    PERO como "Super Admin" tienes poder.
-
-    // Vamos a buscar el usuario por email en la tabla profiles (que es pública/accesible).
-    // OJO: Profiles suele tener el ID del user.
-
+    // 4. Provisionar Owner
     const { data: existingProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -65,7 +53,6 @@ export async function createTenant(formData: FormData) {
         .single();
 
     if (existingProfile) {
-        // El usuario ya existe, lo promovemos a Dueño de este nuevo negocio
         const { error: updateError } = await supabase
             .from('profiles')
             .update({
@@ -75,21 +62,87 @@ export async function createTenant(formData: FormData) {
             .eq('id', existingProfile.id);
 
         if (updateError) {
-            // Rollback tenant? O avisar?
             return { success: true, message: `Negocio creado, pero error al asignar dueño: ${updateError.message}` };
         }
     } else {
-        // El usuario NO existe. 
-        // Opción A: Usar la función de admin de supabase (service_role) para invitar user por email.
-        // Opción B: Guardar "Pre-registro".
-        // Para simplificar este Sprint, retornaremos un aviso.
         return {
             success: true,
-            message: 'Negocio creado. El usuario no está registrado aún. Deberá registrarse con ese email para ser vinculado (Requiere Trigger o Asignación manual posterior).'
-            // TODO Refinement: En el siguiente paso podríamos hacer un sistema de invitaciones más robusto.
+            message: 'Negocio creado. El usuario deberá registrarse con ese email para ser vinculado.'
         };
     }
 
     revalidatePath('/admin/platform');
     return { success: true, message: 'Negocio y Dueño configurados exitosamente.' };
+}
+
+// Toggle tenant status (suspend/activate)
+export async function toggleTenantStatus(tenantId: string, newStatus: 'active' | 'suspended') {
+    const supabase = await createClient();
+
+    // Validate Super Admin
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'No autorizado' };
+
+    const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (adminProfile?.role !== 'super_admin') {
+        return { error: 'Permisos insuficientes. Solo Super Admin.' };
+    }
+
+    const { error } = await supabase
+        .from('tenants')
+        .update({ subscription_status: newStatus })
+        .eq('id', tenantId);
+
+    if (error) {
+        return { error: `Error al cambiar status: ${error.message}` };
+    }
+
+    revalidatePath('/admin/platform');
+    return { success: true, message: `Tenant ${newStatus === 'active' ? 'activado' : 'suspendido'} exitosamente.` };
+}
+
+// Get platform-wide stats
+export async function getPlatformStats() {
+    const supabase = await createClient();
+
+    // Total tenants
+    const { count: totalTenants } = await supabase
+        .from('tenants')
+        .select('*', { count: 'exact', head: true });
+
+    // Active tenants
+    const { count: activeTenants } = await supabase
+        .from('tenants')
+        .select('*', { count: 'exact', head: true })
+        .eq('subscription_status', 'active');
+
+    // Total bookings this month (all tenants)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: monthlyBookings } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfMonth.toISOString());
+
+    // Total revenue this month (all tenants)
+    const { data: revenueData } = await supabase
+        .from('transactions')
+        .select('total')
+        .gte('created_at', startOfMonth.toISOString());
+
+    const monthlyRevenue = revenueData?.reduce((sum, t) => sum + (t.total || 0), 0) || 0;
+
+    return {
+        totalTenants: totalTenants || 0,
+        activeTenants: activeTenants || 0,
+        monthlyBookings: monthlyBookings || 0,
+        monthlyRevenue
+    };
 }
