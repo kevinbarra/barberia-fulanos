@@ -3,6 +3,7 @@ import Sidebar from "@/components/ui/Sidebar";
 import { createClient } from "@/utils/supabase/server";
 import RealtimeBookingNotifications from "@/components/admin/RealtimeBookingNotifications";
 import KioskProtectedRouteProvider from "@/components/admin/KioskProtectedRouteProvider";
+import TenantSuspendedScreen from "@/components/TenantSuspendedScreen";
 
 export default async function AdminLayout({
     children,
@@ -15,18 +16,28 @@ export default async function AdminLayout({
     let userRole = 'staff';
     let tenantId = '';
     let tenantName = 'AgendaBarber'; // Default/fallback
+    let tenantStatus = 'active'; // Default to active
 
     if (user) {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, tenant_id, tenants(name)')
+            .select('role, tenant_id, tenants(name, subscription_status)')
             .eq('id', user.id)
             .single();
         userRole = profile?.role || 'staff';
         tenantId = profile?.tenant_id || '';
-        // Extract tenant name from joined data
-        const tenantData = profile?.tenants as unknown as { name: string } | null;
+        // Extract tenant data from joined data
+        const tenantData = profile?.tenants as unknown as { name: string; subscription_status: string } | null;
         tenantName = tenantData?.name || 'AgendaBarber';
+        tenantStatus = tenantData?.subscription_status || 'active';
+    }
+
+    // Check if tenant is suspended - block access for non-super_admins
+    const isSuperAdmin = userRole === 'super_admin';
+    const isTenantSuspended = tenantStatus !== 'active';
+
+    if (isTenantSuspended && !isSuperAdmin) {
+        return <TenantSuspendedScreen tenantName={tenantName} />;
     }
 
     return (

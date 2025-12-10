@@ -84,8 +84,8 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
                     onClick={() => isActive ? setShowConfirmModal(true) : handleToggleStatus()}
                     disabled={isLoading}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all ${isActive
-                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
-                            : 'bg-green-50 text-green-600 hover:bg-green-100'
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                        : 'bg-green-50 text-green-600 hover:bg-green-100'
                         }`}
                 >
                     {isLoading ? (
@@ -110,7 +110,7 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
                     {showMenu && (
                         <>
                             <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                            <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-48 z-20">
+                            <div className="absolute right-0 bottom-full mb-1 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-48 z-20">
                                 <a
                                     href={`https://${tenant.slug}.agendabarber.pro`}
                                     target="_blank"
