@@ -1,13 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { sendOtp, verifyOtp } from '@/app/login/actions'
 import { toast } from 'sonner'
 import { ArrowRight, Loader2, Mail, Lock } from 'lucide-react'
 
 export default function LoginForm() {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const redirectTo = searchParams.get('next') || undefined
+
     const [step, setStep] = useState<'email' | 'code'>('email')
     const [email, setEmail] = useState('')
     const [code, setCode] = useState('')
@@ -36,12 +39,11 @@ export default function LoginForm() {
         if (!code) return
 
         setIsLoading(true)
-        const result = await verifyOtp(email, code)
+        const result = await verifyOtp(email, code, redirectTo)
 
         if (result.success && result.redirectUrl) {
             toast.success('¡Bienvenido!')
             // Give cookies time to propagate before redirect
-            // Don't use router.refresh() as it can invalidate the session
             await new Promise(resolve => setTimeout(resolve, 500))
             // Hard redirect to target URL
             window.location.href = result.redirectUrl

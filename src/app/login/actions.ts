@@ -23,7 +23,7 @@ export async function sendOtp(email: string) {
     return { success: true }
 }
 
-export async function verifyOtp(email: string, token: string) {
+export async function verifyOtp(email: string, token: string, redirectTo?: string) {
     const supabase = await createClient()
 
     const { error, data } = await supabase.auth.verifyOtp({
@@ -65,6 +65,7 @@ export async function verifyOtp(email: string, token: string) {
         const userRole = profile?.role?.trim()
         const isSuperAdmin = userRole === 'super_admin'
         const isAdminOrStaff = userRole === 'owner' || userRole === 'staff' || isSuperAdmin
+        const isCustomer = userRole === 'customer' || !userRole
 
         // Determinar si estamos en producción
         const headersList = await headers()
@@ -77,7 +78,8 @@ export async function verifyOtp(email: string, token: string) {
             isProduction,
             tenantSlug,
             tenantStatus,
-            hostname
+            hostname,
+            redirectTo
         })
 
         // Super Admin siempre va a www para acceder al platform panel
@@ -85,17 +87,21 @@ export async function verifyOtp(email: string, token: string) {
             redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
             console.log('[verifyOtp] Super admin detected, redirecting to platform')
         }
-        // Si tenant está suspendido, NO hacer cross-subdomain redirect
-        // Quedarse en mismo dominio para que admin layout muestre pantalla de suspensión
-        else if (tenantStatus !== 'active') {
+        // Si tenant está suspendido, quedarse en mismo dominio
+        else if (tenantStatus !== 'active' && !isCustomer) {
             redirectUrl = '/admin'
             console.log('[verifyOtp] Tenant suspended, staying on current domain')
         }
-        // Tenant activo, hacer redirect normal
+        // Tenant activo, hacer redirect normal para admin/staff
         else if (isProduction && tenantSlug && isAdminOrStaff) {
             redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}/admin`
         } else if (isAdminOrStaff) {
             redirectUrl = '/admin'
+        }
+        // Cliente: usar redirectTo si se proporcionó, sino /app
+        else if (redirectTo) {
+            redirectUrl = redirectTo
+            console.log('[verifyOtp] Customer with redirectTo:', redirectTo)
         } else {
             redirectUrl = '/app'
         }
