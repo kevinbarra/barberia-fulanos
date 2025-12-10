@@ -40,7 +40,11 @@ export default function LoginForm() {
 
         if (result.success && result.redirectUrl) {
             toast.success('¡Bienvenido!')
-            // Hard redirect para asegurar navegación al subdominio
+            // Refresh the router cache to ensure session is synced
+            router.refresh()
+            // Small delay to allow session cookies to be properly set
+            await new Promise(resolve => setTimeout(resolve, 100))
+            // Hard redirect to target URL
             window.location.href = result.redirectUrl
         } else {
             setIsLoading(false)
