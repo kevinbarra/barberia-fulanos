@@ -47,13 +47,13 @@ export default function TenantSuspendedScreen({ tenantName }: TenantSuspendedScr
                             soporte@agendabarber.pro
                         </a>
                         <a
-                            href="https://wa.me/5215555555555"
+                            href="https://wa.me/522291589149"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 text-zinc-300 hover:text-white transition-colors"
                         >
                             <Phone size={18} className="text-blue-400" />
-                            WhatsApp de Soporte
+                            +52 229 158 9149
                         </a>
                     </div>
                 </div>
