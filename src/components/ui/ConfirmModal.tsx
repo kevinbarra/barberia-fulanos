@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmModalProps {
@@ -65,8 +64,8 @@ export default function ConfirmModal({
                             onClick={onConfirm}
                             disabled={isLoading}
                             className={`flex-1 py-3 px-4 font-semibold rounded-xl transition-colors disabled:opacity-50 ${confirmVariant === 'danger'
-                                    ? 'bg-red-600 text-white hover:bg-red-700'
-                                    : 'bg-green-600 text-white hover:bg-green-700'
+                                ? 'bg-red-600 text-white hover:bg-red-700'
+                                : 'bg-green-600 text-white hover:bg-green-700'
                                 }`}
                         >
                             {isLoading ? 'Procesando...' : confirmText}
