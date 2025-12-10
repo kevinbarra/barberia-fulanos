@@ -54,7 +54,7 @@ export default function ProfileMenu({ tenantSlug }: { tenantSlug: string }) {
                     Cerrar Sesión
                 </button>
                 <p className="text-center text-xs text-gray-400 mt-4">
-                    Versión 1.0.0 • Barbería Fulanos
+                    Versión 1.0.0 • AgendaBarber
                 </p>
             </div>
         </div>

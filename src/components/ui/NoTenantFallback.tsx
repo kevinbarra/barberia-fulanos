@@ -23,7 +23,7 @@ export default function NoTenantFallback() {
                 </Link>
                 {/* Opcional: Si tienes soporte */}
                 <a
-                    href="mailto:soporte@fulanos.app"
+                    href="mailto:soporte@agendabarber.pro"
                     className="px-6 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors"
                 >
                     Contactar Soporte

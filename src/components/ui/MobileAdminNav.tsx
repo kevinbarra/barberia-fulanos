@@ -8,7 +8,7 @@ import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 
-export default function MobileAdminNav({ role, tenantId }: { role: string; tenantId: string }) {
+export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBarber' }: { role: string; tenantId: string; tenantName?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
 
@@ -51,8 +51,8 @@ export default function MobileAdminNav({ role, tenantId }: { role: string; tenan
         <div className="lg:hidden">
             {/* Top Bar fixed */}
             <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-sm">
-                <h1 className="font-black text-xl tracking-tighter text-gray-900">
-                    FULANOS<span className="text-blue-600">.</span>
+                <h1 className="font-black text-xl tracking-tighter text-gray-900 uppercase">
+                    {tenantName.length > 10 ? tenantName.slice(0, 10) + '.' : tenantName}<span className="text-blue-600">.</span>
                 </h1>
                 <div className="flex items-center gap-2">
                     {/* Notification Bell for Mobile */}

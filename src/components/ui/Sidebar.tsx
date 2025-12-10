@@ -8,9 +8,11 @@ import { signOut } from '@/app/auth/actions'
 
 export default function Sidebar({
     role,
+    tenantName = 'AgendaBarber',
     className = ""
 }: {
     role: 'owner' | 'staff' | 'admin' | 'client' | string,
+    tenantName?: string,
     className?: string
 }) {
     const pathname = usePathname()
@@ -38,12 +40,9 @@ export default function Sidebar({
     if (role === 'client') {
         menuToRender = clientMenu;
     } else if (role === 'kiosk') {
-        // Kiosk: Only sees Dashboard, Agenda, POS, and Profile
+        // Kiosk solo ve Dashboard, Agenda, POS y Profile
         menuToRender = adminMenu.filter(item =>
-            item.href === '/admin' ||
-            item.href === '/admin/bookings' ||
-            item.href === '/admin/pos' ||
-            item.href === '/admin/profile'
+            ['/admin', '/admin/bookings', '/admin/pos', '/admin/profile'].includes(item.href)
         );
     } else if (role === 'staff') {
         // Staff: No access to Team, Services, Settings, Reports
@@ -59,8 +58,8 @@ export default function Sidebar({
     return (
         <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 hidden lg:flex ${className}`}>
             <div className="p-6 border-b border-gray-100 mb-4">
-                <h1 className="font-black text-2xl tracking-tighter text-gray-900">
-                    FULANOS<span className="text-blue-600">.</span>
+                <h1 className="font-black text-2xl tracking-tighter text-gray-900 uppercase">
+                    {tenantName.length > 12 ? tenantName.slice(0, 12) + '.' : tenantName}<span className="text-blue-600">.</span>
                 </h1>
                 <p className="text-[10px] text-gray-400 font-bold tracking-[0.2em] mt-1 uppercase">
                     Sistema Admin

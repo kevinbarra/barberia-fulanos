@@ -98,7 +98,7 @@ export default function ClientDashboardUI({
                         <h1 className="text-xl font-bold capitalize bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
                             Hola, {profileName.split(" ")[0]}
                         </h1>
-                        <p className="text-zinc-500 text-xs font-medium mb-3">Bienvenido a Fulanos</p>
+                        <p className="text-zinc-500 text-xs font-medium mb-3">Bienvenido a tu barbería</p>
 
                         <div className="flex gap-2">
                             {isStaffOrOwner && (

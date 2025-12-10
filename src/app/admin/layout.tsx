@@ -14,21 +14,25 @@ export default async function AdminLayout({
 
     let userRole = 'staff';
     let tenantId = '';
+    let tenantName = 'AgendaBarber'; // Default/fallback
 
     if (user) {
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, tenant_id')
+            .select('role, tenant_id, tenants(name)')
             .eq('id', user.id)
             .single();
         userRole = profile?.role || 'staff';
         tenantId = profile?.tenant_id || '';
+        // Extract tenant name from joined data
+        const tenantData = profile?.tenants as unknown as { name: string } | null;
+        tenantName = tenantData?.name || 'AgendaBarber';
     }
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-row">
-            <MobileAdminNav role={userRole} tenantId={tenantId} />
-            <Sidebar role={userRole} />
+            <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
+            <Sidebar role={userRole} tenantName={tenantName} />
             <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
                 {/* Realtime notifications - Desktop only (Mobile has it in header) */}
                 {tenantId && (

@@ -13,13 +13,13 @@ export const viewport: Viewport = {
 
 // 2. Metadata
 export const metadata: Metadata = {
-  title: "Barbería Fulanos",
-  description: "Sistema de gestión para barberías",
+  title: "AgendaBarber - Sistema de Gestión",
+  description: "Sistema de gestión para barberías profesionales",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Fulanos",
+    title: "AgendaBarber",
   },
   formatDetection: {
     telephone: false,
