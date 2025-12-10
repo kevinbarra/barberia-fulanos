@@ -12,8 +12,11 @@ export default async function ProfilePage() {
         .eq('id', user?.id)
         .single();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tenantSlug = (profile?.tenants as any)?.slug || 'fulanos';
+    // Type-safe extraction of tenant slug (handle both array and object from Supabase)
+    const tenantsData = profile?.tenants;
+    const tenantSlug = Array.isArray(tenantsData)
+        ? tenantsData[0]?.slug || ''
+        : (tenantsData as { slug?: string } | undefined)?.slug || '';
 
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">

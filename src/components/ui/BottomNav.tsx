@@ -7,11 +7,11 @@ import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, Scissors, Cal
 export default function BottomNav({
     role,
     showAdminEntry = false,
-    tenantSlug = 'fulanos' // Default for backwards compatibility
+    tenantSlug // Required - parent must provide this
 }: {
     role: 'admin' | 'client',
     showAdminEntry?: boolean,
-    tenantSlug?: string
+    tenantSlug: string // Now required, no default
 }) {
     const pathname = usePathname()
 

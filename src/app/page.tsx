@@ -13,16 +13,16 @@ export default async function HomePage() {
   // Mostrar la landing page del SaaS
   const isRootDomain = hostname === 'agendabarber.pro' ||
     hostname === 'www.agendabarber.pro' ||
-    hostname.includes('vercel.app');
+    hostname.includes('vercel.app') ||
+    hostname.includes('localhost');
 
-  // Si NO hay tenant slug y estamos en root domain, mostrar SaaS landing
-  if (!tenantSlug && isRootDomain) {
+  // Si NO hay tenant slug, mostrar SaaS landing (aplica para root domain y localhost)
+  if (!tenantSlug) {
     return <SaaSLandingPage />;
   }
 
-  // Si hay tenant slug o estamos en localhost, mostrar la landing del tenant
-  // Por ahora usamos "fulanos" como default para desarrollo
-  const slug = tenantSlug || 'fulanos';
+  // Si hay tenant slug, mostrar la landing del tenant
+  const slug = tenantSlug;
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col justify-between relative overflow-hidden selection:bg-blue-500 selection:text-white">

@@ -73,7 +73,8 @@ export default async function ClientAppPage() {
         new Date(lastNoShow.start_time).getTime() > Date.now() - 48 * 60 * 60 * 1000;
 
     // Obtener slug del tenant del usuario para booking dinámico
-    const tenantSlug = await getUserTenantSlug() || 'fulanos'; // Fallback para compatibilidad
+    // El layout ya redirige si no hay tenant, así que aquí siempre habrá uno
+    const tenantSlug = await getUserTenantSlug() || '';
 
     return (
         <ClientDashboardUI

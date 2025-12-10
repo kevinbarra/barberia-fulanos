@@ -53,7 +53,7 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
                     }}
                 />
 
-                {/* Overlay de Guía Visual (Estética Fulanos) */}
+                {/* Overlay de Guía Visual */}
                 <div className="absolute inset-0 border-[2px] border-white/20 rounded-xl pointer-events-none">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-white/80 rounded-lg"></div>
                     <div className="absolute top-2 right-2">
