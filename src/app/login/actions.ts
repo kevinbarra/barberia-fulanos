@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 
 const ROOT_DOMAIN = 'agendabarber.pro'
+const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
 
 export async function sendOtp(email: string) {
     const supabase = await createClient()
@@ -23,6 +24,26 @@ export async function sendOtp(email: string) {
     return { success: true }
 }
 
+/**
+ * Extrae el slug del tenant desde el hostname
+ */
+function extractTenantFromHostname(hostname: string): string | null {
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+        return null
+    }
+    if (hostname.endsWith('.vercel.app')) {
+        return null
+    }
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
+    if (parts.length >= 3) {
+        const subdomain = parts[0]
+        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
+            return subdomain
+        }
+    }
+    return null
+}
+
 export async function verifyOtp(email: string, token: string, redirectTo?: string) {
     const supabase = await createClient()
 
@@ -37,8 +58,15 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
         return { success: false, error: 'Código inválido o expirado', redirectUrl: null }
     }
 
-    // Obtener tenant del usuario para determinar redirect URL
-    let redirectUrl = '/admin' // Default
+    // Obtener contexto de subdominio actual
+    const headersList = await headers()
+    const hostname = headersList.get('host') || ''
+    const currentSubdomain = extractTenantFromHostname(hostname)
+    const isProduction = hostname.includes(ROOT_DOMAIN) || hostname.includes('vercel.app')
+    const isOnWww = hostname.startsWith('www.')
+    const isOnRootOrWww = isOnWww || hostname === ROOT_DOMAIN
+
+    let redirectUrl = '/app' // Default para clientes
 
     if (data.user) {
         const { data: profile } = await supabase
@@ -47,14 +75,14 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
             .eq('id', data.user.id)
             .single()
 
-        // Extraer tenant data
-        let tenantSlug: string | null = null
+        // Extraer datos del perfil
+        let userTenantSlug: string | null = null
         let tenantStatus: string = 'active'
         if (profile?.tenants) {
             const tenantData = profile.tenants as unknown
             if (typeof tenantData === 'object' && tenantData !== null) {
                 if ('slug' in tenantData) {
-                    tenantSlug = (tenantData as { slug: string }).slug
+                    userTenantSlug = (tenantData as { slug: string }).slug
                 }
                 if ('subscription_status' in tenantData) {
                     tenantStatus = (tenantData as { subscription_status: string }).subscription_status || 'active'
@@ -64,46 +92,63 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
 
         const userRole = profile?.role?.trim()
         const isSuperAdmin = userRole === 'super_admin'
-        const isAdminOrStaff = userRole === 'owner' || userRole === 'staff' || isSuperAdmin
-        const isCustomer = userRole === 'customer' || !userRole
+        const isStaffOrOwner = userRole === 'owner' || userRole === 'staff'
+        const isUserOnOwnTenant = currentSubdomain && currentSubdomain === userTenantSlug
 
-        // Determinar si estamos en producción
-        const headersList = await headers()
-        const hostname = headersList.get('host') || ''
-        const isProduction = hostname.includes(ROOT_DOMAIN) || hostname.includes('vercel.app')
-
-        console.log('[verifyOtp] DEBUG:', {
+        console.log('[verifyOtp] Context:', {
             userRole,
             isSuperAdmin,
-            isProduction,
-            tenantSlug,
-            tenantStatus,
+            currentSubdomain,
+            userTenantSlug,
+            isUserOnOwnTenant,
+            isOnRootOrWww,
             hostname,
             redirectTo
         })
 
-        // Super Admin siempre va a www para acceder al platform panel
+        // CASO 1: Super Admin - siempre va a www/admin/platform
         if (isSuperAdmin && isProduction) {
             redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
-            console.log('[verifyOtp] Super admin detected, redirecting to platform')
+            console.log('[verifyOtp] Super admin → platform')
         }
-        // Si tenant está suspendido, quedarse en mismo dominio
-        else if (tenantStatus !== 'active' && !isCustomer) {
-            redirectUrl = '/admin'
-            console.log('[verifyOtp] Tenant suspended, staying on current domain')
+        // CASO 2: Staff/Owner en su propio tenant
+        else if (isStaffOrOwner && isUserOnOwnTenant) {
+            // Verificar si tenant está suspendido
+            if (tenantStatus !== 'active') {
+                redirectUrl = '/admin' // Mostrará pantalla de suspensión
+            } else {
+                redirectUrl = '/admin'
+            }
+            console.log('[verifyOtp] Staff/Owner on own tenant → /admin')
         }
-        // Tenant activo, hacer redirect normal para admin/staff
-        else if (isProduction && tenantSlug && isAdminOrStaff) {
-            redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}/admin`
-        } else if (isAdminOrStaff) {
-            redirectUrl = '/admin'
+        // CASO 3: Staff/Owner pero en OTRO tenant (como cliente)
+        else if (isStaffOrOwner && currentSubdomain && !isUserOnOwnTenant) {
+            // Están en otro tenant, tratarlos como cliente
+            if (redirectTo) {
+                redirectUrl = redirectTo
+            } else {
+                redirectUrl = '/app'
+            }
+            console.log('[verifyOtp] Staff/Owner on different tenant → /app (as customer)')
         }
-        // Cliente: usar redirectTo si se proporcionó, sino /app
+        // CASO 4: Staff/Owner en www o root - ir a su tenant
+        else if (isStaffOrOwner && isOnRootOrWww && userTenantSlug && isProduction) {
+            if (tenantStatus !== 'active') {
+                redirectUrl = `/admin` // Quedarse, mostrará suspensión
+            } else {
+                redirectUrl = `https://${userTenantSlug}.${ROOT_DOMAIN}/admin`
+            }
+            console.log('[verifyOtp] Staff/Owner on www → their tenant')
+        }
+        // CASO 5: Cliente con redirectTo (venía de booking)
         else if (redirectTo) {
             redirectUrl = redirectTo
             console.log('[verifyOtp] Customer with redirectTo:', redirectTo)
-        } else {
+        }
+        // CASO 6: Cliente default
+        else {
             redirectUrl = '/app'
+            console.log('[verifyOtp] Customer default → /app')
         }
     }
 
