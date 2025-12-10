@@ -46,9 +46,23 @@ export async function forgiveNoShow(noShowId: string) {
 export async function getClientsWithWarnings() {
     const supabase = await createClient();
 
+    // Obtener tenant_id del usuario actual para filtrar
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+    if (!profile?.tenant_id) return [];
+
+    // Filtrar solo clientes de MI barbería
     const { data, error } = await supabase
         .from('clients_with_warnings_v2')
         .select('*')
+        .eq('tenant_id', profile.tenant_id)
         .order('total_no_shows', { ascending: false });
 
     if (error) throw error;

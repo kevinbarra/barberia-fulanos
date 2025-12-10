@@ -74,7 +74,7 @@ export default function TenantForm({ initialData }: { initialData: Tenant }) {
                     <label className="block text-sm font-bold text-gray-700 mb-1">Enlace Público (Slug)</label>
                     <div className="flex items-center">
                         <span className="bg-gray-100 border border-r-0 border-gray-300 p-3 rounded-l-xl text-gray-500 text-sm">
-                            fulanos.app/book/
+                            agendabarber.pro/book/
                         </span>
                         <input
                             type="text"
