@@ -38,11 +38,10 @@ export default function LoginForm() {
         setIsLoading(true)
         const result = await verifyOtp(email, code)
 
-        if (result.success) {
+        if (result.success && result.redirectUrl) {
             toast.success('¡Bienvenido!')
-            // Redirección forzada para refrescar sesión en servidor
-            router.refresh()
-            router.push('/login') // El middleware o page.tsx redirigirá al destino final
+            // Hard redirect para asegurar navegación al subdominio
+            window.location.href = result.redirectUrl
         } else {
             setIsLoading(false)
             toast.error(result.error || 'Código incorrecto')

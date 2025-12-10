@@ -1,6 +1,9 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { headers } from 'next/headers'
+
+const ROOT_DOMAIN = 'agendabarber.pro'
 
 export async function sendOtp(email: string) {
     const supabase = await createClient()
@@ -23,7 +26,7 @@ export async function sendOtp(email: string) {
 export async function verifyOtp(email: string, token: string) {
     const supabase = await createClient()
 
-    const { error } = await supabase.auth.verifyOtp({
+    const { error, data } = await supabase.auth.verifyOtp({
         email,
         token,
         type: 'email',
@@ -31,8 +34,46 @@ export async function verifyOtp(email: string, token: string) {
 
     if (error) {
         console.error('Error verificando OTP:', error)
-        return { success: false, error: 'Código inválido o expirado' }
+        return { success: false, error: 'Código inválido o expirado', redirectUrl: null }
     }
 
-    return { success: true }
+    // Obtener tenant del usuario para determinar redirect URL
+    let redirectUrl = '/admin' // Default
+
+    if (data.user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, tenant_id, tenants(slug)')
+            .eq('id', data.user.id)
+            .single()
+
+        // Extraer tenant slug
+        let tenantSlug: string | null = null
+        if (profile?.tenants) {
+            const tenantData = profile.tenants as unknown
+            if (typeof tenantData === 'object' && tenantData !== null && 'slug' in tenantData) {
+                tenantSlug = (tenantData as { slug: string }).slug
+            }
+        }
+
+        const isAdminOrStaff = profile?.role === 'owner' || profile?.role === 'staff' || profile?.role === 'super_admin'
+
+        // Determinar si estamos en producción
+        const headersList = await headers()
+        const hostname = headersList.get('host') || ''
+        const isProduction = hostname.includes(ROOT_DOMAIN) || hostname.includes('vercel.app')
+
+        console.log('[verifyOtp] tenantSlug:', tenantSlug, 'hostname:', hostname, 'isProduction:', isProduction)
+
+        if (isProduction && tenantSlug && isAdminOrStaff) {
+            redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}/admin`
+        } else if (isAdminOrStaff) {
+            redirectUrl = '/admin'
+        } else {
+            redirectUrl = '/app'
+        }
+    }
+
+    console.log('[verifyOtp] Final redirectUrl:', redirectUrl)
+    return { success: true, redirectUrl }
 }
