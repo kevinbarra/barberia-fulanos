@@ -18,7 +18,7 @@ export default async function LoginPage() {
         // Consultamos su rol y tenant para mandarlo a la página correcta
         const { data: profile } = await supabase
             .from('profiles')
-            .select('role, tenant_id, tenants(slug)')
+            .select('role, tenant_id, tenants(slug, subscription_status)')
             .eq('id', user.id)
             .single();
 
@@ -26,12 +26,18 @@ export default async function LoginPage() {
         const isSuperAdmin = userRole === 'super_admin';
         const isAdminOrStaff = userRole === 'owner' || userRole === 'staff' || isSuperAdmin;
 
-        // Extraer tenant slug
+        // Extraer tenant data
         let tenantSlug: string | null = null;
+        let tenantStatus: string = 'active';
         if (profile?.tenants) {
             const tenantData = profile.tenants as unknown;
-            if (typeof tenantData === 'object' && tenantData !== null && 'slug' in tenantData) {
-                tenantSlug = (tenantData as { slug: string }).slug;
+            if (typeof tenantData === 'object' && tenantData !== null) {
+                if ('slug' in tenantData) {
+                    tenantSlug = (tenantData as { slug: string }).slug;
+                }
+                if ('subscription_status' in tenantData) {
+                    tenantStatus = (tenantData as { subscription_status: string }).subscription_status || 'active';
+                }
             }
         }
 
@@ -40,25 +46,28 @@ export default async function LoginPage() {
         const hostname = headersList.get('host') || '';
         const isProduction = hostname.includes(ROOT_DOMAIN);
 
-        // Super Admin SIEMPRE va a /admin/platform (sin importar qué subdominio)
+        // Super Admin SIEMPRE va a /admin/platform (sin importar qué subdominio o estado)
         if (isSuperAdmin) {
             if (isProduction && !hostname.startsWith('www.')) {
-                // Si está en un subdominio de tenant, redirigir a www
                 return redirect(`https://www.${ROOT_DOMAIN}/admin/platform`);
             }
-            // Ya está en www o en dev, ir directo a platform
             return redirect('/admin/platform');
         }
 
-        // En producción, redirigir al subdominio correcto (solo para NO super_admins)
+        // Si el tenant está suspendido, redirigir a /admin (mostrará pantalla de suspensión)
+        // No hacer redirect cross-subdomain para evitar loops
+        if (tenantStatus !== 'active') {
+            return redirect('/admin');
+        }
+
+        // En producción, redirigir al subdominio correcto (solo para tenants activos)
         if (isProduction && tenantSlug && isAdminOrStaff) {
-            // Check if already on correct subdomain
             if (!hostname.startsWith(`${tenantSlug}.`)) {
                 return redirect(`https://${tenantSlug}.${ROOT_DOMAIN}/admin`);
             }
         }
 
-        // Fallback: redirigir a ruta relativa (funciona en desarrollo o si ya está en subdominio)
+        // Fallback: redirigir a ruta relativa
         return redirect(isAdminOrStaff ? '/admin' : '/app');
     }
     // --------------------------------------------------
