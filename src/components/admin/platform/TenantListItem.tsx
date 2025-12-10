@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toggleTenantStatus } from '@/app/admin/platform/actions';
 import { toast } from 'sonner';
-import { MoreVertical, Pause, Play, ExternalLink } from 'lucide-react';
+import { MoreVertical, Pause, Play, ExternalLink, Loader2, Users, Calendar } from 'lucide-react';
 
 interface Tenant {
     id: string;
@@ -16,8 +16,9 @@ interface Tenant {
 export default function TenantListItem({ tenant }: { tenant: Tenant }) {
     const [isLoading, setIsLoading] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
+    const [currentStatus, setCurrentStatus] = useState(tenant.subscription_status);
 
-    const isActive = tenant.subscription_status === 'active';
+    const isActive = currentStatus === 'active';
 
     const handleToggleStatus = async () => {
         setIsLoading(true);
@@ -30,6 +31,7 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
             toast.error(result.error);
         } else {
             toast.success(result.message);
+            setCurrentStatus(newStatus); // Optimistic update
         }
         setIsLoading(false);
     };
@@ -42,71 +44,93 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
         });
     };
 
+    const daysSinceCreation = Math.floor((Date.now() - new Date(tenant.created_at).getTime()) / (1000 * 60 * 60 * 24));
+
     return (
-        <div className={`p-4 flex items-center justify-between hover:bg-gray-50 transition-colors ${isLoading ? 'opacity-50' : ''}`}>
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className={`p-4 hover:bg-gray-50 transition-all ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className="flex items-center gap-4">
                 {/* Avatar */}
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold uppercase flex-shrink-0 ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black uppercase flex-shrink-0 ${isActive
+                        ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-400'
                     }`}>
                     {tenant.name.charAt(0)}
                 </div>
 
                 {/* Info */}
-                <div className="min-w-0 flex-1">
+                <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-bold text-gray-900 truncate">{tenant.name}</h3>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${isActive
-                                ? 'text-green-600 bg-green-100'
-                                : 'text-red-600 bg-red-100'
+                        <h3 className="font-bold text-gray-900">{tenant.name}</h3>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive
+                                ? 'text-green-700 bg-green-100'
+                                : 'text-red-700 bg-red-100'
                             }`}>
                             {isActive ? 'Activo' : 'Suspendido'}
                         </span>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <span className="font-mono">/{tenant.slug}</span>
-                        <span className="text-gray-300">•</span>
-                        <span>{formatDate(tenant.created_at)}</span>
+                    <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                        <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded">{tenant.slug}</span>
+                        <span className="flex items-center gap-1">
+                            <Calendar size={12} />
+                            {daysSinceCreation === 0 ? 'Hoy' : `${daysSinceCreation}d`}
+                        </span>
                     </div>
                 </div>
-            </div>
 
-            {/* Actions Menu */}
-            <div className="relative flex-shrink-0 ml-2">
+                {/* Quick Action Button */}
                 <button
-                    onClick={() => setShowMenu(!showMenu)}
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    onClick={handleToggleStatus}
                     disabled={isLoading}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-sm transition-all ${isActive
+                            ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                            : 'bg-green-50 text-green-600 hover:bg-green-100'
+                        }`}
                 >
-                    <MoreVertical size={18} className="text-gray-400" />
+                    {isLoading ? (
+                        <Loader2 size={16} className="animate-spin" />
+                    ) : isActive ? (
+                        <Pause size={16} />
+                    ) : (
+                        <Play size={16} />
+                    )}
+                    <span className="hidden sm:inline">{isActive ? 'Suspender' : 'Activar'}</span>
                 </button>
 
-                {showMenu && (
-                    <>
-                        <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setShowMenu(false)}
-                        />
-                        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 py-2 w-48 z-20">
-                            <a
-                                href={`https://${tenant.slug}.agendabarber.pro/admin`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-sm text-gray-700"
-                            >
-                                <ExternalLink size={16} />
-                                Ver Panel
-                            </a>
-                            <button
-                                onClick={handleToggleStatus}
-                                className={`w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-sm ${isActive ? 'text-red-600' : 'text-green-600'
-                                    }`}
-                            >
-                                {isActive ? <Pause size={16} /> : <Play size={16} />}
-                                {isActive ? 'Suspender' : 'Activar'}
-                            </button>
-                        </div>
-                    </>
-                )}
+                {/* More Actions */}
+                <div className="relative">
+                    <button
+                        onClick={() => setShowMenu(!showMenu)}
+                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        <MoreVertical size={18} className="text-gray-400" />
+                    </button>
+
+                    {showMenu && (
+                        <>
+                            <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                            <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-gray-200 py-2 w-48 z-20">
+                                <a
+                                    href={`https://${tenant.slug}.agendabarber.pro`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700"
+                                >
+                                    <ExternalLink size={16} />
+                                    Abrir Sitio
+                                </a>
+                                <a
+                                    href={`https://${tenant.slug}.agendabarber.pro/admin`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700"
+                                >
+                                    <Users size={16} />
+                                    Ver Admin Panel
+                                </a>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
