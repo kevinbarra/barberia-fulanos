@@ -53,6 +53,11 @@ export default async function ClientLayout({
     const userSlug = await getUserTenantSlug();
     const tenantSlug = currentSlug || userSlug || '';
 
+    console.log('[LAYOUT DEBUG] Host:', hostname);
+    console.log('[LAYOUT DEBUG] CurrentSlug (Subdomain):', currentSlug);
+    console.log('[LAYOUT DEBUG] UserSlug (Profile):', userSlug);
+    console.log('[LAYOUT DEBUG] Final TenantSlug:', tenantSlug);
+
     return (
         <div className="min-h-screen bg-zinc-950">
             <main className="pb-24 md:pb-0">
