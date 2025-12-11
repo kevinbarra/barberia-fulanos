@@ -6,6 +6,7 @@ import KioskProtectedRouteProvider from "@/components/admin/KioskProtectedRouteP
 import TenantSuspendedScreen from "@/components/TenantSuspendedScreen";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import AutoRefreshWrapper from "@/components/admin/AutoRefreshWrapper";
 
 const ROOT_DOMAIN = 'agendabarber.pro';
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app'];
@@ -90,6 +91,7 @@ export default async function AdminLayout({
 
     return (
         <div className="min-h-screen bg-gray-50 flex flex-row">
+            <AutoRefreshWrapper />
             <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
             <Sidebar role={userRole} tenantName={tenantName} />
             <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
