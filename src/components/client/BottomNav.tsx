@@ -29,11 +29,10 @@ export default function BottomNav({ tenantSlug, role }: { tenantSlug: string, ro
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe pointer-events-none flex justify-center">
             {/* 
-                Usamos un contenedor flotante con glassmorphism estilo iOS/Premium
-                justify-between para distribuir equitativamente los 3 o 4 elementos
-                max-w-sm para que no se estire demasiado en tablets
+                Contenedor flotante premium con glassmorphism
+                gap-6 para espaciado consistente entre 3 o 4 items
             */}
-            <div className="pointer-events-auto bg-black/80 backdrop-blur-xl border border-white/10 text-white rounded-full px-6 py-3 shadow-2xl flex items-center justify-between gap-4 w-full max-w-[320px] mb-2">
+            <div className="pointer-events-auto bg-black/80 backdrop-blur-xl border border-white/10 text-white rounded-full px-6 py-3 shadow-2xl flex items-center gap-6 mb-2">
                 {menuItems.map((item) => {
                     const isActive = pathname === item.href;
 
