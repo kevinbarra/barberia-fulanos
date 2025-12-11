@@ -72,9 +72,26 @@ export default async function ClientAppPage() {
     const showNoShowAlert = lastNoShow &&
         new Date(lastNoShow.start_time).getTime() > Date.now() - 48 * 60 * 60 * 1000;
 
-    // Obtener slug del tenant del usuario para booking dinámico
-    // El layout ya redirige si no hay tenant, así que aquí siempre habrá uno
-    const tenantSlug = await getUserTenantSlug() || '';
+    // ESTRATEGIA DE NAVEGACIÓN ROBUSTA (Igual que en layout)
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    const hostname = headerList.get("host") || "";
+
+    let currentSlug = "";
+
+    // Detectar subdominio
+    if (hostname.includes(".agendabarber.pro") || hostname.includes(".localhost")) {
+        const parts = hostname.split(".");
+        if (parts.length >= 3) {
+            const subdomain = parts[0];
+            if (subdomain !== 'www' && subdomain !== 'app') {
+                currentSlug = subdomain;
+            }
+        }
+    }
+
+    const userSlug = await getUserTenantSlug();
+    const tenantSlug = currentSlug || userSlug || '';
 
     return (
         <ClientDashboardUI
