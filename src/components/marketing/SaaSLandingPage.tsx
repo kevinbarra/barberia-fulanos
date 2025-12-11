@@ -106,12 +106,15 @@ export default function SaaSLandingPage() {
                     <Link href="/login" className="text-zinc-400 hover:text-white transition-colors text-sm font-medium hidden sm:block">
                         Iniciar Sesión
                     </Link>
-                    <Link
-                        href="/login"
-                        className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:scale-105"
+                    <a
+                        href="https://wa.me/522291589149?text=Hola%2C%20me%20interesa%20AgendaBarber%20para%20mi%20barber%C3%ADa"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-green-500 hover:bg-green-400 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:scale-105 flex items-center gap-2"
                     >
-                        Comenzar Gratis
-                    </Link>
+                        <MessageSquare className="w-4 h-4" />
+                        WhatsApp
+                    </a>
                 </div>
             </nav>
 
@@ -139,17 +142,19 @@ export default function SaaSLandingPage() {
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <a
-                        href="#contact"
-                        className="group bg-white text-black font-bold px-8 py-4 rounded-2xl text-lg hover:bg-zinc-100 transition-all hover:scale-105 shadow-[0_0_40px_rgba(255,255,255,0.1)] flex items-center justify-center gap-2"
+                        href="https://wa.me/522291589149?text=Hola%2C%20me%20interesa%20AgendaBarber%20para%20mi%20barber%C3%ADa"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group bg-green-500 hover:bg-green-400 text-white font-bold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105 shadow-[0_0_40px_rgba(34,197,94,0.2)] flex items-center justify-center gap-3"
                     >
-                        Agenda tu Demo
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        <MessageSquare className="w-6 h-6" />
+                        Contáctanos por WhatsApp
                     </a>
                     <a
-                        href="#features"
+                        href="#contact"
                         className="bg-zinc-900 border border-zinc-800 text-white font-medium px-8 py-4 rounded-2xl text-lg hover:bg-zinc-800 transition-all"
                     >
-                        Ver Funciones
+                        O déjanos tus datos
                     </a>
                 </div>
 
