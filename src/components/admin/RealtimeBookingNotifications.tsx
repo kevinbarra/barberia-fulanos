@@ -41,28 +41,42 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
         audioRef.current.volume = 0.5
     }, [])
 
-    // Sound state management
+    // Sound state management with persistence
     const [soundEnabled, setSoundEnabled] = useState(false)
     const soundEnabledRef = useRef(false)
+    const audioInitializedRef = useRef(false)
+
+    // Load preference from localStorage
+    useEffect(() => {
+        const stored = localStorage.getItem('notificationSound')
+        if (stored === 'true') {
+            setSoundEnabled(true)
+            soundEnabledRef.current = true
+        }
+    }, [])
 
     // Toggle sound on/off
     const toggleSound = useCallback(() => {
-        if (!soundEnabled) {
+        const newState = !soundEnabled
+        setSoundEnabled(newState)
+        soundEnabledRef.current = newState
+        localStorage.setItem('notificationSound', String(newState))
+
+        if (newState) {
             console.log('[SOUND] Enabling sound...')
+            // Try to unlock audio immediately on user gesture
             if (audioRef.current) {
+                audioRef.current.volume = 0.8 // Ensure volume is audible
                 audioRef.current.currentTime = 0
                 audioRef.current.play()
                     .then(() => {
                         console.log('[SOUND] Audio unlocked successfully')
-                        setSoundEnabled(true)
-                        soundEnabledRef.current = true
+                        audioInitializedRef.current = true
                     })
                     .catch(err => console.error('[SOUND] Audio unlock failed:', err))
             }
         } else {
             console.log('[SOUND] Disabling sound...')
-            setSoundEnabled(false)
-            soundEnabledRef.current = false
         }
     }, [soundEnabled])
 
@@ -231,8 +245,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                 <button
                                     onClick={toggleSound}
                                     className={`p-2 rounded-lg transition-colors ${soundEnabled
-                                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                            : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
                                         }`}
                                     title={soundEnabled ? 'Sonido activado' : 'Activar sonido'}
                                 >
@@ -268,15 +282,15 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                         key={notification.id}
                                         onClick={() => markAsRead(notification.id)}
                                         className={`p-4 border-b border-gray-100 dark:border-gray-800 cursor-pointer transition-colors ${notification.read
-                                                ? 'bg-white dark:bg-gray-900'
-                                                : 'bg-blue-50 dark:bg-blue-900/20'
+                                            ? 'bg-white dark:bg-gray-900'
+                                            : 'bg-blue-50 dark:bg-blue-900/20'
                                             } hover:bg-gray-50 dark:hover:bg-gray-800`}
                                     >
                                         <div className="flex gap-3">
                                             {/* Icon */}
                                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${notification.read
-                                                    ? 'bg-gray-100 dark:bg-gray-800'
-                                                    : 'bg-blue-100 dark:bg-blue-900/50'
+                                                ? 'bg-gray-100 dark:bg-gray-800'
+                                                : 'bg-blue-100 dark:bg-blue-900/50'
                                                 }`}>
                                                 <span className="text-lg">📅</span>
                                             </div>
@@ -285,8 +299,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-2">
                                                     <p className={`font-medium truncate ${notification.read
-                                                            ? 'text-gray-700 dark:text-gray-300'
-                                                            : 'text-gray-900 dark:text-white'
+                                                        ? 'text-gray-700 dark:text-gray-300'
+                                                        : 'text-gray-900 dark:text-white'
                                                         }`}>
                                                         {notification.clientName}
                                                     </p>
