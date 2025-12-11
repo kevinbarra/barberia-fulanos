@@ -32,8 +32,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     const audioRef = useRef<HTMLAudioElement | null>(null)
 
     // Professional notification sound (pleasant chime)
-    // Using a royalty-free notification sound
-    const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
+    // Using a reliable CDN source (freesound or similar standard)
+    const NOTIFICATION_SOUND = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
 
     // Create audio element on mount
     useEffect(() => {
@@ -252,6 +252,21 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                 >
                                     {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                                 </button>
+
+                                {soundEnabled && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (audioRef.current) {
+                                                audioRef.current.currentTime = 0
+                                                audioRef.current.play().catch(err => alert('Error: ' + err.message))
+                                            }
+                                        }}
+                                        className="text-xs text-blue-500 font-bold px-2"
+                                    >
+                                        PROBAR
+                                    </button>
+                                )}
 
                                 {/* Mark all as read */}
                                 {unreadCount > 0 && (
