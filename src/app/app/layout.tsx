@@ -17,11 +17,19 @@ export default async function ClientLayout({
         return redirect("/login");
     }
 
+    // Obtener rol para mostrar opciones de admin
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    const role = profile?.role || 'customer';
+
     // Auto-vinculación (SELF-HEALING)
     await checkAndClaimInvitations();
 
     // Obtener slug del tenant para navegación dinámica
-    // Puede ser null para clientes nuevos sin barbería asociada
     const tenantSlug = await getUserTenantSlug() || '';
 
     return (
@@ -30,7 +38,7 @@ export default async function ClientLayout({
                 {children}
             </main>
 
-            <BottomNav tenantSlug={tenantSlug} />
+            <BottomNav tenantSlug={tenantSlug} role={role} />
         </div>
     );
 }

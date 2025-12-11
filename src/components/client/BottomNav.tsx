@@ -2,17 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, User, Plus } from 'lucide-react';
+import { Home, User, Plus, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function BottomNav({ tenantSlug }: { tenantSlug: string }) {
+export default function BottomNav({ tenantSlug, role }: { tenantSlug: string, role?: string }) {
     const pathname = usePathname();
+    const isAdmin = role === 'owner' || role === 'staff' || role === 'super_admin';
 
     const menuItems = [
         { name: 'Inicio', href: '/app', icon: Home },
         { name: 'Agendar', href: `/book/${tenantSlug}`, icon: Plus, isSpecial: true },
         { name: 'Perfil', href: '/app/profile', icon: User },
     ];
+
+    if (isAdmin) {
+        // Insert Admin button before Profile
+        menuItems.splice(2, 0, { name: 'Admin', href: '/admin', icon: ShieldCheck });
+    }
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 p-4 pb-safe pointer-events-none flex justify-center">
