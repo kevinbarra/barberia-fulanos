@@ -97,7 +97,7 @@ export default function ClientProfileForm({
                 {/* Tenant Info */}
                 {tenantName && (
                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
-                        <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Tu barbería</p>
+                        <p className="text-xs text-zinc-500 uppercase font-bold mb-1">Estás en</p>
                         <p className="text-lg font-bold text-white">{tenantName}</p>
                     </div>
                 )}

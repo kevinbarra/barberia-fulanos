@@ -1,6 +1,27 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import ClientProfileForm from "@/components/client/ClientProfileForm";
+
+const ROOT_DOMAIN = 'agendabarber.pro'
+const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
+
+function extractTenantFromHostname(hostname: string): string | null {
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+        return null
+    }
+    if (hostname.endsWith('.vercel.app')) {
+        return null
+    }
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
+    if (parts.length >= 3) {
+        const subdomain = parts[0]
+        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
+            return subdomain
+        }
+    }
+    return null
+}
 
 export default async function ClientProfilePage() {
     const supabase = await createClient();
@@ -8,13 +29,25 @@ export default async function ClientProfilePage() {
 
     if (!user) return redirect("/login");
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url, email, phone, loyalty_points, created_at, tenants(name)')
-        .eq('id', user.id)
-        .single();
+    // Get current subdomain tenant
+    const headersList = await headers();
+    const hostname = headersList.get('host') || '';
+    const currentSlug = extractTenantFromHostname(hostname);
 
-    const tenantData = profile?.tenants as unknown as { name: string } | null;
+    // Get user profile and current tenant info
+    const [profileResult, tenantResult] = await Promise.all([
+        supabase
+            .from('profiles')
+            .select('full_name, avatar_url, email, phone, loyalty_points, created_at')
+            .eq('id', user.id)
+            .single(),
+        currentSlug
+            ? supabase.from('tenants').select('name').eq('slug', currentSlug).single()
+            : Promise.resolve({ data: null })
+    ]);
+
+    const profile = profileResult.data;
+    const currentTenantName = tenantResult.data?.name;
 
     return (
         <ClientProfileForm
@@ -24,7 +57,7 @@ export default async function ClientProfilePage() {
             phone={profile?.phone || ''}
             loyaltyPoints={profile?.loyalty_points || 0}
             memberSince={profile?.created_at || ''}
-            tenantName={tenantData?.name}
+            tenantName={currentTenantName}
         />
     );
 }
