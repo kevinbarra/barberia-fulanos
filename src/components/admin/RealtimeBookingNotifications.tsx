@@ -32,8 +32,8 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
     const audioRef = useRef<HTMLAudioElement | null>(null)
 
     // Professional notification sound (pleasant chime)
-    // Using a reliable CDN source (freesound or similar standard)
-    const NOTIFICATION_SOUND = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+    // Premium Glass Ping
+    const NOTIFICATION_SOUND = "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
 
     // Create audio element on mount
     useEffect(() => {
@@ -257,14 +257,12 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation()
-                                            if (audioRef.current) {
-                                                audioRef.current.currentTime = 0
-                                                audioRef.current.play().catch(err => alert('Error: ' + err.message))
-                                            }
+                                            audioRef.current?.play().catch(() => { })
                                         }}
-                                        className="text-xs text-blue-500 font-bold px-2"
+                                        className="text-xs text-blue-500 hover:text-blue-700 font-medium px-2 opacity-50 hover:opacity-100 transition-opacity"
+                                        title="Probar sonido"
                                     >
-                                        PROBAR
+                                        Probar
                                     </button>
                                 )}
 
