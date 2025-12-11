@@ -274,8 +274,7 @@ export default function BookingWizard({
                                         <div>
                                             <span className="font-bold text-gray-900 block">{member.full_name.split(' ')[0]}</span>
                                             <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                                                {/* Se podría agregar ícono de estrella si es owner */}
-                                                {member.role === 'owner' ? 'Master' : 'Staff'}
+                                                Barbero
                                             </div>
                                         </div>
                                     </button>

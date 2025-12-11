@@ -15,6 +15,10 @@ export default function DateRangeSelector() {
         let startDate: Date;
 
         switch (newRange) {
+            case 'today':
+                // Hoy: mismo día como inicio y fin
+                startDate = today;
+                break;
             case '7d':
                 startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
                 break;
@@ -47,6 +51,7 @@ export default function DateRangeSelector() {
                 onChange={(e) => handleRangeChange(e.target.value)}
                 className="text-sm font-medium focus:outline-none bg-transparent text-gray-700 cursor-pointer"
             >
+                <option value="today">Hoy</option>
                 <option value="7d">Últimos 7 días</option>
                 <option value="30d">Últimos 30 días</option>
                 <option value="90d">Últimos 90 días</option>
