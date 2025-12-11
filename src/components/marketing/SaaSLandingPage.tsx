@@ -420,7 +420,7 @@ export default function SaaSLandingPage() {
                         <span className="font-bold">AgendaBarber</span>
                     </div>
                     <p className="text-zinc-600 text-sm">
-                        © {new Date().getFullYear()} AgendaBarber. Hecho con ☕ en México.
+                        © {new Date().getFullYear()} AgendaBarber. Hecho por Kevin Barra.
                     </p>
                     <div className="flex gap-6 text-zinc-500 text-sm">
                         <Link href="/login" className="hover:text-white transition-colors">Iniciar Sesión</Link>
