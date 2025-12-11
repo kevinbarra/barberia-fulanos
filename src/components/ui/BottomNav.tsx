@@ -39,8 +39,12 @@ export default function BottomNav({
         }))
         : adminMenu;
 
-    if (role === 'client' && showAdminEntry) {
-        clientMenu.push({ name: 'Admin', href: '/admin', icon: ShieldCheck })
+    // Modificación: Permitir acceso Admin si el rol es válido (staff/owner) o si showAdminEntry es true
+    if (role === 'admin' || (role === 'client' && showAdminEntry)) {
+        // Evitar duplicados si ya está en el menú
+        if (!clientMenu.some(item => item.name === 'Admin')) {
+            clientMenu.push({ name: 'Admin', href: '/admin', icon: ShieldCheck })
+        }
     }
 
     const menu = role === 'admin' ? filteredAdminMenu : clientMenu
