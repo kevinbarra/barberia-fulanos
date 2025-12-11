@@ -29,8 +29,29 @@ export default async function ClientLayout({
     // Auto-vinculación (SELF-HEALING)
     await checkAndClaimInvitations();
 
-    // Obtener slug del tenant para navegación dinámica
-    const tenantSlug = await getUserTenantSlug() || '';
+    // ESTRATEGIA DE NAVEGACIÓN ROBUSTA:
+    // 1. Intentar obtener slug del subdominio (Contexto actual)
+    // 2. Si no hay subdominio (está en www), intentar obtener de su perfil (Contexto histórico)
+    const { headers } = await import("next/headers");
+    const headerList = await headers();
+    const hostname = headerList.get("host") || "";
+
+    let currentSlug = "";
+
+    // Detectar subdominio
+    if (hostname.includes(".agendabarber.pro") || hostname.includes(".localhost")) {
+        const parts = hostname.split(".");
+        if (parts.length >= 3) { // sub.domain.com
+            const subdomain = parts[0];
+            if (subdomain !== 'www' && subdomain !== 'app') {
+                currentSlug = subdomain;
+            }
+        }
+    }
+
+    // Si no estamos en subdominio, usar el del perfil
+    const userSlug = await getUserTenantSlug();
+    const tenantSlug = currentSlug || userSlug || '';
 
     return (
         <div className="min-h-screen bg-zinc-950">
