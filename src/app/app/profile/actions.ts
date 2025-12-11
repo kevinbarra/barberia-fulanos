@@ -10,6 +10,7 @@ export async function updateClientProfile(formData: FormData) {
     if (!user) return { error: 'No autorizado' }
 
     const fullName = formData.get('full_name') as string
+    const phone = formData.get('phone') as string | null
     const file = formData.get('avatar') as File | null
 
     let avatarUrl = null
@@ -26,6 +27,7 @@ export async function updateClientProfile(formData: FormData) {
 
     // CORRECCIÓN: Tipo seguro para satisfacer al Linter
     const updateData: Record<string, string | null> = { full_name: fullName }
+    if (phone) updateData.phone = phone
     if (avatarUrl) updateData.avatar_url = avatarUrl
 
     const { error } = await supabase.from('profiles').update(updateData).eq('id', user.id)

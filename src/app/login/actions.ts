@@ -95,21 +95,12 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
         const isStaffOrOwner = userRole === 'owner' || userRole === 'staff'
         const isUserOnOwnTenant = currentSubdomain && currentSubdomain === userTenantSlug
 
-        console.log('[verifyOtp] Context:', {
-            userRole,
-            isSuperAdmin,
-            currentSubdomain,
-            userTenantSlug,
-            isUserOnOwnTenant,
-            isOnRootOrWww,
-            hostname,
-            redirectTo
-        })
+
 
         // CASO 1: Super Admin - siempre va a www/admin/platform
         if (isSuperAdmin && isProduction) {
             redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
-            console.log('[verifyOtp] Super admin → platform')
+
         }
         // CASO 2: Staff/Owner en su propio tenant
         else if (isStaffOrOwner && isUserOnOwnTenant) {
@@ -119,7 +110,7 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
             } else {
                 redirectUrl = '/admin'
             }
-            console.log('[verifyOtp] Staff/Owner on own tenant → /admin')
+
         }
         // CASO 3: Staff/Owner pero en OTRO tenant (como cliente)
         else if (isStaffOrOwner && currentSubdomain && !isUserOnOwnTenant) {
@@ -129,7 +120,7 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
             } else {
                 redirectUrl = '/app'
             }
-            console.log('[verifyOtp] Staff/Owner on different tenant → /app (as customer)')
+
         }
         // CASO 4: Staff/Owner en www o root - ir a su tenant
         else if (isStaffOrOwner && isOnRootOrWww && userTenantSlug && isProduction) {
@@ -138,20 +129,20 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
             } else {
                 redirectUrl = `https://${userTenantSlug}.${ROOT_DOMAIN}/admin`
             }
-            console.log('[verifyOtp] Staff/Owner on www → their tenant')
+
         }
         // CASO 5: Cliente con redirectTo (venía de booking)
         else if (redirectTo) {
             redirectUrl = redirectTo
-            console.log('[verifyOtp] Customer with redirectTo:', redirectTo)
+
         }
         // CASO 6: Cliente default
         else {
             redirectUrl = '/app'
-            console.log('[verifyOtp] Customer default → /app')
+
         }
     }
 
-    console.log('[verifyOtp] Final redirectUrl:', redirectUrl)
+
     return { success: true, redirectUrl }
 }

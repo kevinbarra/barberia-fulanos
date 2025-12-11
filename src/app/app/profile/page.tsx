@@ -10,14 +10,21 @@ export default async function ClientProfilePage() {
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url')
+        .select('full_name, avatar_url, email, phone, loyalty_points, created_at, tenants(name)')
         .eq('id', user.id)
         .single();
+
+    const tenantData = profile?.tenants as unknown as { name: string } | null;
 
     return (
         <ClientProfileForm
             initialName={profile?.full_name || ''}
             initialAvatar={profile?.avatar_url}
+            email={profile?.email || user.email || ''}
+            phone={profile?.phone || ''}
+            loyaltyPoints={profile?.loyalty_points || 0}
+            memberSince={profile?.created_at || ''}
+            tenantName={tenantData?.name}
         />
     );
 }
