@@ -9,9 +9,14 @@ export default function BottomNav({ tenantSlug, role }: { tenantSlug: string, ro
     const pathname = usePathname();
     const isAdmin = role === 'owner' || role === 'staff' || role === 'super_admin';
 
+    // DEBUG: Verificar qué llega al cliente
+    console.log('[CLIENT NAV] Received TenantSlug:', tenantSlug);
+
+    const bookingHref = tenantSlug ? `/book/${tenantSlug}` : '#';
+
     const menuItems = [
         { name: 'Inicio', href: '/app', icon: Home },
-        { name: 'Agendar', href: `/book/${tenantSlug}`, icon: Plus, isSpecial: true },
+        { name: 'Agendar', href: bookingHref, icon: Plus, isSpecial: true },
         { name: 'Perfil', href: '/app/profile', icon: User },
     ];
 
