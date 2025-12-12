@@ -37,8 +37,9 @@ export default async function AdminLayout({
     const { data: { user } } = await supabase.auth.getUser();
 
     // Redirect to login if not authenticated
+    // Add noredirect param to prevent infinite loop between /login and /admin
     if (!user) {
-        redirect('/login');
+        redirect('/login?noredirect=1');
     }
 
     // Get current subdomain and path context

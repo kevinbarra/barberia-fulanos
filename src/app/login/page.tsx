@@ -8,13 +8,21 @@ import { Scissors } from "lucide-react";
 
 const ROOT_DOMAIN = 'agendabarber.pro';
 
-export default async function LoginPage() {
+export default async function LoginPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ noredirect?: string; redirectTo?: string }>;
+}) {
+    const params = await searchParams;
+    const noRedirect = params.noredirect === '1';
+
     // --- LÓGICA INTELIGENTE: Redirección automática ---
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Si el usuario ya está logueado, lo sacamos del login.
-    if (user) {
+    // Si el usuario ya está logueado Y no hay flag de noredirect, lo sacamos del login.
+    // noredirect=1 viene de /admin cuando la sesión no es válida para evitar loop
+    if (user && !noRedirect) {
         // Consultamos su rol y tenant para mandarlo a la página correcta
         const { data: profile } = await supabase
             .from('profiles')
