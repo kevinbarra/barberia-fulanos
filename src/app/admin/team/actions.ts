@@ -28,7 +28,9 @@ export async function inviteStaff(formData: FormData) {
     const email = emailRaw.toLowerCase().trim()
 
     // --- VERIFICAR SI EL USUARIO YA EXISTE EN EL SISTEMA ---
-    const { data: existingUser } = await supabase
+    // Usamos adminClient para bypasear RLS y encontrar usuarios de cualquier tenant
+    const adminSupabase = createAdminClient()
+    const { data: existingUser } = await adminSupabase
         .from('profiles')
         .select('id, role, tenant_id')
         .eq('email', email)
@@ -42,8 +44,6 @@ export async function inviteStaff(formData: FormData) {
         }
 
         // Caso 2: Es un usuario existente (cliente u otro) - PROMOVER DIRECTAMENTE
-        // Usamos adminClient para bypasear RLS (usuarios con tenant_id diferente)
-        const adminSupabase = createAdminClient()
         const { error: updateError } = await adminSupabase
             .from('profiles')
             .update({
