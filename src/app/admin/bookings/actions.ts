@@ -76,10 +76,12 @@ export async function processPayment(data: {
 }
 
 // --- FUNCIÓN 2: VINCULAR CLIENTE (QR) ---
-export async function linkTransactionToUser(transactionId: string, userId: string) {
+export async function linkTransactionToUser(transactionId: string, scannedValue: string) {
     const supabase = await createClient()
 
     try {
+        console.log('[linkTransactionToUser] Starting with:', { transactionId, scannedValue })
+
         // 1. Validar Transacción
         const { data: transaction, error: txError } = await supabase
             .from('transactions')
@@ -87,23 +89,50 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
             .eq('id', transactionId)
             .single()
 
-        if (txError || !transaction) throw new Error('Transacción inválida.')
+        if (txError || !transaction) {
+            console.error('[linkTransactionToUser] Transaction error:', txError)
+            throw new Error('Transacción inválida.')
+        }
         if (transaction.status !== 'completed') throw new Error('Cobro no finalizado.')
         if (transaction.client_id) throw new Error('Esta venta ya tiene dueño.')
 
-        // 2. Validar Usuario
-        const { data: profile, error: profileError } = await supabase
+        // 2. Buscar Usuario - Intentar primero por UUID, luego por email
+        let profile = null
+
+        // Intentar buscar por UUID
+        const { data: profileById, error: profileByIdError } = await supabase
             .from('profiles')
             .select('id, loyalty_points, full_name')
-            .eq('id', userId)
+            .eq('id', scannedValue)
             .single()
 
-        if (profileError || !profile) throw new Error('Cliente no encontrado.')
+        if (profileById) {
+            profile = profileById
+            console.log('[linkTransactionToUser] Found by UUID:', profile.full_name)
+        } else {
+            // Intentar buscar por email (algunos QR pueden contener email)
+            console.log('[linkTransactionToUser] UUID lookup failed, trying email lookup...')
+            const { data: profileByEmail, error: profileByEmailError } = await supabase
+                .from('profiles')
+                .select('id, loyalty_points, full_name')
+                .eq('email', scannedValue.toLowerCase().trim())
+                .single()
+
+            if (profileByEmail) {
+                profile = profileByEmail
+                console.log('[linkTransactionToUser] Found by email:', profile.full_name)
+            } else {
+                console.error('[linkTransactionToUser] Profile not found:', { scannedValue, profileByIdError, profileByEmailError })
+                throw new Error('Cliente no encontrado.')
+            }
+        }
+
+        if (!profile) throw new Error('Cliente no encontrado.')
 
         // 3. ACTUALIZACIÓN ATÓMICA
         const { error: updateTxError } = await supabase
             .from('transactions')
-            .update({ client_id: userId })
+            .update({ client_id: profile.id })
             .eq('id', transactionId)
 
         if (updateTxError) throw new Error('Falló la vinculación.')
@@ -113,7 +142,7 @@ export async function linkTransactionToUser(transactionId: string, userId: strin
         const { error: updateProfileError } = await supabase
             .from('profiles')
             .update({ loyalty_points: newTotal })
-            .eq('id', userId)
+            .eq('id', profile.id)
 
         if (updateProfileError) {
             console.error('CRITICAL: Puntos no sumados', transactionId)
