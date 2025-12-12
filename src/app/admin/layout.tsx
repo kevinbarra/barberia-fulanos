@@ -77,11 +77,14 @@ export default async function AdminLayout({
     // SUPER ADMIN ON TENANT SUBDOMAIN: Fetch tenant data from the subdomain
     // This allows super admin to properly access any tenant's admin panel
     if (isSuperAdmin && currentSubdomain && !isOnWww) {
-        const { data: subdomainTenant } = await supabase
+        console.log('[ADMIN LAYOUT] Super admin on tenant subdomain:', currentSubdomain);
+        const { data: subdomainTenant, error: tenantError } = await supabase
             .from('tenants')
             .select('id, slug, name, subscription_status')
             .eq('slug', currentSubdomain)
             .single();
+
+        console.log('[ADMIN LAYOUT] Tenant lookup result:', subdomainTenant, 'error:', tenantError);
 
         if (subdomainTenant) {
             tenantData = {
@@ -96,6 +99,7 @@ export default async function AdminLayout({
         }
     }
 
+    console.log('[ADMIN LAYOUT] Final state:', { userRole, isSuperAdmin, currentSubdomain, isOnWww, tenantName, tenantId });
 
     // SECURITY CHECK: Verify user belongs to this subdomain's tenant
     // Super admin can access /admin/platform on www
