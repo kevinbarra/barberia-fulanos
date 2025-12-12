@@ -1,4 +1,4 @@
-import { createClient, getTenantId } from "@/utils/supabase/server";
+import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import ServiceList from "@/components/admin/ServiceList";
 import CreateServiceForm from "@/components/admin/CreateServiceForm";
 import { redirect } from "next/navigation";
@@ -7,7 +7,7 @@ import { ChevronLeft } from "lucide-react";
 
 export default async function ServicesPage() {
     const supabase = await createClient();
-    const tenantId = await getTenantId();
+    const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect("/login");
 

@@ -49,3 +49,57 @@ export async function getTenantId() {
 
     return profile?.tenant_id
 }
+
+// --- FUNCIÓN PARA ADMIN PAGES (Soporta Super Admin) ---
+// Para super admin, obtiene tenant del subdomain en vez del profile
+import { headers } from 'next/headers'
+
+const ROOT_DOMAIN = 'agendabarber.pro'
+const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
+
+function extractTenantFromHostname(hostname: string): string | null {
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return null
+    if (hostname.endsWith('.vercel.app')) return null
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
+    if (parts.length >= 3) {
+        const subdomain = parts[0]
+        if (!RESERVED_SUBDOMAINS.includes(subdomain)) return subdomain
+    }
+    return null
+}
+
+export async function getTenantIdForAdmin(): Promise<string | null> {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id, role')
+        .eq('id', user.id)
+        .single()
+
+    const isSuperAdmin = profile?.role === 'super_admin'
+
+    // For super admin, get tenant from subdomain
+    if (isSuperAdmin) {
+        const headersList = await headers()
+        const hostname = headersList.get('host') || ''
+        const currentSubdomain = extractTenantFromHostname(hostname)
+
+        if (currentSubdomain) {
+            const { data: subdomainTenant } = await supabase
+                .from('tenants')
+                .select('id')
+                .eq('slug', currentSubdomain)
+                .single()
+
+            return subdomainTenant?.id || null
+        }
+        return null
+    }
+
+    // For regular users, return their tenant_id
+    return profile?.tenant_id || null
+}

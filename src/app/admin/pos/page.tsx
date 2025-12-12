@@ -1,4 +1,4 @@
-import { getTenantId } from "@/utils/supabase/server";
+import { getTenantIdForAdmin } from "@/utils/supabase/server";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { redirect } from "next/navigation";
 import PosV2 from "@/components/admin/pos/PosV2";
@@ -30,7 +30,7 @@ interface PosBookingData {
 
 export default async function PosPage() {
     const supabase = createAdminClient();
-    const tenantId = await getTenantId();
+    const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect("/login");
 

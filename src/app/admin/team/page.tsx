@@ -1,4 +1,4 @@
-import { createClient, getTenantId } from "@/utils/supabase/server";
+import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import TeamList from "@/components/admin/team/TeamList";
 import Link from "next/link";
@@ -15,7 +15,7 @@ type StaffMember = {
 
 export default async function TeamPage() {
     const supabase = await createClient();
-    const tenantId = await getTenantId();
+    const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect("/login");
 

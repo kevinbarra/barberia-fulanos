@@ -1,12 +1,14 @@
-import { createClient, getTenantId } from "@/utils/supabase/server";
+import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import BookingsCalendar from "@/components/admin/calendar/BookingsCalendar";
 import { PosBookingData } from "@/types/supabase-joined";
 import { redirect } from "next/navigation";
-import { startOfWeek, endOfWeek, subDays, addDays } from 'date-fns';
+import { subDays, addDays } from 'date-fns';
 
-export default async function AdminBookingsPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function BookingsPage() {
     const supabase = await createClient();
-    const tenantId = await getTenantId();
+    const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect('/login');
     const { data: { user } } = await supabase.auth.getUser();
