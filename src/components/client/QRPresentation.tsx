@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Maximize2 } from 'lucide-react';
+import { X, Maximize2, Sparkles } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useRealtimePoints } from '@/hooks/useRealtimePoints';
 
 interface QRPresentationProps {
     qrValue: string; // This is the user ID
@@ -11,12 +10,8 @@ interface QRPresentationProps {
     points: number; // Initial points from server
 }
 
-export default function QRPresentation({ qrValue, clientName, points }: QRPresentationProps) {
+export default function QRPresentation({ qrValue, clientName }: QRPresentationProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
-
-    // Use realtime hook for instant point updates when staff scans QR
-    // qrValue is the user ID, so we use it for the subscription
-    const realtimePoints = useRealtimePoints(qrValue, points);
 
     const enterFullscreen = () => {
         setIsFullscreen(true);
@@ -44,7 +39,7 @@ export default function QRPresentation({ qrValue, clientName, points }: QRPresen
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all"
             >
                 <Maximize2 className="w-5 h-5" />
-                Mostrar QR en Pantalla Completa
+                Mostrar QR para Cobro
             </button>
         );
     }
@@ -58,25 +53,26 @@ export default function QRPresentation({ qrValue, clientName, points }: QRPresen
                 <X className="w-6 h-6" />
             </button>
 
-            <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold mb-2">{clientName}</h1>
-                <p className="text-6xl font-bold text-purple-600 transition-all duration-300">{realtimePoints}</p>
-                <p className="text-2xl text-gray-600">puntos acumulados</p>
+            <div className="text-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">{clientName}</h1>
+                <div className="flex items-center justify-center gap-2 text-purple-600">
+                    <Sparkles className="w-5 h-5" />
+                    <p className="text-lg font-medium">Escanea para vincular puntos</p>
+                </div>
             </div>
 
-            <div className="bg-white p-8 rounded-3xl shadow-2xl">
+            <div className="bg-white p-6 rounded-3xl shadow-2xl border-4 border-purple-100">
                 <QRCodeSVG
                     value={qrValue}
-                    size={300}
+                    size={280}
                     level="H"
                     includeMargin={true}
                 />
             </div>
 
-            <p className="mt-8 text-xl text-gray-600">
+            <p className="mt-6 text-gray-500 text-center text-sm">
                 Muestra este código al cobrar
             </p>
         </div>
     );
 }
-
