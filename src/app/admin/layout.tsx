@@ -62,16 +62,39 @@ export default async function AdminLayout({
     const isSuperAdmin = userRole === 'super_admin';
     const isStaffOrOwner = userRole === 'owner' || userRole === 'staff';
 
-    // Extract user's tenant info
-    const tenantData = profile?.tenants as unknown as {
+    // Extract user's tenant info from profile
+    let tenantData = profile?.tenants as unknown as {
         slug: string;
         name: string;
         subscription_status: string
     } | null;
-    const userTenantSlug = tenantData?.slug || null;
-    const tenantName = tenantData?.name || 'AgendaBarber';
-    const tenantStatus = tenantData?.subscription_status || 'active';
-    const tenantId = profile?.tenant_id || '';
+    let userTenantSlug = tenantData?.slug || null;
+    let tenantName = tenantData?.name || 'AgendaBarber';
+    let tenantStatus = tenantData?.subscription_status || 'active';
+    let tenantId = profile?.tenant_id || '';
+
+    // SUPER ADMIN ON TENANT SUBDOMAIN: Fetch tenant data from the subdomain
+    // This allows super admin to properly access any tenant's admin panel
+    if (isSuperAdmin && currentSubdomain && !isOnWww) {
+        const { data: subdomainTenant } = await supabase
+            .from('tenants')
+            .select('id, slug, name, subscription_status')
+            .eq('slug', currentSubdomain)
+            .single();
+
+        if (subdomainTenant) {
+            tenantData = {
+                slug: subdomainTenant.slug,
+                name: subdomainTenant.name,
+                subscription_status: subdomainTenant.subscription_status
+            };
+            userTenantSlug = subdomainTenant.slug;
+            tenantName = subdomainTenant.name;
+            tenantStatus = subdomainTenant.subscription_status;
+            tenantId = subdomainTenant.id;
+        }
+    }
+
 
     // SECURITY CHECK: Verify user belongs to this subdomain's tenant
     // Super admin can access /admin/platform on www
