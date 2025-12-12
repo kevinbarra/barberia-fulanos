@@ -3,23 +3,60 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import TransactionList from "@/components/admin/TransactionList";
 import { getTodayRange } from "@/lib/dates";
+import { headers } from "next/headers";
+
+const ROOT_DOMAIN = 'agendabarber.pro';
+const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app'];
+
+function extractTenantFromHostname(hostname: string): string | null {
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return null;
+    if (hostname.endsWith('.vercel.app')) return null;
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.');
+    if (parts.length >= 3) {
+        const subdomain = parts[0];
+        if (!RESERVED_SUBDOMAINS.includes(subdomain)) return subdomain;
+    }
+    return null;
+}
 
 export default async function AdminDashboard() {
     const supabase = await createClient();
-    const tenantId = await getTenantId();
-
-    if (!tenantId) return redirect("/login");
-
     const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return redirect("/login");
 
     const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, role, tenants(slug)")
-        .eq("id", user?.id)
+        .select("full_name, role, tenant_id, tenants(slug)")
+        .eq("id", user.id)
         .single();
 
-    const userName = profile?.full_name?.split(" ")[0] || "Staff";
     const userRole = profile?.role || 'staff';
+    const isSuperAdmin = userRole === 'super_admin';
+
+    // Get tenant ID - for super admin, get from subdomain; for others, get from profile
+    let tenantId = profile?.tenant_id;
+
+    if (isSuperAdmin) {
+        const headersList = await headers();
+        const hostname = headersList.get('host') || '';
+        const currentSubdomain = extractTenantFromHostname(hostname);
+
+        if (currentSubdomain) {
+            // Super admin on tenant subdomain - fetch tenant ID from subdomain
+            const { data: subdomainTenant } = await supabase
+                .from('tenants')
+                .select('id')
+                .eq('slug', currentSubdomain)
+                .single();
+
+            tenantId = subdomainTenant?.id || null;
+        }
+    }
+
+    if (!tenantId) return redirect("/login");
+
+    const userName = profile?.full_name?.split(" ")[0] || "Staff";
 
     const { startISO, endISO } = getTodayRange();
 
