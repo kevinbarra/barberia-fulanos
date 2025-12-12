@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
 
@@ -76,8 +77,9 @@ export async function processPayment(data: {
 }
 
 // --- FUNCIÓN 2: VINCULAR CLIENTE (QR) ---
+// Usamos adminClient porque staff necesita leer profiles de clientes (RLS lo bloquea)
 export async function linkTransactionToUser(transactionId: string, scannedValue: string) {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     try {
         console.log('[linkTransactionToUser] Starting with:', { transactionId, scannedValue })
