@@ -3,15 +3,20 @@
 import { useState } from 'react';
 import { X, Maximize2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useRealtimePoints } from '@/hooks/useRealtimePoints';
 
 interface QRPresentationProps {
-    qrValue: string;
+    qrValue: string; // This is the user ID
     clientName: string;
-    points: number;
+    points: number; // Initial points from server
 }
 
 export default function QRPresentation({ qrValue, clientName, points }: QRPresentationProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // Use realtime hook for instant point updates when staff scans QR
+    // qrValue is the user ID, so we use it for the subscription
+    const realtimePoints = useRealtimePoints(qrValue, points);
 
     const enterFullscreen = () => {
         setIsFullscreen(true);
@@ -55,7 +60,7 @@ export default function QRPresentation({ qrValue, clientName, points }: QRPresen
 
             <div className="text-center mb-8">
                 <h1 className="text-4xl font-bold mb-2">{clientName}</h1>
-                <p className="text-6xl font-bold text-purple-600">{points}</p>
+                <p className="text-6xl font-bold text-purple-600 transition-all duration-300">{realtimePoints}</p>
                 <p className="text-2xl text-gray-600">puntos acumulados</p>
             </div>
 
@@ -74,3 +79,4 @@ export default function QRPresentation({ qrValue, clientName, points }: QRPresen
         </div>
     );
 }
+
