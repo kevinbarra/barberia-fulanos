@@ -46,26 +46,17 @@ export default async function LoginPage() {
         const hostname = headersList.get('host') || '';
         const isProduction = hostname.includes(ROOT_DOMAIN);
 
-        // Super Admin: Respect subdomain context
-        // If on a tenant subdomain -> go to that tenant's admin
-        // If on www or root -> go to platform
+        // Super Admin: Simple redirect logic
+        // Only redirect to platform if on www/root
+        // On any subdomain, just go to /admin (layout handles the rest)
         if (isSuperAdmin) {
             const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN;
 
-            // Check if we're on a tenant subdomain (not www, not localhost, not vercel)
-            const parts = hostname.split('.');
-            const isOnTenantSubdomain = isProduction && parts.length >= 3 &&
-                !['www', 'api', 'admin', 'app'].includes(parts[0]);
-
-            if (isOnTenantSubdomain) {
-                // Super admin on tenant subdomain -> stay on that tenant's admin
-                return redirect('/admin');
-            } else if (isOnWww || !isProduction) {
-                // Super admin on www or local -> go to platform
+            if (isOnWww) {
                 return redirect('/admin/platform');
             }
-            // Fallback
-            return redirect('/admin/platform');
+            // On any subdomain (tenant or otherwise), just go to /admin
+            return redirect('/admin');
         }
 
         // Si el tenant está suspendido, redirigir a /admin (mostrará pantalla de suspensión)
