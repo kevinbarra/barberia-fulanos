@@ -10,6 +10,7 @@ import AppointmentHistory from "@/components/client/AppointmentHistory";
 import { motion } from 'framer-motion';
 import { signOut } from '@/app/auth/actions';
 import { useRealtimePoints } from '@/hooks/useRealtimePoints';
+import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
 
 // Flexible types for Supabase data
 interface ClientDashboardUIProps {
@@ -68,6 +69,9 @@ export default function ClientDashboardUI({
     // Realtime points subscription - updates instantly when staff assigns points via QR
     const initialPoints = loyaltyStatus.data?.current_points || 0;
     const realtimePoints = useRealtimePoints(user.id, initialPoints);
+
+    // Realtime bookings subscription - updates when staff changes booking status
+    useRealtimeBookings({ customerId: user.id });
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
