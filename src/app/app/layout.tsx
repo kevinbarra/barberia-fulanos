@@ -1,4 +1,5 @@
 import BottomNav from "@/components/client/BottomNav";
+import AutoRefreshWrapper from "@/components/admin/AutoRefreshWrapper";
 import { checkAndClaimInvitations } from "@/lib/auth-helpers";
 import { getUserTenantSlug } from "@/lib/tenant";
 import { createClient } from "@/utils/supabase/server";
@@ -60,6 +61,7 @@ export default async function ClientLayout({
 
     return (
         <div className="min-h-screen bg-zinc-950">
+            <AutoRefreshWrapper />
             <main className="pb-24 md:pb-0">
                 {children}
             </main>

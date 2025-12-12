@@ -260,15 +260,23 @@ export default function PosV2({
     }
 
     const handleScanLink = async (userId: string) => {
+        // Cerrar scanner inmediatamente para evitar scans duplicados
+        setShowScanner(false)
+
         if (!successTxId) return
+
         toast.loading('Vinculando puntos...')
         const res = await linkTransactionToUser(successTxId, userId)
         toast.dismiss()
+
         if (res.success) {
-            toast.success(res.message)
+            toast.success(res.message, { duration: 3000 })
+            router.refresh() // Forzar actualización de datos
             handleBack()
         } else {
             toast.error(res.message)
+            // Re-abrir scanner si falla para re-intentar
+            setShowScanner(true)
         }
     }
 
