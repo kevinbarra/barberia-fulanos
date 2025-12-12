@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { sendStaffInvitation } from '@/lib/email'
 
@@ -41,7 +42,9 @@ export async function inviteStaff(formData: FormData) {
         }
 
         // Caso 2: Es un usuario existente (cliente u otro) - PROMOVER DIRECTAMENTE
-        const { error: updateError } = await supabase
+        // Usamos adminClient para bypasear RLS (usuarios con tenant_id diferente)
+        const adminSupabase = createAdminClient()
+        const { error: updateError } = await adminSupabase
             .from('profiles')
             .update({
                 role: 'staff',
