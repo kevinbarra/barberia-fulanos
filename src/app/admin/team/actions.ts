@@ -26,20 +26,39 @@ export async function inviteStaff(formData: FormData) {
     if (!emailRaw) return { error: 'Email requerido' }
     const email = emailRaw.toLowerCase().trim()
 
-    // --- 1.5 VALIDACIÓN DE NEGOCIO (NUEVO) ---
-    // Verificamos si este email YA es parte del equipo activo.
-    const { data: existingMember } = await supabase
+    // --- VERIFICAR SI EL USUARIO YA EXISTE EN EL SISTEMA ---
+    const { data: existingUser } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, role, tenant_id')
         .eq('email', email)
-        .eq('tenant_id', requester.tenant_id) // Solo buscamos en TU negocio
         .single()
 
-    if (existingMember) {
-        return { error: 'Este usuario ya es parte activa de tu equipo.' }
-    }
-    // -----------------------------------------
+    if (existingUser) {
+        // Caso 1: Ya es parte de TU equipo
+        if (existingUser.tenant_id === requester.tenant_id &&
+            (existingUser.role === 'staff' || existingUser.role === 'owner')) {
+            return { error: 'Este usuario ya es parte activa de tu equipo.' }
+        }
 
+        // Caso 2: Es un usuario existente (cliente u otro) - PROMOVER DIRECTAMENTE
+        const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+                role: 'staff',
+                tenant_id: requester.tenant_id
+            })
+            .eq('id', existingUser.id)
+
+        if (updateError) {
+            console.error('Error promoting user:', updateError)
+            return { error: 'Error al promover usuario a staff.' }
+        }
+
+        revalidatePath('/admin/team')
+        return { success: true, message: `${email} ha sido agregado como staff exitosamente.` }
+    }
+
+    // --- USUARIO NO EXISTE: CREAR INVITACIÓN PENDIENTE ---
     // 3. Registrar Invitación en Base de Datos (Upsert permite re-enviar si está pendiente)
     const { error: inviteError } = await supabase
         .from('staff_invitations')
