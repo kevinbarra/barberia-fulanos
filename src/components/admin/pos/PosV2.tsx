@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -98,6 +98,9 @@ export default function PosV2({
     const [isProcessing, setIsProcessing] = useState(false)
     const [successTxId, setSuccessTxId] = useState<string | null>(null)
     const [showScanner, setShowScanner] = useState(false)
+
+    // Ref to prevent duplicate QR scan processing (sync check)
+    const isLinkingRef = useRef(false)
 
     // === EFFECTS ===
     // El servidor es la fuente de verdad - todas las acciones usan admin client
@@ -260,10 +263,22 @@ export default function PosV2({
     }
 
     const handleScanLink = async (userId: string) => {
-        // Cerrar scanner inmediatamente para evitar scans duplicados
+        // SYNC CHECK: Prevent duplicate processing while async operation runs
+        if (isLinkingRef.current) {
+            console.log('[QR] Duplicate scan ignored - already processing')
+            return
+        }
+
+        // Set ref BEFORE closing scanner to block any queued callbacks
+        isLinkingRef.current = true
+
+        // Cerrar scanner inmediatamente
         setShowScanner(false)
 
-        if (!successTxId) return
+        if (!successTxId) {
+            isLinkingRef.current = false
+            return
+        }
 
         toast.loading('Vinculando puntos...')
         const res = await linkTransactionToUser(successTxId, userId)
@@ -271,13 +286,16 @@ export default function PosV2({
 
         if (res.success) {
             toast.success(res.message, { duration: 3000 })
-            router.refresh() // Forzar actualización de datos
+            router.refresh()
             handleBack()
         } else {
             toast.error(res.message)
             // Re-abrir scanner si falla para re-intentar
             setShowScanner(true)
         }
+
+        // Reset ref after completion
+        isLinkingRef.current = false
     }
 
     const handleBack = () => {
