@@ -17,12 +17,23 @@ export async function createTicket(data: {
     // Usamos cliente admin para bypass RLS en operaciones del POS
     const supabase = createAdminClient()
 
-    // Validación: 1 barbero = 1 cliente a la vez
+    // Auto-cleanup: Marcar como cancelled los tickets "seated" de más de 8 horas
+    // Esto previene que tickets olvidados bloqueen futuros servicios
+    const staleThreshold = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
+    await supabase
+        .from('bookings')
+        .update({ status: 'cancelled', notes: 'Auto-cerrado: Ticket expirado' })
+        .eq('status', 'seated')
+        .lt('start_time', staleThreshold)
+
+    // Validación: 1 barbero = 1 cliente a la vez (solo tickets recientes)
+    const recentThreshold = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
     const { count: activeTickets } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .eq('staff_id', data.staffId)
         .eq('status', 'seated')
+        .gte('start_time', recentThreshold)
 
     if (activeTickets && activeTickets > 0) {
         return {
