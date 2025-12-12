@@ -9,6 +9,7 @@ import NextAppointmentCard from "@/components/client/NextAppointmentCard";
 import AppointmentHistory from "@/components/client/AppointmentHistory";
 import { motion } from 'framer-motion';
 import { signOut } from '@/app/auth/actions';
+import { useRealtimePoints } from '@/hooks/useRealtimePoints';
 
 // Flexible types for Supabase data
 interface ClientDashboardUIProps {
@@ -63,6 +64,10 @@ export default function ClientDashboardUI({
     const profileName = (profile?.full_name as string) || 'Cliente';
     const avatarUrl = profile?.avatar_url as string | undefined;
     const noShowCount = (profile?.no_show_count as number) || 0;
+
+    // Realtime points subscription - updates instantly when staff assigns points via QR
+    const initialPoints = loyaltyStatus.data?.current_points || 0;
+    const realtimePoints = useRealtimePoints(user.id, initialPoints);
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
@@ -224,7 +229,7 @@ export default function ClientDashboardUI({
                     <QRPresentation
                         qrValue={user.id}
                         clientName={profileName}
-                        points={loyaltyStatus.data?.current_points || 0}
+                        points={realtimePoints}
                     />
                 </motion.div>
 
