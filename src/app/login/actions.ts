@@ -95,12 +95,20 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
         const isStaffOrOwner = userRole === 'owner' || userRole === 'staff'
         const isUserOnOwnTenant = currentSubdomain && currentSubdomain === userTenantSlug
 
-
-
-        // CASO 1: Super Admin - siempre va a www/admin/platform
+        // CASO 1: Super Admin
+        // If on www or root -> go to platform
+        // If on a tenant subdomain -> stay on that tenant's admin
         if (isSuperAdmin && isProduction) {
-            redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
-
+            if (isOnRootOrWww) {
+                // Super admin on www -> platform
+                redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
+            } else if (currentSubdomain) {
+                // Super admin on tenant subdomain -> that tenant's admin
+                redirectUrl = '/admin'
+            } else {
+                // Fallback to platform
+                redirectUrl = `https://www.${ROOT_DOMAIN}/admin/platform`
+            }
         }
         // CASO 2: Staff/Owner en su propio tenant
         else if (isStaffOrOwner && isUserOnOwnTenant) {
