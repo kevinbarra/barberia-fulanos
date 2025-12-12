@@ -46,11 +46,25 @@ export default async function LoginPage() {
         const hostname = headersList.get('host') || '';
         const isProduction = hostname.includes(ROOT_DOMAIN);
 
-        // Super Admin SIEMPRE va a /admin/platform (sin importar qué subdominio o estado)
+        // Super Admin: Respect subdomain context
+        // If on a tenant subdomain -> go to that tenant's admin
+        // If on www or root -> go to platform
         if (isSuperAdmin) {
-            if (isProduction && !hostname.startsWith('www.')) {
-                return redirect(`https://www.${ROOT_DOMAIN}/admin/platform`);
+            const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN;
+
+            // Check if we're on a tenant subdomain (not www, not localhost, not vercel)
+            const parts = hostname.split('.');
+            const isOnTenantSubdomain = isProduction && parts.length >= 3 &&
+                !['www', 'api', 'admin', 'app'].includes(parts[0]);
+
+            if (isOnTenantSubdomain) {
+                // Super admin on tenant subdomain -> stay on that tenant's admin
+                return redirect('/admin');
+            } else if (isOnWww || !isProduction) {
+                // Super admin on www or local -> go to platform
+                return redirect('/admin/platform');
             }
+            // Fallback
             return redirect('/admin/platform');
         }
 
