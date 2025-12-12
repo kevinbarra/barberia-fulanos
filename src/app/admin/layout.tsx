@@ -41,11 +41,15 @@ export default async function AdminLayout({
         redirect('/login');
     }
 
-    // Get current subdomain context
+    // Get current subdomain and path context
     const headersList = await headers();
     const hostname = headersList.get('host') || '';
+    const pathname = headersList.get('x-pathname') || '';
     const currentSubdomain = extractTenantFromHostname(hostname);
     const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN;
+
+    // Check if this is a platform route - skip tenant sidebar
+    const isPlatformRoute = pathname.startsWith('/admin/platform');
 
     // Get user profile and tenant info
     const { data: profile } = await supabase
@@ -87,6 +91,11 @@ export default async function AdminLayout({
     const isTenantSuspended = tenantStatus !== 'active';
     if (isTenantSuspended && !isSuperAdmin) {
         return <TenantSuspendedScreen tenantName={tenantName} />;
+    }
+
+    // Platform route: render only children - platform has its own layout
+    if (isPlatformRoute) {
+        return <>{children}</>;
     }
 
     return (

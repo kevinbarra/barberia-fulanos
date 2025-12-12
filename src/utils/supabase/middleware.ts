@@ -16,11 +16,13 @@ export async function updateSession(request: NextRequest) {
     const hostname = request.headers.get('host') || ''
     const tenantSlug = extractTenantSlug(hostname)
 
-    // 2. Crear headers con tenant info
+    // 2. Crear headers con tenant info and path info
     const requestHeaders = new Headers(request.headers)
     if (tenantSlug) {
         requestHeaders.set('x-tenant-slug', tenantSlug)
     }
+    // Add pathname for server components to detect route
+    requestHeaders.set('x-pathname', request.nextUrl.pathname)
 
     let response = NextResponse.next({
         request: {
