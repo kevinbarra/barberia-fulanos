@@ -56,7 +56,11 @@ export default function KioskExitButton() {
                 toast.success('Modo Kiosko desactivado. Redirigiendo...')
                 setShowPinModal(false)
 
-                // 5. Forced navigation with cache-bust parameter
+                // 5. ROBUST DELAY: Wait 500ms for cookie to be fully cleared
+                // This breaks the race condition between client and server
+                await new Promise(resolve => setTimeout(resolve, 500))
+
+                // 6. Forced navigation with cache-bust parameter
                 // Using unique timestamp ensures completely fresh navigation
                 window.location.href = `/admin?kiosk_reset=${Date.now()}`
                 return true

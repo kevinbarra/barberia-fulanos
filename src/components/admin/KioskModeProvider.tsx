@@ -1,8 +1,11 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 import { setKioskModeCookie, clearKioskModeCookie } from '@/app/admin/settings/actions'
 import { useRouter } from 'next/navigation'
+
+// Auto-reactivation timeout: 5 minutes in milliseconds
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
 
 interface KioskModeContextType {
     isKioskMode: boolean
@@ -43,6 +46,9 @@ export default function KioskModeProvider({
     const [isKioskMode, setIsKioskMode] = useState(initialKioskMode)
     const router = useRouter()
 
+    // Track last activity time for auto-reactivation
+    const lastActivityRef = useRef<number>(Date.now())
+
     // Only owner and super_admin can toggle kiosk mode
     const canToggleKioskMode = userRole === 'owner' || userRole === 'super_admin'
 
@@ -50,6 +56,55 @@ export default function KioskModeProvider({
     useEffect(() => {
         setIsKioskMode(initialKioskMode)
     }, [initialKioskMode])
+
+    // ========== AUTO-REACTIVATION LOGIC ==========
+    // When kiosk mode is OFF (owner viewing data), track inactivity
+    // and auto-reactivate after 5 minutes
+    useEffect(() => {
+        // Only run if kiosk mode is OFF and user can toggle it
+        if (isKioskMode || !canToggleKioskMode) return
+
+        console.log('[KioskModeProvider] Auto-reactivation timer started (5min)')
+
+        // Update last activity timestamp on user interaction
+        const updateActivity = () => {
+            lastActivityRef.current = Date.now()
+        }
+
+        // Listen for any user interaction
+        const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+        events.forEach(event => {
+            window.addEventListener(event, updateActivity, { passive: true })
+        })
+
+        // Check for inactivity every 30 seconds
+        const checkInterval = setInterval(async () => {
+            const inactiveTime = Date.now() - lastActivityRef.current
+
+            if (inactiveTime > INACTIVITY_TIMEOUT_MS) {
+                console.log('[KioskModeProvider] 5 minutes of inactivity detected. Auto-activating kiosk mode...')
+
+                // Activate kiosk mode via server action
+                try {
+                    const result = await setKioskModeCookie(tenantId)
+                    if (result.success) {
+                        // Force reload to ensure PIN is required to access again
+                        window.location.href = '/admin?kiosk_timeout=1'
+                    }
+                } catch (error) {
+                    console.error('Error auto-activating kiosk mode:', error)
+                }
+            }
+        }, 30000) // Check every 30 seconds
+
+        return () => {
+            // Cleanup listeners
+            events.forEach(event => {
+                window.removeEventListener(event, updateActivity)
+            })
+            clearInterval(checkInterval)
+        }
+    }, [isKioskMode, canToggleKioskMode, tenantId])
 
     const activateKioskMode = useCallback(async () => {
         try {
@@ -70,10 +125,8 @@ export default function KioskModeProvider({
             if (result.success) {
                 // First, update local state
                 setIsKioskMode(false)
-
-                // Use href redirect instead of reload to break browser cache cycle
-                // The kiosk=killed param forces a completely fresh navigation
-                window.location.href = '/admin?kiosk=killed'
+                // Reset activity timer on successful deactivation
+                lastActivityRef.current = Date.now()
                 return true
             }
             return false
