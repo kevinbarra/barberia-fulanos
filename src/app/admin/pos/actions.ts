@@ -265,7 +265,7 @@ export async function seatBooking(bookingId: string) {
         return { success: false, error: 'Reserva no encontrada.' }
     }
 
-    if (booking.status !== 'confirmed') {
+    if (booking.status !== 'confirmed' && booking.status !== 'pending') {
         return { success: false, error: 'Esta reserva ya fue procesada.' }
     }
 

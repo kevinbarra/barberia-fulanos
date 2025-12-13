@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toZonedTime, format } from 'date-fns-tz'
-import { Clock, CheckCircle2, Scissors, XCircle } from 'lucide-react'
+import { Clock, CheckCircle2, Scissors, XCircle, UserCheck } from 'lucide-react'
 import CheckOutModal from './CheckOutModal'
 import Image from 'next/image'
 import { cancelBookingAdmin, markNoShow } from '@/app/admin/bookings/actions'
+import { seatBooking } from '@/app/admin/pos/actions'
 import { toast } from 'sonner'
 
 const TIMEZONE = 'America/Mexico_City';
@@ -19,6 +20,7 @@ export default function BookingCard({ booking }: { booking: PosBookingData }) {
     const [isCancelling, setIsCancelling] = useState(false);
     const [cancelReason, setCancelReason] = useState('');
     const [isMarkingNoShow, setIsMarkingNoShow] = useState(false);
+    const [isSeating, setIsSeating] = useState(false);
 
     // Formatear datos
     const startDate = toZonedTime(booking.start_time, TIMEZONE);
@@ -36,6 +38,8 @@ export default function BookingCard({ booking }: { booking: PosBookingData }) {
     const isCompleted = booking.status === 'completed';
     const isCancelled = booking.status === 'cancelled';
     const isNoShow = booking.status === 'no_show';
+    const isSeated = booking.status === 'seated';
+    const isPending = booking.status === 'pending' || booking.status === 'confirmed';
 
     const handleCancel = async () => {
         if (!confirm('¿Confirmas la cancelación?')) return;
@@ -64,13 +68,42 @@ export default function BookingCard({ booking }: { booking: PosBookingData }) {
         }
     }
 
+    const handleSeat = async () => {
+        setIsSeating(true)
+        const res = await seatBooking(booking.id)
+        setIsSeating(false)
+
+        if (res?.success) {
+            toast.success('🪑 Cliente en silla')
+            router.refresh()
+        } else {
+            toast.error(res?.error || 'Error al sentar cliente')
+        }
+    }
+
+    // Determine card styling based on status
+    const getCardClasses = () => {
+        if (isCompleted) return 'opacity-60'
+        if (isCancelled) return 'bg-red-50/50 border-red-100'
+        if (isNoShow) return 'bg-orange-50/50 border-orange-100 opacity-60'
+        if (isSeated) return 'bg-amber-50 border-amber-300 ring-2 ring-amber-400/30'
+        return ''
+    }
+
+    const getIndicatorColor = () => {
+        if (isCompleted) return 'bg-green-500'
+        if (isCancelled) return 'bg-red-500'
+        if (isNoShow) return 'bg-orange-500'
+        if (isSeated) return 'bg-amber-500'
+        return 'bg-black'
+    }
+
     return (
         <>
-            <div className={`group relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md overflow-hidden ${isCompleted ? 'opacity-60' : ''} ${isCancelled ? 'bg-red-50/50 border-red-100' : ''} ${isNoShow ? 'bg-orange-50/50 border-orange-100 opacity-60' : ''}`}>
+            <div className={`group relative bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md overflow-hidden ${getCardClasses()}`}>
 
                 {/* Indicador lateral */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${isCompleted ? 'bg-green-500' : isCancelled ? 'bg-red-500' : isNoShow ? 'bg-orange-500' : 'bg-black'
-                    }`} />
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getIndicatorColor()}`} />
 
                 <div className="flex justify-between items-start mb-3 pl-3">
                     <div>
@@ -100,6 +133,10 @@ export default function BookingCard({ booking }: { booking: PosBookingData }) {
                         ) : isNoShow ? (
                             <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full flex items-center gap-1">
                                 <XCircle size={10} /> No Show
+                            </span>
+                        ) : isSeated ? (
+                            <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-full flex items-center gap-1">
+                                <UserCheck size={10} /> En Silla
                             </span>
                         ) : (
                             <span className="font-black text-lg text-gray-900">${price}</span>
@@ -139,25 +176,42 @@ export default function BookingCard({ booking }: { booking: PosBookingData }) {
                                 </div>
                             ) : (
                                 <>
-                                    <button
-                                        onClick={handleNoShow}
-                                        disabled={isMarkingNoShow}
-                                        className="text-xs font-bold text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
-                                    >
-                                        {isMarkingNoShow ? '...' : 'No Show'}
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCancelling(true)}
-                                        className="text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
-                                    <button
-                                        onClick={() => setIsCheckoutOpen(true)}
-                                        className="text-xs font-bold text-white bg-black hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition-colors shadow-sm"
-                                    >
-                                        Cobrar
-                                    </button>
+                                    {/* Only show No-Show and Cancel for non-seated bookings */}
+                                    {isPending && (
+                                        <>
+                                            <button
+                                                onClick={handleNoShow}
+                                                disabled={isMarkingNoShow}
+                                                className="text-xs font-bold text-orange-500 hover:text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                            >
+                                                {isMarkingNoShow ? '...' : 'No Show'}
+                                            </button>
+                                            <button
+                                                onClick={() => setIsCancelling(true)}
+                                                className="text-xs font-bold text-red-400 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            {/* ATENDER: Start service, change to seated */}
+                                            <button
+                                                onClick={handleSeat}
+                                                disabled={isSeating}
+                                                className="text-xs font-bold text-white bg-black hover:bg-zinc-800 px-3 py-1.5 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                                            >
+                                                {isSeating ? '...' : 'Atender'}
+                                            </button>
+                                        </>
+                                    )}
+
+                                    {/* COBRAR: Only visible when seated */}
+                                    {isSeated && (
+                                        <button
+                                            onClick={() => setIsCheckoutOpen(true)}
+                                            className="text-xs font-bold text-white bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg transition-colors shadow-sm"
+                                        >
+                                            💰 Cobrar
+                                        </button>
+                                    )}
                                 </>
                             )}
                         </div>
