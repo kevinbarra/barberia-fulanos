@@ -517,15 +517,20 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         const staffMap = new Map<string, StaffBreakdown>()
 
+        // IMPORTANT: Include ALL transactions, even those without booking_id
+        // Orphan transactions (no booking) go to "Ventas Rápidas" category
+        const ORPHAN_KEY = '__ORPHAN__'
+
         for (const tx of transactions) {
             const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
-            if (!staffId) continue
 
-            const staffName = staffNames.get(staffId) || 'Sin nombre'
+            // Use staffId if found, otherwise use ORPHAN_KEY for transactions without booking
+            const finalKey = staffId || ORPHAN_KEY
+            const staffName = staffId ? (staffNames.get(staffId) || 'Sin nombre') : 'Ventas Rápidas'
 
-            if (!staffMap.has(staffId)) {
-                staffMap.set(staffId, {
-                    staffId,
+            if (!staffMap.has(finalKey)) {
+                staffMap.set(finalKey, {
+                    staffId: finalKey,
                     staffName,
                     cash: 0,
                     card: 0,
@@ -534,7 +539,7 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
                 })
             }
 
-            const staffData = staffMap.get(staffId)!
+            const staffData = staffMap.get(finalKey)!
             const amount = Number(tx.amount) || 0
             // Default to 'cash' if payment_method is null/undefined
             const paymentMethod = tx.payment_method || 'cash'
@@ -643,25 +648,26 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
             if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
         }
 
-        // Aggregate by staff
+        // Aggregate by staff - INCLUDE ORPHAN TRANSACTIONS
         const staffMap = new Map<string, { revenue: number; services: number }>()
+        const ORPHAN_KEY = '__ORPHAN__'
 
         for (const tx of transactions) {
             const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
-            if (!staffId) continue
+            const finalKey = staffId || ORPHAN_KEY
 
-            if (!staffMap.has(staffId)) {
-                staffMap.set(staffId, { revenue: 0, services: 0 })
+            if (!staffMap.has(finalKey)) {
+                staffMap.set(finalKey, { revenue: 0, services: 0 })
             }
 
-            const data = staffMap.get(staffId)!
+            const data = staffMap.get(finalKey)!
             data.revenue += Number(tx.amount) || 0
             data.services += 1
         }
 
         const result = Array.from(staffMap.entries())
             .map(([staffId, data]) => ({
-                staff_name: staffNames.get(staffId) || 'Sin nombre',
+                staff_name: staffId === ORPHAN_KEY ? 'Ventas Rápidas' : (staffNames.get(staffId) || 'Sin nombre'),
                 total_revenue: data.revenue,
                 total_services: data.services,
                 avg_service_value: data.services > 0 ? Math.round(data.revenue / data.services) : 0
@@ -747,25 +753,26 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
             if (s.id && s.name) serviceNames.set(s.id, s.name)
         }
 
-        // Aggregate by service
+        // Aggregate by service - INCLUDE ORPHAN TRANSACTIONS
         const serviceMap = new Map<string, { revenue: number; count: number }>()
+        const ORPHAN_KEY = '__ORPHAN__'
 
         for (const tx of transactions) {
             const serviceId = tx.booking_id ? bookingToService.get(tx.booking_id) : null
-            if (!serviceId) continue
+            const finalKey = serviceId || ORPHAN_KEY
 
-            if (!serviceMap.has(serviceId)) {
-                serviceMap.set(serviceId, { revenue: 0, count: 0 })
+            if (!serviceMap.has(finalKey)) {
+                serviceMap.set(finalKey, { revenue: 0, count: 0 })
             }
 
-            const data = serviceMap.get(serviceId)!
+            const data = serviceMap.get(finalKey)!
             data.revenue += Number(tx.amount) || 0
             data.count += 1
         }
 
         const result = Array.from(serviceMap.entries())
             .map(([serviceId, data]) => ({
-                service_name: serviceNames.get(serviceId) || 'Servicio desconocido',
+                service_name: serviceId === ORPHAN_KEY ? 'Ventas Generales' : (serviceNames.get(serviceId) || 'Servicio desconocido'),
                 total_revenue: data.revenue,
                 times_sold: data.count
             }))

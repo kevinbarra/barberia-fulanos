@@ -71,12 +71,9 @@ export default function KioskModeProvider({
                 // First, update local state
                 setIsKioskMode(false)
 
-                // Small delay to ensure cookie is fully cleared by the browser
-                // This prevents the "zombie kiosk" bug where reload happens before cookie is deleted
-                await new Promise(resolve => setTimeout(resolve, 300))
-
-                // Force full page reload to ensure clean state
-                window.location.reload()
+                // Use href redirect instead of reload to break browser cache cycle
+                // The kiosk=killed param forces a completely fresh navigation
+                window.location.href = '/admin?kiosk=killed'
                 return true
             }
             return false
