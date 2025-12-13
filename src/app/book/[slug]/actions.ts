@@ -211,7 +211,9 @@ export async function createBooking(data: {
     });
 
     // 7. ENVIAR NOTIFICACIONES (en paralelo, no bloqueantes)
-
+    /* 
+    // TEMPORARY DISABLED FOR PRODUCTION SETUP (PREVENT SPAM)
+    
     // 7.1 Email de confirmación al cliente
     sendBookingEmail({
         clientName: data.client_name,
@@ -257,6 +259,7 @@ export async function createBooking(data: {
             isOwnerNotification: true
         });
     }
+    */
 
     // 8. BROADCAST para notificación en tiempo real al admin
     // Esto no depende de RLS, funciona siempre

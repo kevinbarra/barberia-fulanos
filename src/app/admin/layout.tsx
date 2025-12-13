@@ -138,7 +138,7 @@ export default async function AdminLayout({
                 <AutoRefreshWrapper />
                 <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
                 <Sidebar role={userRole} tenantName={tenantName} />
-                <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
+                <div className="flex-1 flex flex-col min-h-[100dvh] relative w-full pt-16 lg:pt-0">
                     {/* Realtime notifications - Desktop only */}
                     {tenantId && (
                         <div className="fixed top-4 right-4 z-50 hidden lg:block">
