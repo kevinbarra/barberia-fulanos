@@ -6,25 +6,17 @@ import RetentionChart from '@/components/admin/reports/RetentionChart';
 import DateRangeSelector from '@/components/admin/reports/DateRangeSelector';
 import HourlyHeatmap from '@/components/admin/reports/HourlyHeatmap';
 import WeekdayTrendsChart from '@/components/admin/reports/WeekdayTrendsChart';
+import CashDrawerSummary from '@/components/admin/reports/CashDrawerSummary';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import { getTenantIdForAdmin } from '@/utils/supabase/server';
-import { isKioskModeActive } from '@/utils/kiosk-server';
 
 export default async function ReportsPage(props: { searchParams: Promise<any> }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) redirect('/login');
-
-    const tenantId = await getTenantIdForAdmin();
-
-    // SECURITY: Block access in kiosk mode
-    if (await isKioskModeActive(tenantId)) {
-        redirect('/admin');
-    }
 
     const { data: profile } = await supabase
         .from('profiles')
@@ -70,6 +62,15 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     <DateRangeSelector />
                 </div>
 
+                {/* Corte de Caja - Hoy (Prioritario) */}
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="text-green-600">💰</span>
+                        Corte de Caja
+                    </h2>
+                    <CashDrawerSummary />
+                </div>
+
                 {/* KPIs Principales */}
                 <FinancialKPIs data={financialData} />
 
@@ -103,3 +104,4 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
         </div>
     );
 }
+

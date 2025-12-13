@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet, RefreshCw, Receipt } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
@@ -20,6 +20,7 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
         { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
         { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
         { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+        { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
         { name: 'Clientes', href: '/admin/clients', icon: Users },
         { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
         { name: 'Servicios', href: '/admin/services', icon: Scissors },
@@ -29,7 +30,8 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
     ];
 
     // Kiosk mode routes - operational items only (for staff in kiosk mode)
-    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/profile', '/admin/settings'];
+    // Includes expenses for daily operations
+    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/expenses', '/admin/profile', '/admin/settings'];
 
     // Determine if user should have full access (owners/super_admins always have full access)
     const hasFullAccess = role === 'owner' || role === 'super_admin' || role === 'admin';
