@@ -1,29 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useKioskMode } from './KioskModeProvider'
 import PinModal from './PinModal'
 import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { clearKioskModeCookie } from '@/app/admin/settings/actions'
 
+// Cookie name for client-side cleanup (backup only - server handles main deletion)
+const KIOSK_COOKIE_NAME = 'agendabarber_kiosk_mode'
+
 /**
- * PERSISTENT KIOSK EXIT BUTTON
+ * KIOSK EXIT BUTTON - Complete Rebuild
  * 
- * DEFINITIVE FIX:
- * - The cookie is HttpOnly so client-side document.cookie CANNOT delete it
- * - We MUST call the server action clearKioskModeCookie to delete it
- * - Then navigate after server confirms deletion
+ * Security Features:
+ * 1. Email Isolation: Only visible if isKioskEnabled = true
+ * 2. Server-side cookie deletion via clearKioskModeCookie()
+ * 3. Client-side backup cleanup (localStorage, sessionStorage)
+ * 4. 1 second delay before navigation
  */
-export default function KioskExitButton() {
+function KioskExitButtonInner() {
     const { isKioskMode, canToggleKioskMode, isKioskEnabled } = useKioskMode()
     const [showPinModal, setShowPinModal] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
 
-    // ISOLATION: Don't show if kiosk is not enabled for this user
+    // ========== EMAIL ISOLATION ==========
+    // If kiosk is not enabled for this user, don't render ANYTHING
     if (!isKioskEnabled) return null
 
-    // Only show if kiosk mode is active AND user can toggle it (owner/super_admin)
+    // Only show if kiosk mode is active AND user can toggle
     if (!isKioskMode || !canToggleKioskMode) return null
 
     const handleClick = () => {
@@ -33,39 +38,43 @@ export default function KioskExitButton() {
     const handlePinVerify = async (pin: string): Promise<boolean> => {
         setIsLoading(true)
         try {
-            // ========== SERVER-SIDE COOKIE DELETION ==========
-            // CRITICAL: The cookie is HttpOnly - ONLY the server can delete it!
-            // We call clearKioskModeCookie which:
-            // 1. Verifies the PIN
-            // 2. Calls cookieStore.delete() on the server
-            console.log('[KioskExitButton] Calling clearKioskModeCookie...')
+            console.log('[KioskExitButton] Starting deactivation process...')
 
-            const result = await clearKioskModeCookie(pin, '')  // tenantId obtained from session
-
-            console.log('[KioskExitButton] Server response:', result)
+            // ========== STEP 1: SERVER-SIDE COOKIE DELETION ==========
+            // The cookie is HttpOnly - ONLY the server can delete it
+            const result = await clearKioskModeCookie(pin, '')
 
             if (!result.success) {
+                console.log('[KioskExitButton] Server rejected PIN')
                 toast.error(result.error || 'PIN incorrecto')
                 return false
             }
 
-            // ========== SUCCESS - Cookie is deleted on server ==========
+            console.log('[KioskExitButton] Server confirmed cookie deletion')
             toast.success('Modo Kiosko desactivado. Redirigiendo...')
             setShowPinModal(false)
 
-            // Clear any client-side storage (not cookies, those are HttpOnly)
+            // ========== STEP 2: CLIENT-SIDE BACKUP CLEANUP ==========
+            // These are backups - the server already deleted the HttpOnly cookie
             try {
+                // Try to clear cookie from all possible paths (won't work for HttpOnly, but just in case)
+                document.cookie = `${KIOSK_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+                document.cookie = `${KIOSK_COOKIE_NAME}=; path=/admin; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+
+                // Clear all storage
                 localStorage.removeItem('kioskMode')
+                localStorage.removeItem('kiosk_mode')
                 sessionStorage.clear()
             } catch (e) {
                 // Ignore storage errors
             }
 
-            // Wait a moment for server state to propagate
-            await new Promise(resolve => setTimeout(resolve, 500))
+            // ========== STEP 3: ROBUST DELAY ==========
+            // Wait 1 full second to ensure all async operations complete
+            await new Promise(resolve => setTimeout(resolve, 1000))
 
-            // Navigate to completely fresh page
-            // The layout.tsx will read the cookie (now deleted) and set initialKioskMode = false
+            // ========== STEP 4: FORCED NAVIGATION ==========
+            // Use kiosk_disabled param so provider knows to start grace period
             window.location.href = `/admin?kiosk_disabled=${Date.now()}`
             return true
 
@@ -80,7 +89,6 @@ export default function KioskExitButton() {
 
     return (
         <>
-            {/* Floating Exit Button - Always visible in kiosk mode */}
             <button
                 onClick={handleClick}
                 disabled={isLoading}
@@ -92,7 +100,6 @@ export default function KioskExitButton() {
                 <span className="sm:hidden">🔓</span>
             </button>
 
-            {/* PIN Modal */}
             <PinModal
                 isOpen={showPinModal}
                 onClose={() => !isLoading && setShowPinModal(false)}
@@ -103,5 +110,14 @@ export default function KioskExitButton() {
                 verifyPin={handlePinVerify}
             />
         </>
+    )
+}
+
+// Wrap in Suspense because we use useSearchParams in provider
+export default function KioskExitButton() {
+    return (
+        <Suspense fallback={null}>
+            <KioskExitButtonInner />
+        </Suspense>
     )
 }

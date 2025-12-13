@@ -2,16 +2,32 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 import { setKioskModeCookie, clearKioskModeCookie } from '@/app/admin/settings/actions'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-// ISOLATION: Only this email/tenant uses kiosk mode
-// Super Admins and other tenants are NOT affected
+// ============================================================
+// KIOSK MODE PROVIDER - Complete Rebuild
+// ============================================================
+// Security Features:
+// 1. Email Isolation: ONLY fulanosbarbermx@gmail.com is affected
+// 2. PIN from Database: Read from tenants.kiosk_pin
+// 3. Client-side deactivation with 1s delay
+// 4. Auto-reactivation after 5 minutes of inactivity
+// ============================================================
+
+// Auto-reactivation timeout: 5 minutes in milliseconds
+const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
+
+// Grace period after deactivation before timer starts: 2 minutes
+const GRACE_PERIOD_MS = 2 * 60 * 1000 // 120,000ms
+
+// ISOLATION: Only this email uses kiosk mode
+// Super Admins and other tenants are NEVER affected
 const KIOSK_ENABLED_EMAIL = 'fulanosbarbermx@gmail.com'
 
 interface KioskModeContextType {
     isKioskMode: boolean
     canToggleKioskMode: boolean
-    isKioskEnabled: boolean  // Whether kiosk feature is available for this user
+    isKioskEnabled: boolean
     activateKioskMode: () => Promise<void>
     deactivateKioskMode: (pin: string) => Promise<boolean>
 }
@@ -21,7 +37,6 @@ const KioskModeContext = createContext<KioskModeContextType | null>(null)
 export function useKioskMode() {
     const ctx = useContext(KioskModeContext)
     if (!ctx) {
-        // Return default values if not within provider (for SSR safety)
         return {
             isKioskMode: false,
             canToggleKioskMode: false,
@@ -36,9 +51,9 @@ export function useKioskMode() {
 interface Props {
     children: ReactNode
     userRole: string
-    userEmail?: string  // NEW: User email for isolation check
+    userEmail?: string
     tenantId: string
-    initialKioskMode?: boolean // Server-side initial state from cookie
+    initialKioskMode?: boolean
 }
 
 export default function KioskModeProvider({
@@ -49,20 +64,37 @@ export default function KioskModeProvider({
     initialKioskMode = false
 }: Props) {
     const router = useRouter()
+    const searchParams = useSearchParams()
 
-    // ISOLATION CHECK: Only enable kiosk for the specific email/tenant
-    // Super Admins (kevinbarra2001@gmail.com) are NEVER affected by kiosk mode
+    // ========== EMAIL ISOLATION CHECK ==========
+    // If user email is NOT fulanosbarbermx@gmail.com, ALL kiosk logic is disabled
     const isKioskEnabled = userEmail.toLowerCase() === KIOSK_ENABLED_EMAIL.toLowerCase()
 
-    // If kiosk is not enabled for this user, force isKioskMode to false
+    // If not enabled, force everything to false and don't initialize anything
     const [isKioskMode, setIsKioskMode] = useState(isKioskEnabled ? initialKioskMode : false)
 
-    // Only owner and super_admin can toggle kiosk mode
-    // But only if kiosk is enabled for their email
+    // Track last activity time for auto-reactivation
+    const lastActivityRef = useRef<number>(Date.now())
+
+    // Track deactivation time for grace period
+    const deactivatedAtRef = useRef<number | null>(null)
+
+    // Only owner can toggle kiosk mode, and only if enabled
     const canToggleKioskMode = isKioskEnabled && (userRole === 'owner' || userRole === 'super_admin')
 
-    // Sync with server state on mount (for client-side navigation)
-    // But only if kiosk is enabled for this user
+    // Detect if we just deactivated (URL has kiosk_disabled param)
+    useEffect(() => {
+        if (!isKioskEnabled) return
+
+        const kioskDisabled = searchParams.get('kiosk_disabled') || searchParams.get('kiosk_reset_final')
+        if (kioskDisabled) {
+            console.log('[KioskModeProvider] Detected kiosk_disabled param, setting grace period')
+            deactivatedAtRef.current = Date.now()
+            lastActivityRef.current = Date.now()
+        }
+    }, [searchParams, isKioskEnabled])
+
+    // Sync with server state on mount
     useEffect(() => {
         if (isKioskEnabled) {
             setIsKioskMode(initialKioskMode)
@@ -71,57 +103,101 @@ export default function KioskModeProvider({
         }
     }, [initialKioskMode, isKioskEnabled])
 
-    // ========== AUTO-REACTIVATION LOGIC - DISABLED ==========
-    // TODO: Re-enable after kiosk system is stable
-    // The auto-reactivation was causing the "zombie kiosk" bug because
-    // it was re-activating kiosk mode before the user could interact
-    // 
-    // When we re-enable, we need:
-    // 1. A grace period after deactivation (e.g., skip first 2 minutes)
-    // 2. Detection of ?kiosk_disabled= in URL to pause timer
-    // 3. Better activity tracking
-    //
-    // For now, kiosk mode ONLY activates via:
-    // - Manual toggle in settings
-    // - Stays active until manually deactivated
+    // ========== AUTO-REACTIVATION TIMER ==========
+    // Only runs for fulanosbarbermx@gmail.com when kiosk is OFF
+    useEffect(() => {
+        // ISOLATION: Skip if not enabled
+        if (!isKioskEnabled) return
+
+        // Only run if kiosk mode is OFF and user can toggle it
+        if (isKioskMode || !canToggleKioskMode) return
+
+        console.log('[KioskModeProvider] Auto-reactivation timer initialized for', userEmail)
+
+        // Update last activity timestamp on user interaction
+        const updateActivity = () => {
+            lastActivityRef.current = Date.now()
+        }
+
+        // Listen for user interactions
+        const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
+        events.forEach(event => {
+            window.addEventListener(event, updateActivity, { passive: true })
+        })
+
+        // Check for inactivity every 30 seconds
+        const checkInterval = setInterval(async () => {
+            // Check grace period first
+            if (deactivatedAtRef.current) {
+                const timeSinceDeactivation = Date.now() - deactivatedAtRef.current
+                if (timeSinceDeactivation < GRACE_PERIOD_MS) {
+                    console.log('[KioskModeProvider] Still in grace period, skipping check')
+                    return
+                }
+            }
+
+            const inactiveTime = Date.now() - lastActivityRef.current
+
+            if (inactiveTime > INACTIVITY_TIMEOUT_MS) {
+                console.log('[KioskModeProvider] 5 minutes of inactivity detected. Auto-activating kiosk mode...')
+
+                try {
+                    const result = await setKioskModeCookie(tenantId)
+                    if (result.success) {
+                        // Force reload to require PIN again
+                        window.location.href = '/admin?kiosk_timeout=1'
+                    }
+                } catch (error) {
+                    console.error('[KioskModeProvider] Error auto-activating kiosk mode:', error)
+                }
+            }
+        }, 30000) // Check every 30 seconds
+
+        return () => {
+            events.forEach(event => {
+                window.removeEventListener(event, updateActivity)
+            })
+            clearInterval(checkInterval)
+        }
+    }, [isKioskMode, canToggleKioskMode, tenantId, isKioskEnabled, userEmail])
 
     const activateKioskMode = useCallback(async () => {
-        // ISOLATION: Block if not enabled
         if (!isKioskEnabled) return
 
         try {
             const result = await setKioskModeCookie(tenantId)
             if (result.success) {
                 setIsKioskMode(true)
-                // Refresh to update server components
+                deactivatedAtRef.current = null // Clear grace period
                 router.refresh()
             }
         } catch (error) {
-            console.error('Error activating kiosk mode:', error)
+            console.error('[KioskModeProvider] Error activating kiosk mode:', error)
         }
     }, [tenantId, router, isKioskEnabled])
 
     const deactivateKioskMode = useCallback(async (pin: string): Promise<boolean> => {
-        // ISOLATION: Block if not enabled
         if (!isKioskEnabled) return false
 
         try {
+            // Server action verifies PIN and deletes cookie
             const result = await clearKioskModeCookie(pin, tenantId)
             if (result.success) {
-                // Update local state
                 setIsKioskMode(false)
+                lastActivityRef.current = Date.now()
+                deactivatedAtRef.current = Date.now() // Start grace period
                 return true
             }
             return false
         } catch (error) {
-            console.error('Error deactivating kiosk mode:', error)
+            console.error('[KioskModeProvider] Error deactivating kiosk mode:', error)
             return false
         }
     }, [tenantId, isKioskEnabled])
 
     return (
         <KioskModeContext.Provider value={{
-            isKioskMode: isKioskEnabled ? isKioskMode : false,  // Force false if not enabled
+            isKioskMode: isKioskEnabled ? isKioskMode : false,
             canToggleKioskMode,
             isKioskEnabled,
             activateKioskMode,
