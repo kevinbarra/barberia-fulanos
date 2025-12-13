@@ -1,30 +1,69 @@
 'use server'
 
 import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { headers } from 'next/headers';
 
 // Helper para verificar rol y obtener tenant (soporta super admin)
+// Uses admin client to bypass RLS and guarantee profile resolution
 async function requireAdminOrOwner() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No autenticado');
+    const adminClient = createAdminClient();
 
-    const { data: profile } = await supabase
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        console.error('[requireAdminOrOwner] Auth error:', authError);
+        throw new Error('No autenticado - sesión inválida');
+    }
+
+    // Use ADMIN CLIENT to get profile (bypasses RLS completely)
+    const { data: profile, error: profileError } = await adminClient
         .from('profiles')
         .select('tenant_id, role')
         .eq('id', user.id)
         .single();
 
-    if (!profile) throw new Error('Perfil no encontrado');
+    if (profileError) {
+        console.error(`[requireAdminOrOwner] Profile error for User ID: ${user.id}`, profileError);
+        throw new Error(`Perfil no encontrado para User ID: ${user.id}`);
+    }
+
+    if (!profile?.tenant_id) {
+        console.error(`[requireAdminOrOwner] No tenant_id for User ID: ${user.id}`, profile);
+        throw new Error(`Usuario sin tenant asignado: ${user.id}`);
+    }
 
     // Verificación estricta: Staff no puede ver reportes
     if (profile.role === 'staff') {
         throw new Error('Acceso denegado: Solo administradores pueden ver reportes.');
     }
 
-    // Para super admin, obtener tenant del subdomain
-    const tenantId = await getTenantIdForAdmin();
+    // Para super admin en subdomain, resolver tenant desde hostname
+    if (profile.role === 'super_admin') {
+        const headersList = await headers();
+        const hostname = headersList.get('host') || '';
+        const parts = hostname.replace(':443', '').replace(':80', '').split('.');
 
-    return { ...profile, tenant_id: tenantId };
+        if (parts.length >= 3) {
+            const subdomain = parts[0];
+            const reservedSubdomains = ['www', 'api', 'admin', 'app'];
+
+            if (!reservedSubdomains.includes(subdomain)) {
+                const { data: tenant } = await adminClient
+                    .from('tenants')
+                    .select('id')
+                    .eq('slug', subdomain)
+                    .single();
+
+                if (tenant?.id) {
+                    console.log(`[requireAdminOrOwner] Super admin resolved to tenant: ${subdomain}`);
+                    return { ...profile, tenant_id: tenant.id };
+                }
+            }
+        }
+    }
+
+    return { ...profile, tenant_id: profile.tenant_id };
 }
 
 export async function getFinancialDashboard(

@@ -10,28 +10,36 @@ import { headers } from 'next/headers'
 const TIMEZONE = 'America/Mexico_City'
 
 // ==================== HELPER: Get Secure Tenant ID ====================
-async function getSecureTenantId(): Promise<{ tenantId: string | null; userId: string | null; error?: string }> {
+// Uses admin client to bypass RLS and guarantee profile resolution
+async function getSecureTenantId(): Promise<{ tenantId: string | null; userId: string | null; userRole?: string; error?: string }> {
     const supabase = await createClient()
+    const adminClient = createAdminClient()
 
-    // 1. Get authenticated user
+    // 1. Get authenticated user (this still works, just need auth token)
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
-        return { tenantId: null, userId: null, error: 'No autorizado' }
+        console.error('[getSecureTenantId] Auth error:', authError)
+        return { tenantId: null, userId: null, error: 'No autorizado - sesión inválida' }
     }
 
-    // 2. Get user profile with tenant_id
-    const { data: profile, error: profileError } = await supabase
+    // 2. Use ADMIN CLIENT to get profile (bypasses RLS completely)
+    const { data: profile, error: profileError } = await adminClient
         .from('profiles')
         .select('tenant_id, role')
         .eq('id', user.id)
         .single()
 
-    if (profileError || !profile?.tenant_id) {
-        console.error('[getSecureTenantId] Profile error:', profileError)
-        return { tenantId: null, userId: user.id, error: 'Perfil no encontrado' }
+    if (profileError) {
+        console.error(`[getSecureTenantId] Profile error for User ID: ${user.id}`, profileError)
+        return { tenantId: null, userId: user.id, error: `Perfil no encontrado para User ID: ${user.id}` }
     }
 
-    // 3. For super_admin, check if they're on a subdomain
+    if (!profile?.tenant_id) {
+        console.error(`[getSecureTenantId] No tenant_id for User ID: ${user.id}`, profile)
+        return { tenantId: null, userId: user.id, error: `Usuario sin tenant asignado: ${user.id}` }
+    }
+
+    // 3. For super_admin on subdomain, resolve tenant from hostname
     if (profile.role === 'super_admin') {
         const headersList = await headers()
         const hostname = headersList.get('host') || ''
@@ -39,20 +47,24 @@ async function getSecureTenantId(): Promise<{ tenantId: string | null; userId: s
 
         if (parts.length >= 3) {
             const subdomain = parts[0]
-            const adminClient = createAdminClient()
-            const { data: tenant } = await adminClient
-                .from('tenants')
-                .select('id')
-                .eq('slug', subdomain)
-                .single()
+            const reservedSubdomains = ['www', 'api', 'admin', 'app']
 
-            if (tenant?.id) {
-                return { tenantId: tenant.id, userId: user.id }
+            if (!reservedSubdomains.includes(subdomain)) {
+                const { data: tenant } = await adminClient
+                    .from('tenants')
+                    .select('id')
+                    .eq('slug', subdomain)
+                    .single()
+
+                if (tenant?.id) {
+                    console.log(`[getSecureTenantId] Super admin resolved to tenant: ${subdomain}`)
+                    return { tenantId: tenant.id, userId: user.id, userRole: profile.role }
+                }
             }
         }
     }
 
-    return { tenantId: profile.tenant_id, userId: user.id }
+    return { tenantId: profile.tenant_id, userId: user.id, userRole: profile.role }
 }
 
 // ==================== CREATE EXPENSE ====================
