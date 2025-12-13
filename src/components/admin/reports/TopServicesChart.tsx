@@ -42,9 +42,11 @@ export default function TopServicesChart() {
         fetchData();
     };
 
+    // Chart uses COUNT (times_sold) for popularity, not revenue
     const chartData = data.slice(0, 6).map(item => ({
         name: item.service_name,
-        value: Number(item.total_revenue)
+        value: item.times_sold,
+        revenue: Number(item.total_revenue)
     }));
 
     // Loading State
@@ -101,7 +103,12 @@ export default function TopServicesChart() {
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                         </Pie>
-                        <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
+                        <Tooltip
+                            formatter={(value: number, name: string, entry) => [
+                                `${value} ventas ($${(entry.payload.revenue || 0).toLocaleString()})`,
+                                'Popularidad'
+                            ]}
+                        />
                     </PieChart>
                 </ResponsiveContainer>
             </div>

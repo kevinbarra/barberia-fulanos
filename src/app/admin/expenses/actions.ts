@@ -403,7 +403,7 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
 }
 
 // ==================== GET STAFF FINANCIAL BREAKDOWN ====================
-// Returns earnings grouped by staff member and payment method for a date range
+// SIMPLIFIED: Uses direct staff_id column, excludes kiosk user, no generic labels
 export async function getStaffFinancialBreakdown(startISO?: string, endISO?: string) {
     try {
         const { tenantId, error: authError } = await getSecureTenantId()
@@ -436,15 +436,10 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         const adminClient = createAdminClient()
 
-        // Step 1: Get transactions with booking info (simpler query)
+        // SIMPLIFIED: Get transactions with direct staff_id column
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select(`
-                id,
-                amount, 
-                payment_method,
-                booking_id
-            `)
+            .select('id, amount, payment_method, staff_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -460,54 +455,30 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             return { success: true, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
         }
 
-        // Step 2: Get unique booking IDs and fetch booking+staff info
-        // NOTE: Even if bookingIds is empty, we continue to include orphan transactions
-        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
+        // Get unique staff IDs directly from transactions
+        const staffIds = [...new Set(transactions.map(t => t.staff_id).filter(Boolean))]
 
-        // Only fetch bookings if we have booking IDs
-        let bookings: Array<{ id: string; staff_id: string }> = []
-        if (bookingIds.length > 0) {
-            const { data: bookingsData, error: bookingError } = await adminClient
-                .from('bookings')
-                .select(`
-                    id,
-                    staff_id
-                `)
-                .in('id', bookingIds)
+        // Get staff names AND emails to identify kiosk user
+        const { data: staffProfiles } = staffIds.length > 0
+            ? await adminClient
+                .from('profiles')
+                .select('id, full_name, email')
+                .in('id', staffIds)
+            : { data: [] }
 
-            if (bookingError) {
-                console.error('[getStaffFinancialBreakdown] Bookings query error:', bookingError)
-                // Don't return error - continue with empty bookings to show orphan transactions
-            } else {
-                bookings = bookingsData || []
+        // Build lookup maps and identify kiosk user to exclude
+        const KIOSK_EMAIL = 'fulanosbarbermx@gmail.com'
+        const staffNames = new Map<string, string>()
+        const staffToExclude = new Set<string>()
+
+        for (const p of staffProfiles || []) {
+            if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
+            if (p.email?.toLowerCase() === KIOSK_EMAIL) {
+                staffToExclude.add(p.id)
             }
         }
 
-        // Step 3: Get unique staff IDs and fetch names
-        const staffIds = [...new Set(bookings?.map(b => b.staff_id).filter(Boolean) || [])]
-
-        const { data: staffProfiles, error: profileError } = await adminClient
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', staffIds)
-
-        if (profileError) {
-            console.error('[getStaffFinancialBreakdown] Profiles query error:', profileError)
-            // Continue without names - not a critical failure
-        }
-
-        // Build lookup maps
-        const bookingToStaff = new Map<string, string>()
-        for (const b of bookings || []) {
-            if (b.id && b.staff_id) bookingToStaff.set(b.id, b.staff_id)
-        }
-
-        const staffNames = new Map<string, string>()
-        for (const p of staffProfiles || []) {
-            if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
-        }
-
-        // Step 4: Group by staff member
+        // Group by staff member - exclude kiosk user
         type StaffBreakdown = {
             staffId: string
             staffName: string
@@ -519,20 +490,17 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         const staffMap = new Map<string, StaffBreakdown>()
 
-        // IMPORTANT: Include ALL transactions, even those without booking_id
-        // Orphan transactions (no booking) go to "Ventas Rápidas" category
-        const ORPHAN_KEY = '__ORPHAN__'
-
         for (const tx of transactions) {
-            const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
+            const staffId = tx.staff_id
 
-            // Use staffId if found, otherwise use ORPHAN_KEY for transactions without booking
-            const finalKey = staffId || ORPHAN_KEY
-            const staffName = staffId ? (staffNames.get(staffId) || 'Sin nombre') : 'Ventas Rápidas'
+            // Skip if no staff_id or if it's the kiosk user
+            if (!staffId || staffToExclude.has(staffId)) continue
 
-            if (!staffMap.has(finalKey)) {
-                staffMap.set(finalKey, {
-                    staffId: finalKey,
+            const staffName = staffNames.get(staffId) || 'Sin nombre'
+
+            if (!staffMap.has(staffId)) {
+                staffMap.set(staffId, {
+                    staffId,
                     staffName,
                     cash: 0,
                     card: 0,
@@ -541,15 +509,14 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
                 })
             }
 
-            const staffData = staffMap.get(finalKey)!
+            const staffData = staffMap.get(staffId)!
             const amount = Number(tx.amount) || 0
-            // Default to 'cash' if payment_method is null/undefined
             const paymentMethod = tx.payment_method || 'cash'
 
             if (paymentMethod === 'cash') staffData.cash += amount
             else if (paymentMethod === 'card') staffData.card += amount
             else if (paymentMethod === 'transfer') staffData.transfer += amount
-            else staffData.cash += amount // Default fallback
+            else staffData.cash += amount
 
             staffData.total += amount
         }
@@ -627,24 +594,34 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
         // Get all unique staff IDs directly from transactions
         const staffIds = [...new Set(transactions.map(t => t.staff_id).filter(Boolean))]
 
-        // Get staff names
+        // Get staff names AND emails to identify kiosk user
         const { data: staffProfiles } = staffIds.length > 0
             ? await adminClient
                 .from('profiles')
-                .select('id, full_name')
+                .select('id, full_name, email')
                 .in('id', staffIds)
             : { data: [] }
 
+        // Build lookup maps and identify kiosk user to exclude
+        const KIOSK_EMAIL = 'fulanosbarbermx@gmail.com'
         const staffNames = new Map<string, string>()
+        const staffToExclude = new Set<string>()
+
         for (const p of staffProfiles || []) {
             if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
+            if (p.email?.toLowerCase() === KIOSK_EMAIL) {
+                staffToExclude.add(p.id)
+            }
         }
 
-        // Aggregate by staff - staff_id is always present
+        // Aggregate by staff - exclude kiosk user
         const staffMap = new Map<string, { revenue: number; services: number }>()
 
         for (const tx of transactions) {
-            const staffId = tx.staff_id || '__UNKNOWN__'
+            const staffId = tx.staff_id
+
+            // Skip if no staff_id or if it's the kiosk user
+            if (!staffId || staffToExclude.has(staffId)) continue
 
             if (!staffMap.has(staffId)) {
                 staffMap.set(staffId, { revenue: 0, services: 0 })
