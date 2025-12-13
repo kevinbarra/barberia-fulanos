@@ -3,63 +3,86 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet, RefreshCw, Receipt } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, RefreshCw, Receipt, Lock } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 import { useKioskMode } from '@/components/admin/KioskModeProvider';
 import { toast } from 'sonner';
 
+// ZERO TRUST: Define routes by access level
+const FULL_ADMIN_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Clientes', href: '/admin/clients', icon: Users },
+    { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
+    { name: 'Servicios', href: '/admin/services', icon: Scissors },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+    { name: 'Configuración', href: '/admin/settings', icon: Settings },
+    { name: 'Ajustes', href: '/admin/profile', icon: User },
+];
+
+// KIOSK MODE: Only operational items - NO reports, settings, team management
+const KIOSK_ALLOWED_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+];
+
+// STAFF: Limited access (no sensitive data)
+const STAFF_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Clientes', href: '/admin/clients', icon: Users },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+    { name: 'Ajustes', href: '/admin/profile', icon: User },
+];
+
 export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBarber' }: { role: string; tenantId: string; tenantName?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { isKioskMode } = useKioskMode();
 
-    const adminMenu = [
-        { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-        { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
-        { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
-        { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
-        { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
-        { name: 'Clientes', href: '/admin/clients', icon: Users },
-        { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
-        { name: 'Servicios', href: '/admin/services', icon: Scissors },
-        { name: 'Horarios', href: '/admin/schedule', icon: Clock },
-        { name: 'Configuración', href: '/admin/settings', icon: Settings },
-        { name: 'Ajustes', href: '/admin/profile', icon: User },
-    ];
+    // ZERO TRUST: Determine menu based on strictest applicable restriction
+    const getMenuToRender = () => {
+        // KIOSK MODE: Universal restriction - applies to EVERYONE including owners
+        if (isKioskMode) {
+            return KIOSK_ALLOWED_MENU;
+        }
 
-    // Kiosk mode routes - operational items only (for staff in kiosk mode)
-    // Includes expenses for daily operations
-    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/expenses', '/admin/profile', '/admin/settings'];
+        // Staff: Limited access even when kiosk is off
+        if (role === 'staff') {
+            return STAFF_MENU;
+        }
 
-    // Determine if user should have full access (owners/super_admins always have full access)
-    const hasFullAccess = role === 'owner' || role === 'super_admin' || role === 'admin';
+        // Owner, admin, super_admin: Full access (only when kiosk is OFF)
+        return FULL_ADMIN_MENU;
+    };
 
-    let menuToRender = adminMenu;
-
-    // Filter logic - kiosk mode only restricts non-admin users
-    if (isKioskMode && !hasFullAccess) {
-        // Kiosk mode filtering only applies to staff, not owners/admins
-        menuToRender = adminMenu.filter(item => kioskAllowedRoutes.includes(item.href));
-    } else if (role === 'staff') {
-        menuToRender = adminMenu.filter(item =>
-            item.href !== '/admin/team' &&
-            item.href !== '/admin/services' &&
-            item.href !== '/admin/settings' &&
-            item.href !== '/admin/reports'
-        );
-    }
-
+    const menuToRender = getMenuToRender();
     const toggleMenu = () => setIsOpen(!isOpen);
 
     return (
         <div className="lg:hidden">
             {/* Top Bar fixed */}
             <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40 shadow-sm">
-                <h1 className="font-black text-xl tracking-tighter text-gray-900 uppercase">
-                    {tenantName.length > 10 ? tenantName.slice(0, 10) + '.' : tenantName}<span className="text-blue-600">.</span>
-                </h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="font-black text-xl tracking-tighter text-gray-900 uppercase">
+                        {tenantName.length > 10 ? tenantName.slice(0, 10) + '.' : tenantName}<span className="text-blue-600">.</span>
+                    </h1>
+                    {isKioskMode && (
+                        <div className="bg-purple-100 p-1 rounded-lg" title="Modo Kiosco">
+                            <Lock size={12} className="text-purple-600" />
+                        </div>
+                    )}
+                </div>
                 <div className="flex items-center gap-2">
                     {/* Notification Bell for Mobile */}
                     {tenantId && (
@@ -97,7 +120,7 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
                         >
                             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                                 <p className="text-[10px] text-gray-400 font-bold tracking-[0.2em] mb-4 uppercase px-4">
-                                    Menú Admin
+                                    {isKioskMode ? '🔒 Modo Kiosco' : 'Menú Admin'}
                                 </p>
                                 {menuToRender.map((item) => {
                                     const isActive = pathname === item.href;

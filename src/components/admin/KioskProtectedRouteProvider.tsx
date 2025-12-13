@@ -2,25 +2,33 @@
 
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import PinModal from '@/components/admin/PinModal'
-import { verifyKioskPin } from '@/app/admin/settings/actions'
+import { useKioskMode } from '@/components/admin/KioskModeProvider'
 
-// Routes that require PIN verification for kiosk users
-const PROTECTED_ROUTES = [
-    '/admin/settings',
-    '/admin/team',
+// Routes that are BLOCKED in kiosk mode OR for staff
+const RESTRICTED_ROUTES = [
     '/admin/reports',
+    '/admin/team',
     '/admin/services',
+    '/admin/settings',
+    '/admin/clients',
+]
+
+// Routes that are always allowed
+const ALWAYS_ALLOWED = [
+    '/admin',
+    '/admin/bookings',
+    '/admin/pos',
+    '/admin/expenses',
+    '/admin/schedule',
+    '/admin/profile',
 ]
 
 interface KioskProtectedContextType {
-    isPinVerified: boolean
-    requestPinVerification: () => void
+    isRestricted: boolean
 }
 
 const KioskProtectedContext = createContext<KioskProtectedContextType>({
-    isPinVerified: false,
-    requestPinVerification: () => { }
+    isRestricted: false
 })
 
 export function useKioskProtection() {
@@ -33,6 +41,16 @@ interface KioskProtectedRouteProviderProps {
     tenantId: string
 }
 
+/**
+ * ZERO TRUST PROTECTED ROUTE PROVIDER
+ * 
+ * This component enforces route-level access control:
+ * - In kiosk mode: Blocks ALL users from restricted routes
+ * - Staff role: Blocks from restricted routes even when kiosk is off
+ * - Owners/Admins: Full access ONLY when kiosk is OFF
+ * 
+ * If access is denied, user is immediately redirected to /admin/pos
+ */
 export default function KioskProtectedRouteProvider({
     children,
     userRole,
@@ -40,71 +58,43 @@ export default function KioskProtectedRouteProvider({
 }: KioskProtectedRouteProviderProps) {
     const pathname = usePathname()
     const router = useRouter()
-    const [showPinModal, setShowPinModal] = useState(false)
-    const [isPinVerified, setIsPinVerified] = useState(false)
-    const [blockedPath, setBlockedPath] = useState<string | null>(null)
+    const { isKioskMode } = useKioskMode()
+    const [isRestricted, setIsRestricted] = useState(false)
 
-    // Check if current path is protected and user is kiosk
     useEffect(() => {
-        if (userRole !== 'kiosk') return
-
-        const isProtectedRoute = PROTECTED_ROUTES.some(route =>
+        // Check if current path is restricted
+        const isRestrictedRoute = RESTRICTED_ROUTES.some(route =>
             pathname.startsWith(route)
         )
 
-        if (isProtectedRoute && !isPinVerified) {
-            setBlockedPath(pathname)
-            setShowPinModal(true)
+        if (!isRestrictedRoute) {
+            setIsRestricted(false)
+            return // Always allowed routes pass through
         }
-    }, [pathname, userRole, isPinVerified])
 
-    const handlePinSuccess = () => {
-        setIsPinVerified(true)
-        setShowPinModal(false)
-        // Allow access to the blocked path
-        if (blockedPath) {
-            setBlockedPath(null)
+        // KIOSK MODE: Block EVERYONE from restricted routes (Zero Trust)
+        if (isKioskMode) {
+            console.warn(`[RouteGuard] Kiosk mode active. Redirecting from: ${pathname}`)
+            setIsRestricted(true)
+            router.replace('/admin/pos')
+            return
         }
-    }
 
-    const handlePinClose = () => {
-        setShowPinModal(false)
-        // Redirect back to dashboard if PIN not entered
-        if (!isPinVerified && blockedPath) {
-            router.push('/admin')
-            setBlockedPath(null)
+        // STAFF ROLE: Block from restricted routes even when kiosk is off
+        if (userRole === 'staff') {
+            console.warn(`[RouteGuard] Staff role blocked from: ${pathname}`)
+            setIsRestricted(true)
+            router.replace('/admin/pos')
+            return
         }
-    }
 
-    const handleVerifyPin = async (pin: string): Promise<boolean> => {
-        const result = await verifyKioskPin(pin, tenantId)
-        return result.valid === true
-    }
-
-    const requestPinVerification = () => {
-        setShowPinModal(true)
-    }
-
-    // If user is not kiosk, just render children
-    if (userRole !== 'kiosk') {
-        return <>{children}</>
-    }
+        // Owner, admin, super_admin: Allow access when kiosk is OFF
+        setIsRestricted(false)
+    }, [isKioskMode, userRole, pathname, router])
 
     return (
-        <KioskProtectedContext.Provider value={{ isPinVerified, requestPinVerification }}>
-            {/* Show content but with modal overlay if on protected route */}
+        <KioskProtectedContext.Provider value={{ isRestricted }}>
             {children}
-
-            {/* PIN Modal */}
-            <PinModal
-                isOpen={showPinModal}
-                onClose={handlePinClose}
-                onSuccess={handlePinSuccess}
-                title="Acceso Restringido"
-                description="Esta sección requiere PIN de administrador"
-                correctPin=""
-                verifyPin={handleVerifyPin}
-            />
         </KioskProtectedContext.Provider>
     )
 }

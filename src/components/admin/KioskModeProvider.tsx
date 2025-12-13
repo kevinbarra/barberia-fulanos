@@ -69,8 +69,9 @@ export default function KioskModeProvider({
             const result = await clearKioskModeCookie(pin, tenantId)
             if (result.success) {
                 setIsKioskMode(false)
-                // Refresh to update server components
-                router.refresh()
+                // Force full page reload to ensure clean state
+                // This is critical for restoring full privileges
+                window.location.reload()
                 return true
             }
             return false
@@ -78,7 +79,7 @@ export default function KioskModeProvider({
             console.error('Error deactivating kiosk mode:', error)
             return false
         }
-    }, [tenantId, router])
+    }, [tenantId])
 
     return (
         <KioskModeContext.Provider value={{

@@ -2,11 +2,50 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// FIX: Agregamos Settings a los imports (LogOut ya estaba bien)
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Tablet, RefreshCw, Receipt } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, RefreshCw, Receipt, Lock } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 import { useKioskMode } from '@/components/admin/KioskModeProvider'
 import { toast } from 'sonner'
+
+// ZERO TRUST: Define routes by access level
+const FULL_ADMIN_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Clientes', href: '/admin/clients', icon: Users },
+    { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
+    { name: 'Servicios', href: '/admin/services', icon: Scissors },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+    { name: 'Configuración', href: '/admin/settings', icon: Settings },
+    { name: 'Ajustes', href: '/admin/profile', icon: User },
+]
+
+// KIOSK MODE: Only operational items - NO reports, settings, team management
+const KIOSK_ALLOWED_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+]
+
+// STAFF: Limited access (no sensitive data)
+const STAFF_MENU = [
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
+    { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
+    { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
+    { name: 'Clientes', href: '/admin/clients', icon: Users },
+    { name: 'Horarios', href: '/admin/schedule', icon: Clock },
+    { name: 'Ajustes', href: '/admin/profile', icon: User },
+]
+
+const CLIENT_MENU = [
+    { name: 'Mi Wallet', href: '/app', icon: Wallet },
+    { name: 'Mi Perfil', href: '/app/profile', icon: User },
+]
 
 export default function Sidebar({
     role,
@@ -20,58 +59,45 @@ export default function Sidebar({
     const pathname = usePathname()
     const { isKioskMode } = useKioskMode()
 
-    const adminMenu = [
-        { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-        { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
-        { name: 'Agenda', href: '/admin/bookings', icon: CalendarDays },
-        { name: 'Terminal POS', href: '/admin/pos', icon: Wallet },
-        { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
-        { name: 'Clientes', href: '/admin/clients', icon: Users },
-        { name: 'Equipo', href: '/admin/team', icon: ShieldCheck },
-        { name: 'Servicios', href: '/admin/services', icon: Scissors },
-        { name: 'Horarios', href: '/admin/schedule', icon: Clock },
-        { name: 'Configuración', href: '/admin/settings', icon: Settings },
-        { name: 'Ajustes', href: '/admin/profile', icon: User },
-    ]
+    // ZERO TRUST: Determine menu based on strictest applicable restriction
+    const getMenuToRender = () => {
+        // Client always gets client menu
+        if (role === 'client') {
+            return CLIENT_MENU
+        }
 
-    const clientMenu = [
-        { name: 'Mi Wallet', href: '/app', icon: Wallet },
-        { name: 'Mi Perfil', href: '/app/profile', icon: User },
-    ]
+        // KIOSK MODE: Universal restriction - applies to EVERYONE including owners
+        // This is the strictest mode - hides all sensitive data
+        if (isKioskMode) {
+            return KIOSK_ALLOWED_MENU
+        }
 
-    // Kiosk mode routes - operational items only (for staff in kiosk mode)
-    // Includes expenses for daily operations
-    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/expenses', '/admin/profile', '/admin/settings']
+        // Staff: Limited access even when kiosk is off
+        if (role === 'staff') {
+            return STAFF_MENU
+        }
 
-    // Determine if user should have full access (owners/super_admins always have full access)
-    const hasFullAccess = role === 'owner' || role === 'super_admin' || role === 'admin'
-
-    let menuToRender = adminMenu;
-
-    if (role === 'client') {
-        menuToRender = clientMenu;
-    } else if (isKioskMode && !hasFullAccess) {
-        // Kiosk mode filtering only applies to staff, not owners/admins
-        menuToRender = adminMenu.filter(item => kioskAllowedRoutes.includes(item.href))
-    } else if (role === 'staff') {
-        // Staff: No access to Team, Services, Settings, Reports
-        menuToRender = adminMenu.filter(item =>
-            item.href !== '/admin/team' &&
-            item.href !== '/admin/services' &&
-            item.href !== '/admin/settings' &&
-            item.href !== '/admin/reports'
-        );
+        // Owner, admin, super_admin: Full access (only when kiosk is OFF)
+        return FULL_ADMIN_MENU
     }
-    // Owner, admin, and super_admin see everything
+
+    const menuToRender = getMenuToRender()
 
     return (
         <aside className={`w-64 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0 hidden lg:flex ${className}`}>
             <div className="p-6 border-b border-gray-100 mb-4">
-                <h1 className="font-black text-2xl tracking-tighter text-gray-900 uppercase">
-                    {tenantName.length > 12 ? tenantName.slice(0, 12) + '.' : tenantName}<span className="text-blue-600">.</span>
-                </h1>
+                <div className="flex items-center gap-2">
+                    <h1 className="font-black text-2xl tracking-tighter text-gray-900 uppercase">
+                        {tenantName.length > 12 ? tenantName.slice(0, 12) + '.' : tenantName}<span className="text-blue-600">.</span>
+                    </h1>
+                    {isKioskMode && (
+                        <div className="bg-purple-100 p-1.5 rounded-lg" title="Modo Kiosco Activo">
+                            <Lock size={14} className="text-purple-600" />
+                        </div>
+                    )}
+                </div>
                 <p className="text-[10px] text-gray-400 font-bold tracking-[0.2em] mt-1 uppercase">
-                    Sistema Admin
+                    {isKioskMode ? 'Modo Kiosco' : 'Sistema Admin'}
                 </p>
             </div>
 
