@@ -580,6 +580,10 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
 // ==================== GET DYNAMIC STAFF REVENUE ====================
 // Replaces staff_revenue_report view with direct transaction query
+// Attribution hierarchy:
+// 1. booking.staff_id (the barber who performed the service)
+// 2. created_by (the staff who made the sale, if not a booking)
+// 3. "Venta de Mostrador" (if created_by is the tablet user)
 export async function getDynamicStaffRevenue(startISO?: string, endISO?: string) {
     try {
         const { tenantId, error: authError } = await getSecureTenantId()
@@ -605,10 +609,10 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
 
         const adminClient = createAdminClient()
 
-        // Get transactions with booking info
+        // Get transactions with booking info AND created_by
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, booking_id')
+            .select('id, amount, booking_id, created_by')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -626,18 +630,25 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
         // Get bookings for staff mapping
         const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
 
-        const { data: bookings } = await adminClient
-            .from('bookings')
-            .select('id, staff_id')
-            .in('id', bookingIds)
+        const { data: bookings } = bookingIds.length > 0
+            ? await adminClient
+                .from('bookings')
+                .select('id, staff_id')
+                .in('id', bookingIds)
+            : { data: [] }
 
-        // Get staff names
-        const staffIds = [...new Set(bookings?.map(b => b.staff_id).filter(Boolean) || [])]
+        // Get all unique user IDs (booking staff + transaction creators)
+        const bookingStaffIds = bookings?.map(b => b.staff_id).filter(Boolean) || []
+        const creatorIds = transactions.map(t => t.created_by).filter(Boolean)
+        const allUserIds = [...new Set([...bookingStaffIds, ...creatorIds])]
 
-        const { data: staffProfiles } = await adminClient
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', staffIds)
+        // Get staff names AND emails to identify the tablet account
+        const { data: staffProfiles } = allUserIds.length > 0
+            ? await adminClient
+                .from('profiles')
+                .select('id, full_name, email')
+                .in('id', allUserIds)
+            : { data: [] }
 
         // Build lookup maps
         const bookingToStaff = new Map<string, string>()
@@ -646,17 +657,41 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
         }
 
         const staffNames = new Map<string, string>()
+        const staffEmails = new Map<string, string>()
         for (const p of staffProfiles || []) {
             if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
+            if (p.id && p.email) staffEmails.set(p.id, p.email.toLowerCase())
         }
 
-        // Aggregate by staff - INCLUDE ORPHAN TRANSACTIONS
+        // The tablet email (sales made from here go to "Venta de Mostrador")
+        const TABLET_EMAIL = 'fulanosbarbermx@gmail.com'
+
+        // Aggregate by staff with intelligent attribution
         const staffMap = new Map<string, { revenue: number; services: number }>()
-        const ORPHAN_KEY = '__ORPHAN__'
+        const COUNTER_SALE_KEY = '__VENTA_MOSTRADOR__'
 
         for (const tx of transactions) {
-            const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
-            const finalKey = staffId || ORPHAN_KEY
+            let staffId: string | null = null
+            let finalKey: string
+
+            if (tx.booking_id) {
+                // Priority 1: Use booking staff_id
+                staffId = bookingToStaff.get(tx.booking_id) || null
+                finalKey = staffId || COUNTER_SALE_KEY
+            } else {
+                // Orphan transaction - check created_by
+                const creatorEmail = tx.created_by ? staffEmails.get(tx.created_by) : null
+
+                if (creatorEmail === TABLET_EMAIL) {
+                    // Created by tablet = "Venta de Mostrador"
+                    finalKey = COUNTER_SALE_KEY
+                } else if (tx.created_by) {
+                    // Created by another staff member = give them credit
+                    finalKey = tx.created_by
+                } else {
+                    finalKey = COUNTER_SALE_KEY
+                }
+            }
 
             if (!staffMap.has(finalKey)) {
                 staffMap.set(finalKey, { revenue: 0, services: 0 })
@@ -669,7 +704,9 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
 
         const result = Array.from(staffMap.entries())
             .map(([staffId, data]) => ({
-                staff_name: staffId === ORPHAN_KEY ? 'Ventas Rápidas' : (staffNames.get(staffId) || 'Sin nombre'),
+                staff_name: staffId === COUNTER_SALE_KEY
+                    ? 'Venta de Mostrador'
+                    : (staffNames.get(staffId) || 'Sin nombre'),
                 total_revenue: data.revenue,
                 total_services: data.services,
                 avg_service_value: data.services > 0 ? Math.round(data.revenue / data.services) : 0

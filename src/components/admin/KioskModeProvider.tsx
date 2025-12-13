@@ -6,17 +6,6 @@ import { verifyKioskPin } from '@/app/admin/settings/actions'
 // ============================================================
 // KIOSK MODE PROVIDER - LocalStorage-Based State
 // ============================================================
-// 
-// ARCHITECTURE CHANGE: Migrated from HttpOnly Cookie to LocalStorage
-// 
-// Why: The HttpOnly cookie was impossible to delete due to domain/path 
-// mismatches in Vercel's serverless environment.
-//
-// New Approach:
-// - Kiosk is ON by default (no token = kiosk active)
-// - Kiosk is OFF when localStorage has 'kiosk_unlocked_token' = 'TRUE'
-// - After 5 minutes of inactivity, the token is removed = kiosk returns ON
-// ============================================================
 
 // Auto-reactivation timeout: 5 minutes in milliseconds
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
@@ -29,6 +18,7 @@ const KIOSK_ENABLED_EMAIL = 'fulanosbarbermx@gmail.com'
 
 interface KioskModeContextType {
     isKioskMode: boolean
+    isLoading: boolean  // NEW: Loading state to prevent flash
     canToggleKioskMode: boolean
     isKioskEnabled: boolean
     activateKioskMode: () => void
@@ -42,6 +32,7 @@ export function useKioskMode() {
     if (!ctx) {
         return {
             isKioskMode: false,
+            isLoading: true,  // Default to loading for SSR safety
             canToggleKioskMode: false,
             isKioskEnabled: false,
             activateKioskMode: () => { },
@@ -56,7 +47,6 @@ interface Props {
     userRole: string
     userEmail?: string
     tenantId: string
-    initialKioskMode?: boolean // Ignored now - state is from localStorage
 }
 
 export default function KioskModeProvider({
@@ -68,14 +58,11 @@ export default function KioskModeProvider({
     // ========== EMAIL ISOLATION CHECK ==========
     const isKioskEnabled = userEmail.toLowerCase() === KIOSK_ENABLED_EMAIL.toLowerCase()
 
-    // ========== STATE FROM LOCALSTORAGE ==========
-    // Kiosk is ON by default (true), OFF only when unlocked token exists
-    const [isKioskMode, setIsKioskMode] = useState(() => {
-        if (!isKioskEnabled) return false
-        if (typeof window === 'undefined') return true // SSR: assume locked
-        const token = localStorage.getItem(KIOSK_UNLOCKED_KEY)
-        return token !== 'TRUE' // If token exists and is TRUE, kiosk is OFF
-    })
+    // ========== LOADING STATE TO PREVENT FLASH ==========
+    // Start with isLoading=true, isKioskMode=false (neutral state)
+    // Only after reading localStorage do we set the actual state
+    const [isLoading, setIsLoading] = useState(true)
+    const [isKioskMode, setIsKioskMode] = useState(false)
 
     // Track last activity time for auto-reactivation
     const lastActivityRef = useRef<number>(Date.now())
@@ -87,13 +74,17 @@ export default function KioskModeProvider({
     useEffect(() => {
         if (!isKioskEnabled) {
             setIsKioskMode(false)
+            setIsLoading(false)
             return
         }
 
-        // Check localStorage on mount
+        // Read localStorage to determine actual state
         const token = localStorage.getItem(KIOSK_UNLOCKED_KEY)
         const unlocked = token === 'TRUE'
-        setIsKioskMode(!unlocked) // If unlocked, kiosk is OFF
+
+        // Kiosk is ON when there's NO token
+        setIsKioskMode(!unlocked)
+        setIsLoading(false)  // Done loading
 
         console.log(`[KioskModeProvider] Mounted. Token: ${token}, isKioskMode: ${!unlocked}`)
     }, [isKioskEnabled])
@@ -102,6 +93,7 @@ export default function KioskModeProvider({
     // Only runs when kiosk is OFF (owner is viewing data)
     useEffect(() => {
         if (!isKioskEnabled) return
+        if (isLoading) return  // Don't start timer while loading
         if (isKioskMode) return // Only run when kiosk is OFF
         if (!canToggleKioskMode) return
 
@@ -138,7 +130,7 @@ export default function KioskModeProvider({
             })
             clearInterval(checkInterval)
         }
-    }, [isKioskMode, canToggleKioskMode, isKioskEnabled])
+    }, [isKioskMode, isLoading, canToggleKioskMode, isKioskEnabled])
 
     // ========== ACTIVATE KIOSK (Remove unlock token) ==========
     const activateKioskMode = useCallback(() => {
@@ -185,6 +177,7 @@ export default function KioskModeProvider({
     return (
         <KioskModeContext.Provider value={{
             isKioskMode: isKioskEnabled ? isKioskMode : false,
+            isLoading,
             canToggleKioskMode,
             isKioskEnabled,
             activateKioskMode,
