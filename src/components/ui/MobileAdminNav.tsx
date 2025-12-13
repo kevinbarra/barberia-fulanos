@@ -3,14 +3,16 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
+import { useKioskMode } from '@/components/admin/KioskModeProvider';
 
 export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBarber' }: { role: string; tenantId: string; tenantName?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
+    const { isKioskMode } = useKioskMode();
 
     const adminMenu = [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -25,17 +27,15 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
         { name: 'Ajustes', href: '/admin/profile', icon: User },
     ];
 
+    // Kiosk mode routes - operational items only
+    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/profile', '/admin/settings'];
+
     let menuToRender = adminMenu;
 
-    // Filter logic similar to Sidebar.tsx
-    if (role === 'kiosk') {
-        // Kiosk: Only sees Dashboard, Agenda, POS, and Profile
-        menuToRender = adminMenu.filter(item =>
-            item.href === '/admin' ||
-            item.href === '/admin/bookings' ||
-            item.href === '/admin/pos' ||
-            item.href === '/admin/profile'
-        );
+    // Filter logic - kiosk mode takes priority
+    if (isKioskMode) {
+        // Session-based kiosk mode - filter to operational items
+        menuToRender = adminMenu.filter(item => kioskAllowedRoutes.includes(item.href));
     } else if (role === 'staff') {
         menuToRender = adminMenu.filter(item =>
             item.href !== '/admin/team' &&

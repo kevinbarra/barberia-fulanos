@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 // FIX: Agregamos Settings a los imports (LogOut ya estaba bien)
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3 } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Tablet } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
+import { useKioskMode } from '@/components/admin/KioskModeProvider'
 
 export default function Sidebar({
     role,
@@ -16,6 +17,7 @@ export default function Sidebar({
     className?: string
 }) {
     const pathname = usePathname()
+    const { isKioskMode } = useKioskMode()
 
     const adminMenu = [
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -35,15 +37,16 @@ export default function Sidebar({
         { name: 'Mi Perfil', href: '/app/profile', icon: User },
     ]
 
+    // Kiosk mode routes - operational items only
+    const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/profile', '/admin/settings']
+
     let menuToRender = adminMenu;
 
     if (role === 'client') {
         menuToRender = clientMenu;
-    } else if (role === 'kiosk') {
-        // Kiosk solo ve Dashboard, Agenda, POS y Profile
-        menuToRender = adminMenu.filter(item =>
-            ['/admin', '/admin/bookings', '/admin/pos', '/admin/profile'].includes(item.href)
-        );
+    } else if (isKioskMode) {
+        // Session-based kiosk mode - filter to operational items
+        menuToRender = adminMenu.filter(item => kioskAllowedRoutes.includes(item.href))
     } else if (role === 'staff') {
         // Staff: No access to Team, Services, Settings, Reports
         menuToRender = adminMenu.filter(item =>

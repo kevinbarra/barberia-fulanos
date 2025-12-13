@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import TenantForm from "@/components/admin/TenantForm";
 import KioskPinForm from "@/components/admin/KioskPinForm";
+import KioskModeToggle from "@/components/admin/KioskModeToggle";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -49,7 +50,10 @@ export default async function SettingsPage() {
                     <TenantForm initialData={tenantData} />
                 )}
 
-                {/* Configuración Modo Kiosko */}
+                {/* Modo Kiosko - Activar/Desactivar */}
+                <KioskModeToggle />
+
+                {/* Configuración PIN Kiosko */}
                 <KioskPinForm initialPin={tenantData?.kiosk_pin || null} />
             </div>
         </div>

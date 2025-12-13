@@ -3,6 +3,7 @@ import Sidebar from "@/components/ui/Sidebar";
 import { createClient } from "@/utils/supabase/server";
 import RealtimeBookingNotifications from "@/components/admin/RealtimeBookingNotifications";
 import KioskProtectedRouteProvider from "@/components/admin/KioskProtectedRouteProvider";
+import KioskModeProvider from "@/components/admin/KioskModeProvider";
 import TenantSuspendedScreen from "@/components/TenantSuspendedScreen";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -127,23 +128,25 @@ export default async function AdminLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex flex-row">
-            <AutoRefreshWrapper />
-            <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
-            <Sidebar role={userRole} tenantName={tenantName} />
-            <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
-                {/* Realtime notifications - Desktop only */}
-                {tenantId && (
-                    <div className="fixed top-4 right-4 z-50 hidden lg:block">
-                        <RealtimeBookingNotifications tenantId={tenantId} />
-                    </div>
-                )}
-                <main className="flex-1 pb-8 w-full">
-                    <KioskProtectedRouteProvider userRole={userRole} tenantId={tenantId}>
-                        {children}
-                    </KioskProtectedRouteProvider>
-                </main>
+        <KioskModeProvider userRole={userRole} tenantId={tenantId}>
+            <div className="min-h-screen bg-gray-50 flex flex-row">
+                <AutoRefreshWrapper />
+                <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
+                <Sidebar role={userRole} tenantName={tenantName} />
+                <div className="flex-1 flex flex-col min-h-screen relative w-full pt-16 lg:pt-0">
+                    {/* Realtime notifications - Desktop only */}
+                    {tenantId && (
+                        <div className="fixed top-4 right-4 z-50 hidden lg:block">
+                            <RealtimeBookingNotifications tenantId={tenantId} />
+                        </div>
+                    )}
+                    <main className="flex-1 pb-8 w-full">
+                        <KioskProtectedRouteProvider userRole={userRole} tenantId={tenantId}>
+                            {children}
+                        </KioskProtectedRouteProvider>
+                    </main>
+                </div>
             </div>
-        </div>
+        </KioskModeProvider>
     );
 }
