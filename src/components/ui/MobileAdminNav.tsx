@@ -28,14 +28,17 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
         { name: 'Ajustes', href: '/admin/profile', icon: User },
     ];
 
-    // Kiosk mode routes - operational items only
+    // Kiosk mode routes - operational items only (for staff in kiosk mode)
     const kioskAllowedRoutes = ['/admin', '/admin/bookings', '/admin/pos', '/admin/schedule', '/admin/profile', '/admin/settings'];
+
+    // Determine if user should have full access (owners/super_admins always have full access)
+    const hasFullAccess = role === 'owner' || role === 'super_admin' || role === 'admin';
 
     let menuToRender = adminMenu;
 
-    // Filter logic - kiosk mode takes priority
-    if (isKioskMode) {
-        // Session-based kiosk mode - filter to operational items
+    // Filter logic - kiosk mode only restricts non-admin users
+    if (isKioskMode && !hasFullAccess) {
+        // Kiosk mode filtering only applies to staff, not owners/admins
         menuToRender = adminMenu.filter(item => kioskAllowedRoutes.includes(item.href));
     } else if (role === 'staff') {
         menuToRender = adminMenu.filter(item =>
