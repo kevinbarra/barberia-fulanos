@@ -1,4 +1,4 @@
-import { getFinancialDashboard, getStaffRevenue, getTopServices, getClientRetentionMetrics, getRevenueByWeekday, getHourlyRevenue } from './actions';
+import { getFinancialDashboard, getClientRetentionMetrics, getRevenueByWeekday, getHourlyRevenue } from './actions';
 import FinancialKPIs from '@/components/admin/reports/FinancialKPIs';
 import StaffRevenueChart from '@/components/admin/reports/StaffRevenueChart';
 import TopServicesChart from '@/components/admin/reports/TopServicesChart';
@@ -38,19 +38,14 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
     const searchParams = await props.searchParams;
     const startDate = searchParams?.startDate;
     const endDate = searchParams?.endDate;
-    const month = searchParams?.month;
 
     const [
         financialData,
-        staffRevenue,
-        topServices,
         retention,
         weekdayData,
         hourlyData
     ] = await Promise.all([
         getFinancialDashboard(startDate, endDate),
-        getStaffRevenue(month),
-        getTopServices(month),
         getClientRetentionMetrics(),
         getRevenueByWeekday(),
         getHourlyRevenue()
@@ -84,7 +79,7 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     </div>
                 </div>
 
-                {/* Staff Financial Breakdown - NEW */}
+                {/* Staff Financial Breakdown */}
                 <div>
                     <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <span className="text-violet-600">✂️</span>
@@ -95,10 +90,26 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     </ErrorBoundary>
                 </div>
 
+                {/* Gráficas Financieras - Now Dynamic */}
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="text-blue-600">📊</span>
+                        Desempeño Financiero
+                    </h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ErrorBoundary fallbackTitle="Error en Gráfico" fallbackMessage="No se pudo cargar el gráfico.">
+                            <StaffRevenueChart />
+                        </ErrorBoundary>
+                        <ErrorBoundary fallbackTitle="Error en Servicios" fallbackMessage="No se pudo cargar los servicios.">
+                            <TopServicesChart />
+                        </ErrorBoundary>
+                    </div>
+                </div>
+
                 {/* KPIs Principales */}
                 <FinancialKPIs data={financialData} />
 
-                {/* Sección Operativa (Nuevo) */}
+                {/* Sección Operativa */}
                 <div>
                     <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <span className="text-purple-600">⚡</span>
@@ -107,15 +118,6 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <WeekdayTrendsChart data={weekdayData} />
                         <HourlyHeatmap data={hourlyData} />
-                    </div>
-                </div>
-
-                {/* Gráficas Financieras */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Desempeño Financiero</h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <StaffRevenueChart data={staffRevenue} />
-                        <TopServicesChart data={topServices} />
                     </div>
                 </div>
 
@@ -128,4 +130,3 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
         </div>
     );
 }
-

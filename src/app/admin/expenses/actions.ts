@@ -570,3 +570,211 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
         return { success: false, error: 'Error del servidor', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
     }
 }
+
+// ==================== GET DYNAMIC STAFF REVENUE ====================
+// Replaces staff_revenue_report view with direct transaction query
+export async function getDynamicStaffRevenue(startISO?: string, endISO?: string) {
+    try {
+        const { tenantId, error: authError } = await getSecureTenantId()
+
+        if (authError || !tenantId) {
+            return { success: false, error: authError || 'No autorizado', data: [] }
+        }
+
+        // Default to today if no dates
+        let dateStart: Date
+        let dateEnd: Date
+
+        if (startISO && endISO) {
+            dateStart = new Date(startISO)
+            dateEnd = new Date(endISO)
+        } else {
+            const now = new Date()
+            const localNow = toZonedTime(now, TIMEZONE)
+            const todayStr = format(localNow, 'yyyy-MM-dd')
+            dateStart = new Date(`${todayStr}T00:00:00-06:00`)
+            dateEnd = new Date(`${todayStr}T23:59:59.999-06:00`)
+        }
+
+        const adminClient = createAdminClient()
+
+        // Get transactions with booking info
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select('id, amount, booking_id')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', dateStart.toISOString())
+            .lte('created_at', dateEnd.toISOString())
+
+        if (txError) {
+            console.error('[getDynamicStaffRevenue] Transaction error:', txError)
+            return { success: false, error: txError.message, data: [] }
+        }
+
+        if (!transactions || transactions.length === 0) {
+            return { success: true, data: [] }
+        }
+
+        // Get bookings for staff mapping
+        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
+
+        const { data: bookings } = await adminClient
+            .from('bookings')
+            .select('id, staff_id')
+            .in('id', bookingIds)
+
+        // Get staff names
+        const staffIds = [...new Set(bookings?.map(b => b.staff_id).filter(Boolean) || [])]
+
+        const { data: staffProfiles } = await adminClient
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', staffIds)
+
+        // Build lookup maps
+        const bookingToStaff = new Map<string, string>()
+        for (const b of bookings || []) {
+            if (b.id && b.staff_id) bookingToStaff.set(b.id, b.staff_id)
+        }
+
+        const staffNames = new Map<string, string>()
+        for (const p of staffProfiles || []) {
+            if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
+        }
+
+        // Aggregate by staff
+        const staffMap = new Map<string, { revenue: number; services: number }>()
+
+        for (const tx of transactions) {
+            const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
+            if (!staffId) continue
+
+            if (!staffMap.has(staffId)) {
+                staffMap.set(staffId, { revenue: 0, services: 0 })
+            }
+
+            const data = staffMap.get(staffId)!
+            data.revenue += Number(tx.amount) || 0
+            data.services += 1
+        }
+
+        const result = Array.from(staffMap.entries())
+            .map(([staffId, data]) => ({
+                staff_name: staffNames.get(staffId) || 'Sin nombre',
+                total_revenue: data.revenue,
+                total_services: data.services,
+                avg_service_value: data.services > 0 ? Math.round(data.revenue / data.services) : 0
+            }))
+            .sort((a, b) => b.total_revenue - a.total_revenue)
+
+        return { success: true, data: result }
+    } catch (err) {
+        console.error('[getDynamicStaffRevenue] Unexpected error:', err)
+        return { success: false, error: 'Error del servidor', data: [] }
+    }
+}
+
+// ==================== GET DYNAMIC TOP SERVICES ====================
+// Replaces top_services_report view with direct transaction query
+export async function getDynamicTopServices(startISO?: string, endISO?: string) {
+    try {
+        const { tenantId, error: authError } = await getSecureTenantId()
+
+        if (authError || !tenantId) {
+            return { success: false, error: authError || 'No autorizado', data: [] }
+        }
+
+        // Default to today if no dates
+        let dateStart: Date
+        let dateEnd: Date
+
+        if (startISO && endISO) {
+            dateStart = new Date(startISO)
+            dateEnd = new Date(endISO)
+        } else {
+            const now = new Date()
+            const localNow = toZonedTime(now, TIMEZONE)
+            const todayStr = format(localNow, 'yyyy-MM-dd')
+            dateStart = new Date(`${todayStr}T00:00:00-06:00`)
+            dateEnd = new Date(`${todayStr}T23:59:59.999-06:00`)
+        }
+
+        const adminClient = createAdminClient()
+
+        // Get transactions with booking info
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select('id, amount, booking_id')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', dateStart.toISOString())
+            .lte('created_at', dateEnd.toISOString())
+
+        if (txError) {
+            console.error('[getDynamicTopServices] Transaction error:', txError)
+            return { success: false, error: txError.message, data: [] }
+        }
+
+        if (!transactions || transactions.length === 0) {
+            return { success: true, data: [] }
+        }
+
+        // Get bookings for service mapping
+        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
+
+        const { data: bookings } = await adminClient
+            .from('bookings')
+            .select('id, service_id')
+            .in('id', bookingIds)
+
+        // Get service names
+        const serviceIds = [...new Set(bookings?.map(b => b.service_id).filter(Boolean) || [])]
+
+        const { data: services } = await adminClient
+            .from('services')
+            .select('id, name')
+            .in('id', serviceIds)
+
+        // Build lookup maps
+        const bookingToService = new Map<string, string>()
+        for (const b of bookings || []) {
+            if (b.id && b.service_id) bookingToService.set(b.id, b.service_id)
+        }
+
+        const serviceNames = new Map<string, string>()
+        for (const s of services || []) {
+            if (s.id && s.name) serviceNames.set(s.id, s.name)
+        }
+
+        // Aggregate by service
+        const serviceMap = new Map<string, { revenue: number; count: number }>()
+
+        for (const tx of transactions) {
+            const serviceId = tx.booking_id ? bookingToService.get(tx.booking_id) : null
+            if (!serviceId) continue
+
+            if (!serviceMap.has(serviceId)) {
+                serviceMap.set(serviceId, { revenue: 0, count: 0 })
+            }
+
+            const data = serviceMap.get(serviceId)!
+            data.revenue += Number(tx.amount) || 0
+            data.count += 1
+        }
+
+        const result = Array.from(serviceMap.entries())
+            .map(([serviceId, data]) => ({
+                service_name: serviceNames.get(serviceId) || 'Servicio desconocido',
+                total_revenue: data.revenue,
+                times_sold: data.count
+            }))
+            .sort((a, b) => b.total_revenue - a.total_revenue)
+            .slice(0, 10)
+
+        return { success: true, data: result }
+    } catch (err) {
+        console.error('[getDynamicTopServices] Unexpected error:', err)
+        return { success: false, error: 'Error del servidor', data: [] }
+    }
+}
