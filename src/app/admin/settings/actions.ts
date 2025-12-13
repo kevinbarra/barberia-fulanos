@@ -237,7 +237,7 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
         return { error: 'PIN incorrecto', success: false }
     }
 
-    console.log(`[KIOSK SERVER] PIN verification PASSED. Starting BRUTE FORCE cookie deletion...`)
+    console.log(`[KIOSK SERVER] PIN verification PASSED. Deleting cookie with EXACT attributes...`)
 
     const cookieStore = await cookies()
 
@@ -245,45 +245,57 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
     const existingCookie = cookieStore.get(KIOSK_COOKIE_NAME)
     console.log(`[KIOSK SERVER] Cookie BEFORE delete: ${existingCookie ? 'EXISTE (' + existingCookie.value.substring(0, 8) + '...)' : 'NO EXISTE'}`)
 
-    // ========== BRUTE FORCE DELETION ==========
-    // Delete with ALL possible path/domain combinations
-    // The cookie was set with path: '/admin', so we need to match that
+    // ========== DEFINITIVE DELETION ==========
+    // The cookie was created with these EXACT options:
+    // - httpOnly: true
+    // - secure: true (in production)
+    // - sameSite: 'lax'
+    // - path: '/admin'
+    // - NO explicit domain (defaults to current hostname)
+    //
+    // To delete it, we MUST set it with the same options but with maxAge: -1 or expired date
 
-    // Method 1: Simple delete (no options)
-    console.log(`[KIOSK SERVER] Deleting: simple delete()`)
-    cookieStore.delete(KIOSK_COOKIE_NAME)
-
-    // Method 2: Delete with path: '/'
-    console.log(`[KIOSK SERVER] Deleting: path='/'`)
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/' })
-
-    // Method 3: Delete with path: '/admin' (THIS IS THE ORIGINAL PATH!)
-    console.log(`[KIOSK SERVER] Deleting: path='/admin'`)
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin' })
-
-    // Method 4: Delete with domain variations
-    console.log(`[KIOSK SERVER] Deleting: with domain variations`)
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: 'fulanos.agendabarber.pro' })
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: 'fulanos.agendabarber.pro' })
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: '.agendabarber.pro' })
-    cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: '.agendabarber.pro' })
-
-    // Method 5: Set cookie to expired value (alternative approach)
-    console.log(`[KIOSK SERVER] Setting cookie to empty with immediate expiry`)
+    // PRIMARY METHOD: Set to expired with EXACT SAME attributes
+    console.log(`[KIOSK SERVER] Setting cookie to EXPIRED with exact creation attributes`)
     cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
         path: '/admin',
-        maxAge: 0,
-        expires: new Date(0)
+        maxAge: -1,  // Negative maxAge = delete immediately
+        expires: new Date(0)  // Also set expired date for good measure
     })
+
+    // BACKUP: Also try delete() with path
+    console.log(`[KIOSK SERVER] Also calling delete() with path='/admin'`)
+    try {
+        cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin' })
+    } catch (e) {
+        console.log(`[KIOSK SERVER] delete() threw: ${e}`)
+    }
+
+    // BACKUP 2: Delete without path
+    console.log(`[KIOSK SERVER] Also calling simple delete()`)
+    try {
+        cookieStore.delete(KIOSK_COOKIE_NAME)
+    } catch (e) {
+        console.log(`[KIOSK SERVER] simple delete() threw: ${e}`)
+    }
+
+    // BACKUP 3: Set with path='/' too in case it was set there
+    console.log(`[KIOSK SERVER] Also expiring with path='/'`)
     cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
         path: '/',
-        maxAge: 0,
+        maxAge: -1,
         expires: new Date(0)
     })
 
     // Log cookie state AFTER deletion
     const afterCookie = cookieStore.get(KIOSK_COOKIE_NAME)
-    console.log(`[KIOSK SERVER] Cookie AFTER delete: ${afterCookie ? 'TODAVIA EXISTE! Value: ' + afterCookie.value : 'ELIMINADA CORRECTAMENTE'}`)
+    console.log(`[KIOSK SERVER] Cookie AFTER delete: ${afterCookie ? 'TODAVIA EXISTE! Value: "' + afterCookie.value + '"' : 'ELIMINADA CORRECTAMENTE'}`)
     console.log(`[KIOSK SERVER] clearKioskModeCookie completed. Returning success.`)
 
     return { success: true }
