@@ -7,18 +7,23 @@ import DateRangeSelector from '@/components/admin/reports/DateRangeSelector';
 import HourlyHeatmap from '@/components/admin/reports/HourlyHeatmap';
 import WeekdayTrendsChart from '@/components/admin/reports/WeekdayTrendsChart';
 import CashDrawerSummary from '@/components/admin/reports/CashDrawerSummary';
+import ExpensesAuditTable from '@/components/admin/reports/ExpensesAuditTable';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
 
 export default async function ReportsPage(props: { searchParams: Promise<any> }) {
     const supabase = await createClient();
+    const adminClient = createAdminClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) redirect('/login');
 
-    const { data: profile } = await supabase
+    // Use admin client to get profile (bypass RLS)
+    const { data: profile } = await adminClient
         .from('profiles')
         .select('role')
         .eq('id', user.id)
@@ -68,7 +73,14 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                         <span className="text-green-600">💰</span>
                         Corte de Caja
                     </h2>
-                    <CashDrawerSummary />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <ErrorBoundary fallbackTitle="Error en Corte de Caja" fallbackMessage="No se pudo cargar el resumen. El resto de la app sigue funcionando.">
+                            <CashDrawerSummary />
+                        </ErrorBoundary>
+                        <ErrorBoundary fallbackTitle="Error en Gastos" fallbackMessage="No se pudo cargar la tabla de gastos.">
+                            <ExpensesAuditTable />
+                        </ErrorBoundary>
+                    </div>
                 </div>
 
                 {/* KPIs Principales */}

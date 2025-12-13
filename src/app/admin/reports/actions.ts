@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 
 // Helper para verificar rol y obtener tenant (soporta super admin)
 // Uses admin client to bypass RLS and guarantee profile resolution
+// Handles super_admin/owner accounts with NULL tenant_id via dynamic fallback
 async function requireAdminOrOwner() {
     const supabase = await createClient();
     const adminClient = createAdminClient();
@@ -28,42 +29,82 @@ async function requireAdminOrOwner() {
         throw new Error(`Perfil no encontrado para User ID: ${user.id}`);
     }
 
-    if (!profile?.tenant_id) {
-        console.error(`[requireAdminOrOwner] No tenant_id for User ID: ${user.id}`, profile);
-        throw new Error(`Usuario sin tenant asignado: ${user.id}`);
-    }
+    const userRole = profile?.role || 'customer';
+    const isPrivilegedUser = userRole === 'super_admin' || userRole === 'owner' || userRole === 'admin';
 
     // Verificación estricta: Staff no puede ver reportes
-    if (profile.role === 'staff') {
+    if (userRole === 'staff') {
         throw new Error('Acceso denegado: Solo administradores pueden ver reportes.');
     }
 
-    // Para super admin en subdomain, resolver tenant desde hostname
-    if (profile.role === 'super_admin') {
-        const headersList = await headers();
-        const hostname = headersList.get('host') || '';
-        const parts = hostname.replace(':443', '').replace(':80', '').split('.');
+    // 1. For privileged users on subdomain, resolve tenant from hostname FIRST
+    const headersList = await headers();
+    const hostname = headersList.get('host') || '';
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.');
+    const reservedSubdomains = ['www', 'api', 'admin', 'app', 'localhost'];
 
-        if (parts.length >= 3) {
-            const subdomain = parts[0];
-            const reservedSubdomains = ['www', 'api', 'admin', 'app'];
+    if (parts.length >= 3 || hostname.includes('localhost')) {
+        const subdomain = parts[0];
 
-            if (!reservedSubdomains.includes(subdomain)) {
-                const { data: tenant } = await adminClient
-                    .from('tenants')
-                    .select('id')
-                    .eq('slug', subdomain)
-                    .single();
+        if (!reservedSubdomains.includes(subdomain) && subdomain !== 'localhost') {
+            const { data: tenant } = await adminClient
+                .from('tenants')
+                .select('id')
+                .eq('slug', subdomain)
+                .single();
 
-                if (tenant?.id) {
-                    console.log(`[requireAdminOrOwner] Super admin resolved to tenant: ${subdomain}`);
-                    return { ...profile, tenant_id: tenant.id };
-                }
+            if (tenant?.id) {
+                console.log(`[requireAdminOrOwner] Resolved tenant from subdomain: ${subdomain}`);
+                return { ...profile, tenant_id: tenant.id };
             }
         }
     }
 
-    return { ...profile, tenant_id: profile.tenant_id };
+    // 2. If profile has tenant_id, use it
+    if (profile?.tenant_id) {
+        return { ...profile, tenant_id: profile.tenant_id };
+    }
+
+    // 3. FALLBACK for privileged users with NULL tenant_id: find their owned tenant
+    if (isPrivilegedUser && !profile?.tenant_id) {
+        console.log(`[requireAdminOrOwner] Privileged user ${user.id} has NULL tenant_id, searching for owned tenant...`);
+
+        // Try to find a tenant owned by this user
+        const { data: ownedTenant } = await adminClient
+            .from('tenants')
+            .select('id, slug')
+            .eq('owner_id', user.id)
+            .limit(1)
+            .single();
+
+        if (ownedTenant?.id) {
+            console.log(`[requireAdminOrOwner] Found owned tenant: ${ownedTenant.slug}`);
+            return { ...profile, tenant_id: ownedTenant.id };
+        }
+
+        // For super_admin without owned tenant, try first active tenant as fallback
+        if (userRole === 'super_admin') {
+            const { data: anyTenant } = await adminClient
+                .from('tenants')
+                .select('id, slug')
+                .eq('subscription_status', 'active')
+                .limit(1)
+                .single();
+
+            if (anyTenant?.id) {
+                console.log(`[requireAdminOrOwner] Super admin fallback to first active tenant: ${anyTenant.slug}`);
+                return { ...profile, tenant_id: anyTenant.id };
+            }
+        }
+
+        // If still no tenant found
+        console.error(`[requireAdminOrOwner] No tenant found for privileged user: ${user.id}`);
+        throw new Error('No se encontró ningún negocio asociado. Contacta soporte.');
+    }
+
+    // 4. For non-privileged users without tenant_id, this is an error
+    console.error(`[requireAdminOrOwner] No tenant_id for non-privileged User ID: ${user.id}`);
+    throw new Error('Usuario sin negocio asignado. Contacta soporte.');
 }
 
 export async function getFinancialDashboard(

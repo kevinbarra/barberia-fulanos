@@ -11,11 +11,12 @@ const TIMEZONE = 'America/Mexico_City'
 
 // ==================== HELPER: Get Secure Tenant ID ====================
 // Uses admin client to bypass RLS and guarantee profile resolution
+// Handles super_admin/owner accounts with NULL tenant_id via dynamic fallback
 async function getSecureTenantId(): Promise<{ tenantId: string | null; userId: string | null; userRole?: string; error?: string }> {
     const supabase = await createClient()
     const adminClient = createAdminClient()
 
-    // 1. Get authenticated user (this still works, just need auth token)
+    // 1. Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
         console.error('[getSecureTenantId] Auth error:', authError)
@@ -34,37 +35,77 @@ async function getSecureTenantId(): Promise<{ tenantId: string | null; userId: s
         return { tenantId: null, userId: user.id, error: `Perfil no encontrado para User ID: ${user.id}` }
     }
 
-    if (!profile?.tenant_id) {
-        console.error(`[getSecureTenantId] No tenant_id for User ID: ${user.id}`, profile)
-        return { tenantId: null, userId: user.id, error: `Usuario sin tenant asignado: ${user.id}` }
-    }
+    const userRole = profile?.role || 'customer'
+    const isPrivilegedUser = userRole === 'super_admin' || userRole === 'owner' || userRole === 'admin'
 
-    // 3. For super_admin on subdomain, resolve tenant from hostname
-    if (profile.role === 'super_admin') {
-        const headersList = await headers()
-        const hostname = headersList.get('host') || ''
-        const parts = hostname.replace(':443', '').replace(':80', '').split('.')
+    // 3. For privileged users on a subdomain, resolve tenant from hostname FIRST
+    const headersList = await headers()
+    const hostname = headersList.get('host') || ''
+    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
+    const reservedSubdomains = ['www', 'api', 'admin', 'app', 'localhost']
 
-        if (parts.length >= 3) {
-            const subdomain = parts[0]
-            const reservedSubdomains = ['www', 'api', 'admin', 'app']
+    if (parts.length >= 3 || hostname.includes('localhost')) {
+        const subdomain = parts[0]
 
-            if (!reservedSubdomains.includes(subdomain)) {
-                const { data: tenant } = await adminClient
-                    .from('tenants')
-                    .select('id')
-                    .eq('slug', subdomain)
-                    .single()
+        if (!reservedSubdomains.includes(subdomain) && subdomain !== 'localhost') {
+            const { data: tenant } = await adminClient
+                .from('tenants')
+                .select('id')
+                .eq('slug', subdomain)
+                .single()
 
-                if (tenant?.id) {
-                    console.log(`[getSecureTenantId] Super admin resolved to tenant: ${subdomain}`)
-                    return { tenantId: tenant.id, userId: user.id, userRole: profile.role }
-                }
+            if (tenant?.id) {
+                console.log(`[getSecureTenantId] Resolved tenant from subdomain: ${subdomain}`)
+                return { tenantId: tenant.id, userId: user.id, userRole }
             }
         }
     }
 
-    return { tenantId: profile.tenant_id, userId: user.id, userRole: profile.role }
+    // 4. If profile has tenant_id, use it
+    if (profile?.tenant_id) {
+        return { tenantId: profile.tenant_id, userId: user.id, userRole }
+    }
+
+    // 5. FALLBACK for privileged users with NULL tenant_id: find their owned tenant
+    if (isPrivilegedUser && !profile?.tenant_id) {
+        console.log(`[getSecureTenantId] Privileged user ${user.id} has NULL tenant_id, searching for owned tenant...`)
+
+        // Try to find a tenant owned by this user
+        const { data: ownedTenant } = await adminClient
+            .from('tenants')
+            .select('id, slug')
+            .eq('owner_id', user.id)
+            .limit(1)
+            .single()
+
+        if (ownedTenant?.id) {
+            console.log(`[getSecureTenantId] Found owned tenant: ${ownedTenant.slug}`)
+            return { tenantId: ownedTenant.id, userId: user.id, userRole }
+        }
+
+        // For super_admin without owned tenant, try first active tenant as fallback
+        if (userRole === 'super_admin') {
+            const { data: anyTenant } = await adminClient
+                .from('tenants')
+                .select('id, slug')
+                .eq('subscription_status', 'active')
+                .limit(1)
+                .single()
+
+            if (anyTenant?.id) {
+                console.log(`[getSecureTenantId] Super admin fallback to first active tenant: ${anyTenant.slug}`)
+                return { tenantId: anyTenant.id, userId: user.id, userRole }
+            }
+        }
+
+        // If still no tenant found, return error
+        console.error(`[getSecureTenantId] No tenant found for privileged user: ${user.id}`)
+        return { tenantId: null, userId: user.id, userRole, error: 'No se encontró ningún negocio asociado. Contacta soporte.' }
+    }
+
+    // 6. For non-privileged users without tenant_id, this is an error
+    console.error(`[getSecureTenantId] No tenant_id for non-privileged User ID: ${user.id}`)
+    return { tenantId: null, userId: user.id, userRole, error: 'Usuario sin negocio asignado. Contacta soporte.' }
 }
 
 // ==================== CREATE EXPENSE ====================
