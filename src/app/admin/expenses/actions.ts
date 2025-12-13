@@ -409,7 +409,8 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
         const { tenantId, error: authError } = await getSecureTenantId()
 
         if (authError || !tenantId) {
-            return { error: authError || 'No autorizado', breakdown: [] }
+            console.error('[getStaffFinancialBreakdown] Auth error:', authError)
+            return { success: false, error: authError || 'No autorizado', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
         }
 
         // If no dates provided, default to today in Mexico City
@@ -427,18 +428,22 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             dateEnd = new Date(`${todayStr}T23:59:59.999-06:00`)
         }
 
+        console.log('[getStaffFinancialBreakdown] Query range:', {
+            tenantId,
+            dateStart: dateStart.toISOString(),
+            dateEnd: dateEnd.toISOString()
+        })
+
         const adminClient = createAdminClient()
 
-        // Get transactions with staff info
+        // Step 1: Get transactions with booking info (simpler query)
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
             .select(`
+                id,
                 amount, 
                 payment_method,
-                bookings!inner(
-                    staff_id,
-                    profiles!bookings_staff_id_fkey(full_name)
-                )
+                booking_id
             `)
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
@@ -446,11 +451,61 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             .lte('created_at', dateEnd.toISOString())
 
         if (txError) {
-            console.error('[getStaffFinancialBreakdown] Transaction error:', txError)
-            return { error: 'Error al obtener transacciones', breakdown: [] }
+            console.error('[getStaffFinancialBreakdown] Transaction query error:', txError)
+            return { success: false, error: `Error en transacciones: ${txError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
         }
 
-        // Group by staff member
+        if (!transactions || transactions.length === 0) {
+            console.log('[getStaffFinancialBreakdown] No transactions found')
+            return { success: true, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+        }
+
+        // Step 2: Get unique booking IDs and fetch booking+staff info
+        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
+
+        if (bookingIds.length === 0) {
+            console.log('[getStaffFinancialBreakdown] No booking IDs found')
+            return { success: true, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+        }
+
+        const { data: bookings, error: bookingError } = await adminClient
+            .from('bookings')
+            .select(`
+                id,
+                staff_id
+            `)
+            .in('id', bookingIds)
+
+        if (bookingError) {
+            console.error('[getStaffFinancialBreakdown] Bookings query error:', bookingError)
+            return { success: false, error: `Error en bookings: ${bookingError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+        }
+
+        // Step 3: Get unique staff IDs and fetch names
+        const staffIds = [...new Set(bookings?.map(b => b.staff_id).filter(Boolean) || [])]
+
+        const { data: staffProfiles, error: profileError } = await adminClient
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', staffIds)
+
+        if (profileError) {
+            console.error('[getStaffFinancialBreakdown] Profiles query error:', profileError)
+            // Continue without names - not a critical failure
+        }
+
+        // Build lookup maps
+        const bookingToStaff = new Map<string, string>()
+        for (const b of bookings || []) {
+            if (b.id && b.staff_id) bookingToStaff.set(b.id, b.staff_id)
+        }
+
+        const staffNames = new Map<string, string>()
+        for (const p of staffProfiles || []) {
+            if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
+        }
+
+        // Step 4: Group by staff member
         type StaffBreakdown = {
             staffId: string
             staffName: string
@@ -462,14 +517,11 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         const staffMap = new Map<string, StaffBreakdown>()
 
-        for (const tx of transactions || []) {
-            const booking = tx.bookings as unknown as { staff_id: string; profiles: { full_name: string } | { full_name: string }[] | null } | null
-            if (!booking) continue
+        for (const tx of transactions) {
+            const staffId = tx.booking_id ? bookingToStaff.get(tx.booking_id) : null
+            if (!staffId) continue
 
-            const staffId = booking.staff_id
-            const staffName = Array.isArray(booking.profiles)
-                ? booking.profiles[0]?.full_name || 'Sin asignar'
-                : booking.profiles?.full_name || 'Sin asignar'
+            const staffName = staffNames.get(staffId) || 'Sin nombre'
 
             if (!staffMap.has(staffId)) {
                 staffMap.set(staffId, {
@@ -484,10 +536,13 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
             const staffData = staffMap.get(staffId)!
             const amount = Number(tx.amount) || 0
+            // Default to 'cash' if payment_method is null/undefined
+            const paymentMethod = tx.payment_method || 'cash'
 
-            if (tx.payment_method === 'cash') staffData.cash += amount
-            else if (tx.payment_method === 'card') staffData.card += amount
-            else if (tx.payment_method === 'transfer') staffData.transfer += amount
+            if (paymentMethod === 'cash') staffData.cash += amount
+            else if (paymentMethod === 'card') staffData.card += amount
+            else if (paymentMethod === 'transfer') staffData.transfer += amount
+            else staffData.cash += amount // Default fallback
 
             staffData.total += amount
         }
@@ -502,6 +557,8 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             total: acc.total + staff.total
         }), { cash: 0, card: 0, transfer: 0, total: 0 })
 
+        console.log('[getStaffFinancialBreakdown] Success:', { staffCount: breakdown.length, totalRevenue: totals.total })
+
         return {
             success: true,
             breakdown,
@@ -510,8 +567,6 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
         }
     } catch (err) {
         console.error('[getStaffFinancialBreakdown] Unexpected error:', err)
-        return { error: 'Error del servidor', breakdown: [] }
+        return { success: false, error: 'Error del servidor', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
     }
 }
-
-
