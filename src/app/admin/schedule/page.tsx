@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import ScheduleManager from "@/components/admin/ScheduleManager";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
@@ -24,7 +24,8 @@ export default async function SchedulePage({
         .single();
 
     const userRole = profile?.role || 'staff';
-    const tenantId = profile?.tenant_id;
+    // Use getTenantIdForAdmin for super admin support
+    const tenantId = await getTenantIdForAdmin();
 
     // 2. Determinar a quién estamos viendo (Lógica de Owner)
     let targetStaffId = user.id; // Por defecto: Yo mismo

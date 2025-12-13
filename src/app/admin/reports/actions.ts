@@ -1,8 +1,8 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server';
 
-// Helper para verificar rol
+// Helper para verificar rol y obtener tenant (soporta super admin)
 async function requireAdminOrOwner() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -21,7 +21,10 @@ async function requireAdminOrOwner() {
         throw new Error('Acceso denegado: Solo administradores pueden ver reportes.');
     }
 
-    return profile;
+    // Para super admin, obtener tenant del subdomain
+    const tenantId = await getTenantIdForAdmin();
+
+    return { ...profile, tenant_id: tenantId };
 }
 
 export async function getFinancialDashboard(
