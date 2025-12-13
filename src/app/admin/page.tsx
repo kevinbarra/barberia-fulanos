@@ -218,8 +218,20 @@ export default async function AdminDashboard() {
                     </div>
                 </Link>
 
-                {/* 4. EXCLUSIVO OWNER */}
-                {userRole === 'owner' && (
+                {/* 4. GASTOS (VISIBLE PARA TODOS) */}
+                <Link href="/admin/expenses" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-green-500 transition-all active:scale-[0.98]">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-2xl">💸</div>
+                        <div>
+                            <h3 className="font-bold text-lg text-gray-900">Gastos</h3>
+                            <p className="text-gray-400 text-xs">Registrar salidas</p>
+                        </div>
+                    </div>
+                </Link>
+
+                {/* OWNER-ONLY LINKS - HIDDEN IN KIOSK MODE */}
+                {/* Zero Trust: Only show when owner AND NOT in kiosk mode */}
+                {userRole === 'owner' && !isKioskMode && (
                     <>
                         <Link href="/admin/team" className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between hover:border-purple-500 transition-all active:scale-[0.98]">
                             <div className="flex items-center gap-4">

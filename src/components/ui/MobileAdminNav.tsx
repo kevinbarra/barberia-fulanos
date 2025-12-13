@@ -8,6 +8,7 @@ import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 import { useKioskMode } from '@/components/admin/KioskModeProvider';
+import KioskExitButton from '@/components/admin/KioskExitButton';
 import { toast } from 'sonner';
 
 // ZERO TRUST: Define routes by access level
@@ -77,13 +78,10 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
                     <h1 className="font-black text-xl tracking-tighter text-gray-900 uppercase">
                         {tenantName.length > 10 ? tenantName.slice(0, 10) + '.' : tenantName}<span className="text-blue-600">.</span>
                     </h1>
-                    {isKioskMode && (
-                        <div className="bg-purple-100 p-1 rounded-lg" title="Modo Kiosco">
-                            <Lock size={12} className="text-purple-600" />
-                        </div>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* KIOSK EXIT BUTTON - Persistent escape route */}
+                    <KioskExitButton />
                     {/* Notification Bell for Mobile */}
                     {tenantId && (
                         <RealtimeBookingNotifications tenantId={tenantId} />

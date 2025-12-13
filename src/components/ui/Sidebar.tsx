@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, RefreshCw, Receipt, Lock } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 import { useKioskMode } from '@/components/admin/KioskModeProvider'
+import KioskExitButton from '@/components/admin/KioskExitButton'
 import { toast } from 'sonner'
 
 // ZERO TRUST: Define routes by access level
@@ -125,6 +126,9 @@ export default function Sidebar({
             </nav>
 
             <div className="p-4 border-t border-gray-100 space-y-2">
+                {/* KIOSK EXIT BUTTON - Persistent escape route */}
+                <KioskExitButton />
+
                 {/* Sync/Reload Button for PWA */}
                 <button
                     onClick={() => {
