@@ -3,17 +3,20 @@
 import { useState } from 'react'
 import { useKioskMode } from './KioskModeProvider'
 import PinModal from './PinModal'
-import { Lock, Unlock, X } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
 
+// Cookie name must match server-side
+const KIOSK_COOKIE_NAME = 'agendabarber_kiosk_mode'
+
 /**
- * PERSISTENT KIOSK EXIT BUTTON
+ * PERSISTENT KIOSK EXIT BUTTON (With Client-Side Nuke)
  * 
  * This button appears in the header/navbar when kiosk mode is active.
  * Provides an escape route for owners to deactivate kiosk mode.
- * - Visible ONLY when isKioskMode === true AND user canToggleKioskMode
- * - Opens PIN modal on click
- * - Forces full reload after deactivation
+ * 
+ * CRITICAL: Uses explicit client-side cookie/localStorage cleanup
+ * to guarantee the browser is clean before navigation.
  */
 export default function KioskExitButton() {
     const { isKioskMode, canToggleKioskMode, deactivateKioskMode } = useKioskMode()
@@ -30,15 +33,41 @@ export default function KioskExitButton() {
     const handlePinVerify = async (pin: string): Promise<boolean> => {
         setIsLoading(true)
         try {
+            // ========== CLIENT-SIDE NUKE (FORCE CLEANUP) ==========
+            // 1. Kill the cookie in the browser EXPLICITLY (multiple path variations)
+            document.cookie = `${KIOSK_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+            document.cookie = `${KIOSK_COOKIE_NAME}=; path=/admin; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+            document.cookie = `${KIOSK_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
+
+            // 2. Clear localStorage just in case
+            localStorage.removeItem('kioskMode')
+            localStorage.removeItem('kiosk_mode')
+            localStorage.removeItem('agendabarber_kiosk_mode')
+
+            // 3. Also clear sessionStorage
+            sessionStorage.removeItem('kioskMode')
+            sessionStorage.removeItem('kiosk_mode')
+
+            // ========== SERVER-SIDE CLEANUP ==========
+            // 4. Now call the Server Action to clear server-side state
             const success = await deactivateKioskMode(pin)
+
             if (success) {
-                toast.success('Modo Kiosko desactivado. Recargando...')
+                toast.success('Modo Kiosko desactivado. Redirigiendo...')
                 setShowPinModal(false)
-                // The provider already calls window.location.reload()
+
+                // 5. Forced navigation with cache-bust parameter
+                // Using unique timestamp ensures completely fresh navigation
+                window.location.href = `/admin?kiosk_reset=${Date.now()}`
+                return true
             } else {
                 toast.error('PIN incorrecto')
+                return false
             }
-            return success
+        } catch (error) {
+            console.error('Error deactivating kiosk:', error)
+            toast.error('Error al desactivar')
+            return false
         } finally {
             setIsLoading(false)
         }
@@ -49,11 +78,12 @@ export default function KioskExitButton() {
             {/* Floating Exit Button - Always visible in kiosk mode */}
             <button
                 onClick={handleClick}
-                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-lg shadow-lg transition-all active:scale-95"
+                disabled={isLoading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm font-bold rounded-lg shadow-lg transition-all active:scale-95 disabled:opacity-50"
                 title="Desactivar Modo Kiosco"
             >
                 <Lock size={14} />
-                <span className="hidden sm:inline">Salir de Kiosco</span>
+                <span className="hidden sm:inline">{isLoading ? 'Saliendo...' : 'Salir de Kiosco'}</span>
                 <span className="sm:hidden">🔓</span>
             </button>
 

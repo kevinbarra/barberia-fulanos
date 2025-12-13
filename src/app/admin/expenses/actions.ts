@@ -461,24 +461,26 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
         }
 
         // Step 2: Get unique booking IDs and fetch booking+staff info
+        // NOTE: Even if bookingIds is empty, we continue to include orphan transactions
         const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
 
-        if (bookingIds.length === 0) {
-            console.log('[getStaffFinancialBreakdown] No booking IDs found')
-            return { success: true, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
-        }
+        // Only fetch bookings if we have booking IDs
+        let bookings: Array<{ id: string; staff_id: string }> = []
+        if (bookingIds.length > 0) {
+            const { data: bookingsData, error: bookingError } = await adminClient
+                .from('bookings')
+                .select(`
+                    id,
+                    staff_id
+                `)
+                .in('id', bookingIds)
 
-        const { data: bookings, error: bookingError } = await adminClient
-            .from('bookings')
-            .select(`
-                id,
-                staff_id
-            `)
-            .in('id', bookingIds)
-
-        if (bookingError) {
-            console.error('[getStaffFinancialBreakdown] Bookings query error:', bookingError)
-            return { success: false, error: `Error en bookings: ${bookingError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+            if (bookingError) {
+                console.error('[getStaffFinancialBreakdown] Bookings query error:', bookingError)
+                // Don't return error - continue with empty bookings to show orphan transactions
+            } else {
+                bookings = bookingsData || []
+            }
         }
 
         // Step 3: Get unique staff IDs and fetch names
