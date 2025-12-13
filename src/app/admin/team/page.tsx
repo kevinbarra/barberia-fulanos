@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import TeamList from "@/components/admin/team/TeamList";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { isKioskModeActive } from "@/utils/kiosk-server";
 
 type StaffMember = {
     id: string;
@@ -18,6 +19,11 @@ export default async function TeamPage() {
     const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect("/login");
+
+    // SECURITY: Block access in kiosk mode
+    if (await isKioskModeActive(tenantId)) {
+        redirect('/admin');
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
 

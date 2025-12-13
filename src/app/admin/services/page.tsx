@@ -5,11 +5,18 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 
+import { isKioskModeActive } from "@/utils/kiosk-server";
+
 export default async function ServicesPage() {
     const supabase = await createClient();
     const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return redirect("/login");
+
+    // SECURITY: Block access in kiosk mode
+    if (await isKioskModeActive(tenantId)) {
+        redirect('/admin');
+    }
 
     // Traer perfil para verificar permisos
     const { data: { user } } = await supabase.auth.getUser();

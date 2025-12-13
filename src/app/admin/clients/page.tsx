@@ -1,12 +1,25 @@
 import { getClientsWithWarnings } from '../no-shows/actions';
 import ClientWarningsTable from '@/components/admin/ClientWarningsTable';
-import { createClient } from '@/utils/supabase/server';
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
+import { isKioskModeActive } from '@/utils/kiosk-server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ClientsPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) redirect('/login');
+
+    const tenantId = await getTenantIdForAdmin();
+    if (!tenantId) redirect('/login');
+
+    // SECURITY: Block access in kiosk mode
+    if (await isKioskModeActive(tenantId)) {
+        redirect('/admin');
+    }
+
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
 
     const clients = await getClientsWithWarnings();
