@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getTodaysCashDrawer } from '@/app/admin/expenses/actions'
+import { useSearchParams } from 'next/navigation'
+import { getCashDrawerByDateRange } from '@/app/admin/expenses/actions'
 import {
     Banknote,
     CreditCard,
@@ -13,7 +14,7 @@ import {
     AlertCircle,
     Calendar
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, parseISO, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 
 type CashDrawerSummary = {
@@ -31,13 +32,34 @@ type CashDrawerSummary = {
 }
 
 export default function CashDrawerSummary() {
+    const searchParams = useSearchParams()
     const [summary, setSummary] = useState<CashDrawerSummary | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [refreshing, setRefreshing] = useState(false)
+    const [dateLabel, setDateLabel] = useState<string>('')
 
     const fetchData = async () => {
-        const result = await getTodaysCashDrawer()
+        // Get dates from URL params
+        const startISO = searchParams.get('startISO')
+        const endISO = searchParams.get('endISO')
+        const startDate = searchParams.get('startDate')
+        const endDate = searchParams.get('endDate')
+
+        // Calculate display label
+        if (startDate && endDate) {
+            const start = parseISO(startDate)
+            const end = parseISO(endDate)
+            if (isSameDay(start, end)) {
+                setDateLabel(format(start, "EEEE d 'de' MMMM", { locale: es }))
+            } else {
+                setDateLabel(`${format(start, "d MMM", { locale: es })} - ${format(end, "d MMM yyyy", { locale: es })}`)
+            }
+        } else {
+            setDateLabel(format(new Date(), "EEEE d 'de' MMMM", { locale: es }))
+        }
+
+        const result = await getCashDrawerByDateRange(startISO || undefined, endISO || undefined)
         if (result.success && result.summary) {
             setSummary(result.summary)
             setError(null)
@@ -49,8 +71,9 @@ export default function CashDrawerSummary() {
     }
 
     useEffect(() => {
+        setLoading(true)
         fetchData()
-    }, [])
+    }, [searchParams])
 
     const handleRefresh = () => {
         setRefreshing(true)
@@ -115,16 +138,14 @@ export default function CashDrawerSummary() {
                     <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Wallet className="w-8 h-8 text-gray-300" />
                     </div>
-                    <h3 className="font-medium text-gray-900 mb-1">Sin movimientos hoy</h3>
+                    <h3 className="font-medium text-gray-900 mb-1">Sin movimientos</h3>
                     <p className="text-sm text-gray-500 max-w-xs mx-auto">
-                        Los ingresos y gastos del día aparecerán aquí
+                        No hay ingresos ni gastos en el período seleccionado
                     </p>
                 </div>
             </div>
         )
     }
-
-    const todayFormatted = format(new Date(), "EEEE d 'de' MMMM", { locale: es })
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -138,7 +159,7 @@ export default function CashDrawerSummary() {
                         <h3 className="font-semibold text-gray-900">Corte de Caja</h3>
                         <div className="flex items-center gap-1.5 text-xs text-gray-500">
                             <Calendar className="w-3 h-3" />
-                            <span className="capitalize">{todayFormatted}</span>
+                            <span className="capitalize">{dateLabel}</span>
                         </div>
                     </div>
                 </div>
@@ -230,7 +251,7 @@ export default function CashDrawerSummary() {
 
                 {/* Summary Footer */}
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <span className="text-sm text-gray-600">Balance Neto del Día</span>
+                    <span className="text-sm text-gray-600">Balance Neto</span>
                     <span className={`text-xl font-mono font-bold ${summary.netBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                         {summary.netBalance >= 0 ? '+' : ''}${summary.netBalance.toLocaleString()}
                     </span>

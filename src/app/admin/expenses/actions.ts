@@ -295,3 +295,110 @@ export async function getTodaysCashDrawer() {
         return { error: 'Error del servidor' }
     }
 }
+
+// ==================== GET CASH DRAWER BY DATE RANGE ====================
+// Accepts explicit ISO date strings for timezone-aware queries
+export async function getCashDrawerByDateRange(startISO?: string, endISO?: string) {
+    try {
+        const { tenantId, error: authError } = await getSecureTenantId()
+
+        if (authError || !tenantId) {
+            return { error: authError || 'No autorizado' }
+        }
+
+        // If no dates provided, default to today in Mexico City
+        let dateStart: Date
+        let dateEnd: Date
+        let dateLabel: string
+
+        if (startISO && endISO) {
+            // Use explicit dates from frontend (already timezone-adjusted)
+            dateStart = new Date(startISO)
+            dateEnd = new Date(endISO)
+            dateLabel = `${format(dateStart, 'yyyy-MM-dd')} - ${format(dateEnd, 'yyyy-MM-dd')}`
+        } else {
+            // Default to today in Mexico City
+            const now = new Date()
+            const localNow = toZonedTime(now, TIMEZONE)
+            const todayStr = format(localNow, 'yyyy-MM-dd')
+            dateStart = new Date(`${todayStr}T00:00:00-06:00`)
+            dateEnd = new Date(`${todayStr}T23:59:59.999-06:00`)
+            dateLabel = todayStr
+        }
+
+        console.log('[getCashDrawerByDateRange] Query range:', {
+            dateStart: dateStart.toISOString(),
+            dateEnd: dateEnd.toISOString()
+        })
+
+        const adminClient = createAdminClient()
+
+        // Get transactions (income)
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select('amount, payment_method')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', dateStart.toISOString())
+            .lte('created_at', dateEnd.toISOString())
+
+        if (txError) {
+            console.error('[getCashDrawerByDateRange] Transaction error:', txError)
+            return { error: 'Error al obtener transacciones' }
+        }
+
+        // Get expenses
+        const { data: expenses, error: expError } = await adminClient
+            .from('expenses')
+            .select('amount, payment_method')
+            .eq('tenant_id', tenantId)
+            .gte('created_at', dateStart.toISOString())
+            .lte('created_at', dateEnd.toISOString())
+
+        if (expError) {
+            console.error('[getCashDrawerByDateRange] Expense error:', expError)
+            return { error: 'Error al obtener gastos' }
+        }
+
+        // Calculate totals
+        type TransactionItem = { amount: number | string | null; payment_method?: string | null }
+
+        const safeSum = (arr: TransactionItem[] | null, filter?: (item: TransactionItem) => boolean) => {
+            const items = arr || []
+            const filtered = filter ? items.filter(filter) : items
+            return filtered.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+        }
+
+        const cashIncome = safeSum(transactions, t => t.payment_method === 'cash')
+        const cardIncome = safeSum(transactions, t => t.payment_method === 'card')
+        const transferIncome = safeSum(transactions, t => t.payment_method === 'transfer')
+        const totalIncome = cashIncome + cardIncome + transferIncome
+
+        const cashExpenses = safeSum(expenses, e => e.payment_method === 'cash')
+        const totalExpenses = safeSum(expenses)
+
+        const cashInDrawer = cashIncome - cashExpenses
+        const netBalance = totalIncome - totalExpenses
+
+        return {
+            success: true,
+            summary: {
+                cashIncome,
+                cardIncome,
+                transferIncome,
+                totalIncome,
+                cashExpenses,
+                totalExpenses,
+                cashInDrawer,
+                netBalance,
+                transactionCount: transactions?.length || 0,
+                expenseCount: expenses?.length || 0,
+                dateRange: dateLabel
+            }
+        }
+    } catch (err) {
+        console.error('[getCashDrawerByDateRange] Unexpected error:', err)
+        return { error: 'Error del servidor' }
+    }
+}
+
