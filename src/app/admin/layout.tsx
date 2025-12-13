@@ -5,7 +5,7 @@ import RealtimeBookingNotifications from "@/components/admin/RealtimeBookingNoti
 import KioskProtectedRouteProvider from "@/components/admin/KioskProtectedRouteProvider";
 import KioskModeProvider from "@/components/admin/KioskModeProvider";
 import TenantSuspendedScreen from "@/components/TenantSuspendedScreen";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AutoRefreshWrapper from "@/components/admin/AutoRefreshWrapper";
 
@@ -127,8 +127,13 @@ export default async function AdminLayout({
         return <>{children}</>;
     }
 
+    // Read kiosk mode cookie for server-side state
+    const cookieStore = await cookies();
+    const kioskCookie = cookieStore.get('agendabarber_kiosk_mode');
+    const initialKioskMode = kioskCookie?.value === tenantId;
+
     return (
-        <KioskModeProvider userRole={userRole} tenantId={tenantId}>
+        <KioskModeProvider userRole={userRole} tenantId={tenantId} initialKioskMode={initialKioskMode}>
             <div className="min-h-screen bg-gray-50 flex flex-row">
                 <AutoRefreshWrapper />
                 <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />

@@ -161,3 +161,64 @@ export async function getKioskPin() {
 
     return { pin: tenant?.kiosk_pin || null }
 }
+
+// ==================== KIOSK MODE COOKIE ACTIONS ====================
+import { cookies } from 'next/headers'
+
+const KIOSK_COOKIE_NAME = 'agendabarber_kiosk_mode'
+const KIOSK_COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 days
+
+export async function setKioskModeCookie(tenantId: string) {
+    const supabase = await createClient()
+
+    // Verify user is owner or super_admin
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'owner' && profile?.role !== 'super_admin') {
+        return { error: 'Solo el dueño puede activar el modo kiosko' }
+    }
+
+    // Set the cookie
+    const cookieStore = await cookies()
+    cookieStore.set(KIOSK_COOKIE_NAME, tenantId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: KIOSK_COOKIE_MAX_AGE,
+        path: '/admin'
+    })
+
+    return { success: true }
+}
+
+export async function clearKioskModeCookie(pin: string, tenantId: string) {
+    // First verify the PIN
+    const result = await verifyKioskPin(pin, tenantId)
+
+    if (!result.valid) {
+        return { error: 'PIN incorrecto', success: false }
+    }
+
+    // Clear the cookie
+    const cookieStore = await cookies()
+    cookieStore.delete(KIOSK_COOKIE_NAME)
+
+    return { success: true }
+}
+
+export async function getKioskModeStatus() {
+    const cookieStore = await cookies()
+    const kioskCookie = cookieStore.get(KIOSK_COOKIE_NAME)
+
+    return {
+        isKioskMode: !!kioskCookie?.value,
+        tenantId: kioskCookie?.value || null
+    }
+}
