@@ -116,8 +116,32 @@ export async function saveKioskPin(pin: string) {
     return { success: true, message: 'PIN de kiosko guardado correctamente.' }
 }
 
-export async function verifyKioskPin(pin: string, tenantId: string) {
+export async function verifyKioskPin(pin: string, tenantIdOverride?: string) {
     const supabase = await createClient()
+
+    // Get tenantId from parameter or from session
+    let tenantId = tenantIdOverride
+
+    if (!tenantId) {
+        // Get tenant from user session
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return { valid: false, error: 'No autorizado' }
+        }
+
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('tenant_id')
+            .eq('id', user.id)
+            .single()
+
+        tenantId = profile?.tenant_id
+    }
+
+    if (!tenantId) {
+        console.error('No tenant ID found for PIN verification')
+        return { valid: false, error: 'No se encontró el tenant.' }
+    }
 
     // Get tenant's PIN
     const { data: tenant, error } = await supabase
@@ -136,7 +160,11 @@ export async function verifyKioskPin(pin: string, tenantId: string) {
         return { valid: true, noPinSet: true }
     }
 
-    return { valid: tenant.kiosk_pin === pin }
+    // String comparison (both should be strings)
+    const isValid = String(tenant.kiosk_pin).trim() === String(pin).trim()
+    console.log('[verifyKioskPin] Comparing:', { stored: tenant.kiosk_pin, input: pin, isValid })
+
+    return { valid: isValid }
 }
 
 export async function getKioskPin() {
