@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import TenantForm from "@/components/admin/TenantForm";
 import KioskPinForm from "@/components/admin/KioskPinForm";
 import KioskModeToggle from "@/components/admin/KioskModeToggle";
@@ -12,10 +12,10 @@ export default async function SettingsPage() {
 
     if (!user) return redirect("/login");
 
-    // Validar que sea Owner
+    // Get user role
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, tenant_id, tenants(*)')
+        .select('role, tenant_id')
         .eq('id', user.id)
         .single();
 
@@ -29,8 +29,18 @@ export default async function SettingsPage() {
         )
     }
 
-    // Get tenant data including kiosk_pin
-    const tenantData = profile?.tenants as unknown as { name: string; slug: string; logo_url: string | null; kiosk_pin: string | null } | undefined;
+    // Get tenant ID (handles super_admin subdomain lookup)
+    const tenantId = await getTenantIdForAdmin();
+    if (!tenantId) return redirect("/login");
+
+    // Fetch tenant data directly with kiosk_pin
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('name, slug, logo_url, kiosk_pin')
+        .eq('id', tenantId)
+        .single();
+
+    const tenantData = tenant as { name: string; slug: string; logo_url: string | null; kiosk_pin: string | null } | null;
 
     return (
         <div className="max-w-4xl mx-auto p-6 pb-32">
