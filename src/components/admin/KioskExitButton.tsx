@@ -5,18 +5,15 @@ import { useKioskMode } from './KioskModeProvider'
 import PinModal from './PinModal'
 import { Lock } from 'lucide-react'
 import { toast } from 'sonner'
-import { verifyKioskPin } from '@/app/admin/settings/actions'
-
-// Cookie name must match server-side
-const KIOSK_COOKIE_NAME = 'agendabarber_kiosk_mode'
+import { clearKioskModeCookie } from '@/app/admin/settings/actions'
 
 /**
- * PERSISTENT KIOSK EXIT BUTTON (Client-Only Deactivation)
+ * PERSISTENT KIOSK EXIT BUTTON
  * 
- * This button appears in the header/navbar when kiosk mode is active.
- * 
- * CRITICAL: Uses 100% CLIENT-SIDE deactivation to avoid server race conditions.
- * The server action is ONLY used for PIN verification, not cookie deletion.
+ * DEFINITIVE FIX:
+ * - The cookie is HttpOnly so client-side document.cookie CANNOT delete it
+ * - We MUST call the server action clearKioskModeCookie to delete it
+ * - Then navigate after server confirms deletion
  */
 export default function KioskExitButton() {
     const { isKioskMode, canToggleKioskMode, isKioskEnabled } = useKioskMode()
@@ -36,45 +33,45 @@ export default function KioskExitButton() {
     const handlePinVerify = async (pin: string): Promise<boolean> => {
         setIsLoading(true)
         try {
-            // ========== ONLY VERIFY PIN (Server Action) ==========
-            // We verify the PIN but do NOT rely on server to delete the cookie
-            const pinResult = await verifyKioskPin(pin, '')  // tenantId not needed for PIN check
+            // ========== SERVER-SIDE COOKIE DELETION ==========
+            // CRITICAL: The cookie is HttpOnly - ONLY the server can delete it!
+            // We call clearKioskModeCookie which:
+            // 1. Verifies the PIN
+            // 2. Calls cookieStore.delete() on the server
+            console.log('[KioskExitButton] Calling clearKioskModeCookie...')
 
-            if (!pinResult.valid) {
-                toast.error('PIN incorrecto')
+            const result = await clearKioskModeCookie(pin, '')  // tenantId obtained from session
+
+            console.log('[KioskExitButton] Server response:', result)
+
+            if (!result.success) {
+                toast.error(result.error || 'PIN incorrecto')
                 return false
             }
 
-            // ========== CLIENT-SIDE NUKE (100% Client Deactivation) ==========
-            toast.success('PIN correcto. Desactivando...')
-
-            // 1. Kill the cookie in the browser EXPLICITLY (ALL path variations)
-            document.cookie = `${KIOSK_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-            document.cookie = `${KIOSK_COOKIE_NAME}=; path=/admin; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-            document.cookie = `${KIOSK_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`
-            // Also try with domain variations
-            document.cookie = `${KIOSK_COOKIE_NAME}=; path=/; domain=${window.location.hostname}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
-
-            // 2. Clear ALL storage
-            localStorage.removeItem('kioskMode')
-            localStorage.removeItem('kiosk_mode')
-            localStorage.removeItem('agendabarber_kiosk_mode')
-            sessionStorage.removeItem('kioskMode')
-            sessionStorage.removeItem('kiosk_mode')
-            sessionStorage.clear()
-
+            // ========== SUCCESS - Cookie is deleted on server ==========
+            toast.success('Modo Kiosko desactivado. Redirigiendo...')
             setShowPinModal(false)
 
-            // 3. ROBUST DELAY: Wait 1 FULL SECOND to ensure cookie deletion propagates
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            // Clear any client-side storage (not cookies, those are HttpOnly)
+            try {
+                localStorage.removeItem('kioskMode')
+                sessionStorage.clear()
+            } catch (e) {
+                // Ignore storage errors
+            }
 
-            // 4. Forced navigation with unique cache-bust parameter
-            window.location.href = `/admin?kiosk_reset_final=${Date.now()}`
+            // Wait a moment for server state to propagate
+            await new Promise(resolve => setTimeout(resolve, 500))
+
+            // Navigate to completely fresh page
+            // The layout.tsx will read the cookie (now deleted) and set initialKioskMode = false
+            window.location.href = `/admin?kiosk_disabled=${Date.now()}`
             return true
 
         } catch (error) {
-            console.error('Error deactivating kiosk:', error)
-            toast.error('Error al desactivar')
+            console.error('[KioskExitButton] Error:', error)
+            toast.error('Error al desactivar el modo kiosko')
             return false
         } finally {
             setIsLoading(false)
@@ -98,7 +95,7 @@ export default function KioskExitButton() {
             {/* PIN Modal */}
             <PinModal
                 isOpen={showPinModal}
-                onClose={() => setShowPinModal(false)}
+                onClose={() => !isLoading && setShowPinModal(false)}
                 onSuccess={() => Promise.resolve()}
                 title="Desactivar Modo Kiosco"
                 description="Ingresa el PIN de administrador para desbloquear"
