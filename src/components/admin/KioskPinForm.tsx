@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Lock, Eye, EyeOff, Save, Tablet } from 'lucide-react'
+import { Lock, Eye, EyeOff, Save, Tablet, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { saveKioskPin } from '@/app/admin/settings/actions'
+import { useKioskMode } from './KioskModeProvider'
 
 interface KioskPinFormProps {
     initialPin: string | null
@@ -13,6 +14,7 @@ export default function KioskPinForm({ initialPin }: KioskPinFormProps) {
     const [pin, setPin] = useState(initialPin || '')
     const [showPin, setShowPin] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
+    const { isKioskMode } = useKioskMode()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -35,6 +37,26 @@ export default function KioskPinForm({ initialPin }: KioskPinFormProps) {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    // SECURITY: Hide PIN form when kiosk mode is active to prevent bypass
+    if (isKioskMode) {
+        return (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <ShieldAlert size={24} className="text-amber-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-amber-900">Configuración de PIN Bloqueada</h3>
+                        <p className="text-sm text-amber-700 mt-1">
+                            Por seguridad, no puedes cambiar el PIN mientras el modo kiosko está activo.
+                            Desactiva el modo kiosko primero para configurar un nuevo PIN.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )
     }
 
     return (
