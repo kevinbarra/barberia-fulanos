@@ -52,7 +52,7 @@ export default function DateRangeSelector() {
     const [isOpen, setIsOpen] = useState(false);
     const [range, setRange] = useState<DateRange>({ from: null, to: null });
     const [currentMonth, setCurrentMonth] = useState(new Date());
-    const [activePreset, setActivePreset] = useState<string>('today');
+    const [activePreset, setActivePreset] = useState<string>('Hoy');
     const containerRef = useRef<HTMLDivElement>(null);
 
     // Presets with Mexico City timezone
@@ -194,109 +194,146 @@ export default function DateRangeSelector() {
             if (isSameDay(range.from, range.to)) {
                 return format(range.from, 'd MMM yyyy', { locale: es });
             }
-            return `${format(range.from, 'd MMM', { locale: es })} - ${format(range.to, 'd MMM yyyy', { locale: es })}`;
+            return `${format(range.from, 'd MMM', { locale: es })} - ${format(range.to, 'd MMM', { locale: es })}`;
         }
         return 'Seleccionar fecha';
     };
 
     return (
-        <div className="relative" ref={containerRef}>
-            {/* Trigger Button */}
+        <div className="relative w-full sm:w-auto" ref={containerRef}>
+            {/* Trigger Button - Full width on mobile */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-300 transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-gray-300 transition-colors"
             >
                 <Calendar className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-medium text-gray-700">{displayLabel()}</span>
             </button>
 
-            {/* Dropdown */}
+            {/* Dropdown - Responsive positioning */}
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl border border-gray-200 shadow-xl z-50 flex overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    {/* Presets Sidebar */}
-                    <div className="w-40 border-r border-gray-100 p-2 bg-gray-50/50">
-                        <p className="px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
-                            Accesos Rápidos
-                        </p>
-                        {presets.map((preset) => (
-                            <button
-                                key={preset.label}
-                                onClick={() => handlePresetClick(preset)}
-                                className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${activePreset === preset.label
-                                        ? 'bg-gray-900 text-white font-medium'
-                                        : 'text-gray-700 hover:bg-gray-100'
-                                    }`}
-                            >
-                                {preset.label}
-                            </button>
-                        ))}
-                    </div>
+                <>
+                    {/* Backdrop for mobile */}
+                    <div
+                        className="fixed inset-0 bg-black/20 z-40 sm:hidden"
+                        onClick={() => setIsOpen(false)}
+                    />
 
-                    {/* Calendar */}
-                    <div className="p-4 w-72">
-                        {/* Month Navigation */}
-                        <div className="flex items-center justify-between mb-4">
+                    {/* Picker Container */}
+                    <div
+                        className="
+                            fixed bottom-0 left-0 right-0 z-50
+                            sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-full sm:mt-2
+                            bg-white rounded-t-2xl sm:rounded-2xl border border-gray-200 shadow-xl 
+                            overflow-hidden animate-in fade-in
+                            sm:slide-in-from-top-2 slide-in-from-bottom-4 duration-200
+                            max-h-[80vh] sm:max-h-none overflow-y-auto
+                        "
+                    >
+                        {/* Mobile Header with Close */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sm:hidden">
+                            <span className="font-semibold text-gray-900">Seleccionar Fecha</span>
                             <button
-                                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                onClick={() => setIsOpen(false)}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg"
                             >
-                                <ChevronLeft className="w-4 h-4 text-gray-600" />
-                            </button>
-                            <span className="text-sm font-semibold text-gray-900 capitalize">
-                                {format(currentMonth, 'MMMM yyyy', { locale: es })}
-                            </span>
-                            <button
-                                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <ChevronRight className="w-4 h-4 text-gray-600" />
+                                <X className="w-5 h-5 text-gray-500" />
                             </button>
                         </div>
 
-                        {/* Weekday Headers */}
-                        <div className="grid grid-cols-7 mb-2">
-                            {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => (
-                                <div key={i} className="text-center text-xs font-medium text-gray-400 py-1">
-                                    {day}
+                        {/* Content Container */}
+                        <div className="flex flex-col sm:flex-row">
+                            {/* Presets - Horizontal scroll on mobile, sidebar on desktop */}
+                            <div className="border-b sm:border-b-0 sm:border-r border-gray-100 p-2 bg-gray-50/50 sm:w-40">
+                                <p className="hidden sm:block px-3 py-2 text-xs font-medium text-gray-400 uppercase tracking-wide">
+                                    Accesos Rápidos
+                                </p>
+                                <div className="flex sm:flex-col gap-1 overflow-x-auto sm:overflow-visible pb-2 sm:pb-0 -mx-2 px-2 sm:mx-0 sm:px-0">
+                                    {presets.map((preset) => (
+                                        <button
+                                            key={preset.label}
+                                            onClick={() => handlePresetClick(preset)}
+                                            className={`
+                                                flex-shrink-0 px-3 py-2 text-sm rounded-lg transition-colors whitespace-nowrap
+                                                ${activePreset === preset.label
+                                                    ? 'bg-gray-900 text-white font-medium'
+                                                    : 'text-gray-700 hover:bg-gray-100 bg-white sm:bg-transparent'
+                                                }
+                                            `}
+                                        >
+                                            {preset.label}
+                                        </button>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
 
-                        {/* Days Grid */}
-                        <div className="grid grid-cols-7 gap-0.5">
-                            {days.map((day, i) => {
-                                const inCurrentMonth = isSameMonth(day, currentMonth);
-                                const isSelected = isRangeStart(day) || isRangeEnd(day);
-                                const inRange = isInRange(day) && !isSelected;
-                                const isToday = isSameDay(day, new Date());
-
-                                return (
+                            {/* Calendar */}
+                            <div className="p-4 w-full sm:w-72">
+                                {/* Month Navigation */}
+                                <div className="flex items-center justify-between mb-4">
                                     <button
-                                        key={i}
-                                        onClick={() => handleDayClick(day)}
-                                        disabled={!inCurrentMonth}
-                                        className={`
-                                            relative h-9 text-sm font-medium rounded-lg transition-all
-                                            ${!inCurrentMonth ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100'}
-                                            ${isSelected ? 'bg-gray-900 text-white hover:bg-gray-800' : ''}
-                                            ${inRange ? 'bg-gray-100 text-gray-900' : ''}
-                                            ${isToday && !isSelected ? 'ring-1 ring-gray-300' : ''}
-                                        `}
+                                        onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                                     >
-                                        {format(day, 'd')}
+                                        <ChevronLeft className="w-5 h-5 text-gray-600" />
                                     </button>
-                                );
-                            })}
-                        </div>
+                                    <span className="text-sm font-semibold text-gray-900 capitalize">
+                                        {format(currentMonth, 'MMMM yyyy', { locale: es })}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                                        className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                                    >
+                                        <ChevronRight className="w-5 h-5 text-gray-600" />
+                                    </button>
+                                </div>
 
-                        {/* Selection Info */}
-                        {range.from && !range.to && (
-                            <p className="mt-3 text-xs text-gray-500 text-center">
-                                Selecciona fecha final
-                            </p>
-                        )}
+                                {/* Weekday Headers */}
+                                <div className="grid grid-cols-7 mb-2">
+                                    {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((day, i) => (
+                                        <div key={i} className="text-center text-xs font-medium text-gray-400 py-1">
+                                            {day}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Days Grid */}
+                                <div className="grid grid-cols-7 gap-0.5">
+                                    {days.map((day, i) => {
+                                        const inCurrentMonth = isSameMonth(day, currentMonth);
+                                        const isSelected = isRangeStart(day) || isRangeEnd(day);
+                                        const inRange = isInRange(day) && !isSelected;
+                                        const isToday = isSameDay(day, new Date());
+
+                                        return (
+                                            <button
+                                                key={i}
+                                                onClick={() => handleDayClick(day)}
+                                                disabled={!inCurrentMonth}
+                                                className={`
+                                                    relative h-10 sm:h-9 text-sm font-medium rounded-lg transition-all
+                                                    ${!inCurrentMonth ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-gray-100'}
+                                                    ${isSelected ? 'bg-gray-900 text-white hover:bg-gray-800' : ''}
+                                                    ${inRange ? 'bg-gray-100 text-gray-900' : ''}
+                                                    ${isToday && !isSelected ? 'ring-1 ring-gray-300' : ''}
+                                                `}
+                                            >
+                                                {format(day, 'd')}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Selection Info */}
+                                {range.from && !range.to && (
+                                    <p className="mt-3 text-xs text-gray-500 text-center">
+                                        Selecciona fecha final
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );

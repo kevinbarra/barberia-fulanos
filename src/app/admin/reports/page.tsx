@@ -8,6 +8,7 @@ import HourlyHeatmap from '@/components/admin/reports/HourlyHeatmap';
 import WeekdayTrendsChart from '@/components/admin/reports/WeekdayTrendsChart';
 import CashDrawerSummary from '@/components/admin/reports/CashDrawerSummary';
 import ExpensesAuditTable from '@/components/admin/reports/ExpensesAuditTable';
+import StaffFinanceTable from '@/components/admin/reports/StaffFinanceTable';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,18 +57,18 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
     ]);
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
             <div className="max-w-7xl mx-auto space-y-8">
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-black text-gray-900 tracking-tight">Reportes & Analytics</h1>
-                        <p className="text-gray-500 font-medium">Dashboard financiero y métricas de negocio</p>
+                        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">Reportes & Analytics</h1>
+                        <p className="text-gray-500 font-medium text-sm sm:text-base">Dashboard financiero y métricas de negocio</p>
                     </div>
                     <DateRangeSelector />
                 </div>
 
-                {/* Corte de Caja - Hoy (Prioritario) */}
+                {/* Corte de Caja - Financial Summary */}
                 <div>
                     <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <span className="text-green-600">💰</span>
@@ -81,6 +82,17 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                             <ExpensesAuditTable />
                         </ErrorBoundary>
                     </div>
+                </div>
+
+                {/* Staff Financial Breakdown - NEW */}
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <span className="text-violet-600">✂️</span>
+                        Corte por Barbero
+                    </h2>
+                    <ErrorBoundary fallbackTitle="Error en Corte por Barbero" fallbackMessage="No se pudo cargar el desglose por barbero.">
+                        <StaffFinanceTable />
+                    </ErrorBoundary>
                 </div>
 
                 {/* KPIs Principales */}

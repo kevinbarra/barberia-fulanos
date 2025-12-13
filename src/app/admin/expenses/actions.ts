@@ -402,3 +402,116 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
     }
 }
 
+// ==================== GET STAFF FINANCIAL BREAKDOWN ====================
+// Returns earnings grouped by staff member and payment method for a date range
+export async function getStaffFinancialBreakdown(startISO?: string, endISO?: string) {
+    try {
+        const { tenantId, error: authError } = await getSecureTenantId()
+
+        if (authError || !tenantId) {
+            return { error: authError || 'No autorizado', breakdown: [] }
+        }
+
+        // If no dates provided, default to today in Mexico City
+        let dateStart: Date
+        let dateEnd: Date
+
+        if (startISO && endISO) {
+            dateStart = new Date(startISO)
+            dateEnd = new Date(endISO)
+        } else {
+            const now = new Date()
+            const localNow = toZonedTime(now, TIMEZONE)
+            const todayStr = format(localNow, 'yyyy-MM-dd')
+            dateStart = new Date(`${todayStr}T00:00:00-06:00`)
+            dateEnd = new Date(`${todayStr}T23:59:59.999-06:00`)
+        }
+
+        const adminClient = createAdminClient()
+
+        // Get transactions with staff info
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select(`
+                amount, 
+                payment_method,
+                bookings!inner(
+                    staff_id,
+                    profiles!bookings_staff_id_fkey(full_name)
+                )
+            `)
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', dateStart.toISOString())
+            .lte('created_at', dateEnd.toISOString())
+
+        if (txError) {
+            console.error('[getStaffFinancialBreakdown] Transaction error:', txError)
+            return { error: 'Error al obtener transacciones', breakdown: [] }
+        }
+
+        // Group by staff member
+        type StaffBreakdown = {
+            staffId: string
+            staffName: string
+            cash: number
+            card: number
+            transfer: number
+            total: number
+        }
+
+        const staffMap = new Map<string, StaffBreakdown>()
+
+        for (const tx of transactions || []) {
+            const booking = tx.bookings as unknown as { staff_id: string; profiles: { full_name: string } | { full_name: string }[] | null } | null
+            if (!booking) continue
+
+            const staffId = booking.staff_id
+            const staffName = Array.isArray(booking.profiles)
+                ? booking.profiles[0]?.full_name || 'Sin asignar'
+                : booking.profiles?.full_name || 'Sin asignar'
+
+            if (!staffMap.has(staffId)) {
+                staffMap.set(staffId, {
+                    staffId,
+                    staffName,
+                    cash: 0,
+                    card: 0,
+                    transfer: 0,
+                    total: 0
+                })
+            }
+
+            const staffData = staffMap.get(staffId)!
+            const amount = Number(tx.amount) || 0
+
+            if (tx.payment_method === 'cash') staffData.cash += amount
+            else if (tx.payment_method === 'card') staffData.card += amount
+            else if (tx.payment_method === 'transfer') staffData.transfer += amount
+
+            staffData.total += amount
+        }
+
+        const breakdown = Array.from(staffMap.values()).sort((a, b) => b.total - a.total)
+
+        // Calculate totals
+        const totals = breakdown.reduce((acc, staff) => ({
+            cash: acc.cash + staff.cash,
+            card: acc.card + staff.card,
+            transfer: acc.transfer + staff.transfer,
+            total: acc.total + staff.total
+        }), { cash: 0, card: 0, transfer: 0, total: 0 })
+
+        return {
+            success: true,
+            breakdown,
+            totals,
+            staffCount: breakdown.length
+        }
+    } catch (err) {
+        console.error('[getStaffFinancialBreakdown] Unexpected error:', err)
+        return { error: 'Error del servidor', breakdown: [] }
+    }
+}
+
+
