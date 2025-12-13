@@ -32,6 +32,8 @@ export default function CheckOutModal({
     const [method, setMethod] = useState('cash')
     const [transactionId, setTransactionId] = useState<string | null>(null)
     const [pointsEarned, setPointsEarned] = useState(0)
+    const [clientLinked, setClientLinked] = useState(false)
+    const [linkedClientName, setLinkedClientName] = useState<string | null>(null)
 
     const handlePayment = async () => {
         setStep('processing')
@@ -46,6 +48,8 @@ export default function CheckOutModal({
             if (result.success && result.transactionId) {
                 setTransactionId(result.transactionId)
                 setPointsEarned(result.points || 0)
+                setClientLinked(result.clientLinked || false)
+                setLinkedClientName(result.clientName || null)
                 setStep('success')
                 toast.success('Cobro registrado correctamente')
                 router.refresh()
@@ -100,11 +104,33 @@ export default function CheckOutModal({
             {step === 'success' && (
                 <div className="text-center space-y-6 animate-in slide-in-from-bottom-4 duration-500">
                     <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto text-green-600"><Check className="w-10 h-10 stroke-[3]" /></div>
-                    <div><h2 className="text-2xl font-bold text-gray-900">¡Pago Recibido!</h2><p className="text-gray-500 mt-2">Esta transacción genera <strong className="text-black">+{pointsEarned} puntos</strong></p></div>
-                    <div className="space-y-3 pt-4">
-                        <button onClick={() => setStep('scanning')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2">📷 Escanear QR Cliente</button>
-                        <button onClick={onClose} className="w-full py-3 text-gray-400 font-medium hover:text-gray-600 text-sm">Saltar vinculación (Cliente anónimo)</button>
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-900">¡Pago Recibido!</h2>
+                        {clientLinked ? (
+                            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+                                <p className="text-green-700 font-medium">
+                                    ✨ +{pointsEarned} puntos asignados a {linkedClientName || booking.client_name}
+                                </p>
+                            </div>
+                        ) : (
+                            <p className="text-gray-500 mt-2">Esta transacción genera <strong className="text-black">+{pointsEarned} puntos</strong></p>
+                        )}
                     </div>
+
+                    {/* Solo mostrar opción de escanear QR si NO hay cliente vinculado */}
+                    {!clientLinked && (
+                        <div className="space-y-3 pt-4">
+                            <button onClick={() => setStep('scanning')} className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-2">📷 Escanear QR Cliente</button>
+                            <button onClick={onClose} className="w-full py-3 text-gray-400 font-medium hover:text-gray-600 text-sm">Saltar vinculación (Cliente anónimo)</button>
+                        </div>
+                    )}
+
+                    {/* Si hay cliente vinculado, solo mostrar botón de finalizar */}
+                    {clientLinked && (
+                        <button onClick={onClose} className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold">
+                            Finalizar
+                        </button>
+                    )}
                 </div>
             )}
 

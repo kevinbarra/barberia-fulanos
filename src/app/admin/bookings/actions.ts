@@ -13,10 +13,10 @@ export async function processPayment(data: {
 }) {
     const supabase = await createClient()
 
-    // 1. Obtener detalles de la cita
+    // 1. Obtener detalles de la cita (incluyendo customer_id para auto-vincular)
     const { data: booking } = await supabase
         .from('bookings')
-        .select('tenant_id, staff_id, service_id, status')
+        .select('tenant_id, staff_id, service_id, status, customer_id, customers:customer_id(full_name)')
         .eq('id', data.booking_id)
         .single()
 
@@ -32,7 +32,12 @@ export async function processPayment(data: {
     // 2. CALCULAR PUNTOS (Regla de negocio: 10% del valor en puntos)
     const pointsEarned = Math.floor(data.amount * 0.10)
 
-    // 3. Crear la Transacción
+    // 3. Determinar si hay cliente vinculado (viene de reserva)
+    const customerId = booking.customer_id || null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const customerName = (booking.customers as any)?.full_name || null
+
+    // 4. Crear la Transacción (ya vinculada si hay cliente)
     const { data: transaction, error: txError } = await supabase
         .from('transactions')
         .insert({
@@ -41,7 +46,7 @@ export async function processPayment(data: {
             service_id: booking.service_id,
             amount: data.amount,
             payment_method: data.payment_method,
-            client_id: null, // Se vinculará después con el QR
+            client_id: customerId, // Auto-vinculado si viene de reserva
             points_earned: pointsEarned,
             status: 'completed',
             created_at: new Date().toISOString()
@@ -54,7 +59,24 @@ export async function processPayment(data: {
         return { success: false, error: 'No se pudo registrar el cobro' }
     }
 
-    // 4. Actualizar la Cita a "Completada"
+    // 5. Si hay cliente, sumar puntos automáticamente
+    if (customerId) {
+        const { data: clientProfile } = await supabase
+            .from('profiles')
+            .select('loyalty_points')
+            .eq('id', customerId)
+            .single()
+
+        if (clientProfile) {
+            const newTotal = (clientProfile.loyalty_points || 0) + pointsEarned
+            await supabase
+                .from('profiles')
+                .update({ loyalty_points: newTotal })
+                .eq('id', customerId)
+        }
+    }
+
+    // 6. Actualizar la Cita a "Completada"
     const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'completed' })
@@ -73,7 +95,13 @@ export async function processPayment(data: {
     revalidatePath('/admin/bookings')
     revalidatePath('/admin/pos')
 
-    return { success: true, transactionId: transaction.id, points: pointsEarned }
+    return {
+        success: true,
+        transactionId: transaction.id,
+        points: pointsEarned,
+        clientLinked: !!customerId,
+        clientName: customerName
+    }
 }
 
 // --- FUNCIÓN 2: VINCULAR CLIENTE (QR) ---
