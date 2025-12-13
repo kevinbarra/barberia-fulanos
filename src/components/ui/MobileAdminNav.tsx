@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, Menu, X, Tablet, RefreshCw } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 import { useKioskMode } from '@/components/admin/KioskModeProvider';
+import { toast } from 'sonner';
 
 export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBarber' }: { role: string; tenantId: string; tenantName?: string }) {
     const [isOpen, setIsOpen] = useState(false);
@@ -116,7 +117,18 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
                                 })}
                             </nav>
 
-                            <div className="p-4 border-t border-gray-100 mb-safe">
+                            <div className="p-4 border-t border-gray-100 mb-safe space-y-2">
+                                {/* Sync/Reload Button for PWA */}
+                                <button
+                                    onClick={() => {
+                                        toast.info('Sincronizando sistema...')
+                                        setTimeout(() => window.location.reload(), 500)
+                                    }}
+                                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 w-full transition-all text-sm font-medium group"
+                                >
+                                    <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
+                                    Sincronizar
+                                </button>
                                 <button
                                     onClick={() => signOut()}
                                     className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 w-full transition-all text-sm font-bold group"
