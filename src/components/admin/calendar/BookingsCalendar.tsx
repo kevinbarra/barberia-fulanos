@@ -10,6 +10,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import NewBookingModal from '../NewBookingModal';
 import { cn } from '@/lib/utils';
 import CheckOutModal from '../CheckOutModal';
+import { seatBooking } from '@/app/admin/pos/actions';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 // import BookingDetailModal from './BookingDetailModal'; // To be implemented if complex interactions needed
 
 const TIMEZONE = 'America/Mexico_City';
@@ -38,9 +41,11 @@ interface BookingsCalendarProps {
 }
 
 export default function BookingsCalendar({ bookings, staff, services, tenantId, currentUserRole }: BookingsCalendarProps) {
+    const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<PosBookingData | null>(null);
+    const [isSeating, setIsSeating] = useState(false);
 
     // Filter bookings for current date
     const dailyBookings = bookings.filter(b => {
@@ -282,7 +287,7 @@ export default function BookingsCalendar({ bookings, staff, services, tenantId, 
                             </div>
                         </div>
 
-                        {selectedBooking.status !== 'completed' && selectedBooking.status !== 'cancelled' && (
+                        {selectedBooking.status === 'seated' && (
                             <CheckOutModal
                                 booking={{
                                     id: selectedBooking.id,
@@ -293,6 +298,27 @@ export default function BookingsCalendar({ bookings, staff, services, tenantId, 
                                 onClose={() => setSelectedBooking(null)}
                                 inline={true}
                             />
+                        )}
+
+                        {(selectedBooking.status === 'pending' || selectedBooking.status === 'confirmed') && (
+                            <button
+                                onClick={async () => {
+                                    setIsSeating(true)
+                                    const res = await seatBooking(selectedBooking.id)
+                                    setIsSeating(false)
+                                    if (res.success) {
+                                        toast.success('🪑 Cliente en silla')
+                                        setSelectedBooking(null)
+                                        router.refresh()
+                                    } else {
+                                        toast.error(res.error || 'Error al sentar cliente')
+                                    }
+                                }}
+                                disabled={isSeating}
+                                className="w-full py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50"
+                            >
+                                {isSeating ? 'Procesando...' : '🪑 Atender (Sentar Cliente)'}
+                            </button>
                         )}
 
                         {/* Fallback close if CheckOutModal is not rendered or explicit close needed */}

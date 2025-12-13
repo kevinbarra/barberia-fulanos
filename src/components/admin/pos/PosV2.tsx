@@ -10,7 +10,7 @@ import {
     Plus, ChevronLeft, Trash2, Clock, User, QrCode, X,
     AlertTriangle
 } from 'lucide-react'
-import { createTicket, finalizeTicketV2, voidTicket } from '@/app/admin/pos/actions'
+import { createTicket, finalizeTicketV2, voidTicket, seatBooking } from '@/app/admin/pos/actions'
 import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { markNoShow } from '@/app/admin/no-shows/actions'
 import QRScanner from '@/components/admin/QRScanner'
@@ -98,6 +98,7 @@ export default function PosV2({
     const [isProcessing, setIsProcessing] = useState(false)
     const [successTxId, setSuccessTxId] = useState<string | null>(null)
     const [showScanner, setShowScanner] = useState(false)
+    const [isSeatingBooking, setIsSeatingBooking] = useState<string | null>(null)
 
     // Ref to prevent duplicate QR scan processing (sync check)
     const isLinkingRef = useRef(false)
@@ -326,6 +327,36 @@ export default function PosV2({
         }
     }
 
+    const handleSeatBooking = async (bookingId: string) => {
+        setIsSeatingBooking(bookingId)
+        const res = await seatBooking(bookingId)
+        setIsSeatingBooking(null)
+
+        if (res.success) {
+            toast.success('🪑 Cliente en silla')
+            // Remove from bookings list and add to tickets
+            const booking = bookings.find(b => b.id === bookingId)
+            if (booking) {
+                setBookings(prev => prev.filter(b => b.id !== bookingId))
+                const service = services.find(s => s.name === booking.serviceName)
+                const newTicket: Ticket = {
+                    id: booking.id,
+                    startTime: new Date().toISOString(),
+                    clientName: booking.clientName,
+                    staffName: booking.staffName,
+                    staffId: booking.staffId,
+                    services: service ? [service] : [],
+                    status: 'active',
+                    customerId: booking.customerId
+                }
+                setTickets(prev => [newTicket, ...prev])
+            }
+            router.refresh()
+        } else {
+            toast.error(res.error || 'Error al sentar cliente')
+        }
+    }
+
     // === RENDER: SUCCESS ===
     if (mode === 'success') {
         const isWalkIn = !selectedTicket?.customerId
@@ -492,10 +523,11 @@ export default function PosV2({
                                             </button>
                                             <div className="flex gap-1">
                                                 <button
-                                                    onClick={() => handleSelectBooking(booking)}
-                                                    className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-lg font-bold"
+                                                    onClick={() => handleSeatBooking(booking.id)}
+                                                    disabled={isSeatingBooking === booking.id}
+                                                    className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-lg font-bold disabled:opacity-50"
                                                 >
-                                                    Atender
+                                                    {isSeatingBooking === booking.id ? '...' : 'Atender'}
                                                 </button>
                                                 <button
                                                     onClick={() => handleMarkNoShow(booking.id)}
