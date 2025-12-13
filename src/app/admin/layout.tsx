@@ -133,7 +133,7 @@ export default async function AdminLayout({
     const initialKioskMode = kioskCookie?.value === tenantId;
 
     return (
-        <KioskModeProvider userRole={userRole} tenantId={tenantId} initialKioskMode={initialKioskMode}>
+        <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId} initialKioskMode={initialKioskMode}>
             <div className="min-h-screen bg-gray-50 flex flex-row">
                 <AutoRefreshWrapper />
                 <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />

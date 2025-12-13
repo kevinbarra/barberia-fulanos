@@ -7,9 +7,14 @@ import { useRouter } from 'next/navigation'
 // Auto-reactivation timeout: 5 minutes in milliseconds
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
 
+// ISOLATION: Only this email/tenant uses kiosk mode
+// Super Admins and other tenants are NOT affected
+const KIOSK_ENABLED_EMAIL = 'fulanosbarbermx@gmail.com'
+
 interface KioskModeContextType {
     isKioskMode: boolean
     canToggleKioskMode: boolean
+    isKioskEnabled: boolean  // Whether kiosk feature is available for this user
     activateKioskMode: () => Promise<void>
     deactivateKioskMode: (pin: string) => Promise<boolean>
 }
@@ -23,6 +28,7 @@ export function useKioskMode() {
         return {
             isKioskMode: false,
             canToggleKioskMode: false,
+            isKioskEnabled: false,
             activateKioskMode: async () => { },
             deactivateKioskMode: async () => false
         }
@@ -33,6 +39,7 @@ export function useKioskMode() {
 interface Props {
     children: ReactNode
     userRole: string
+    userEmail?: string  // NEW: User email for isolation check
     tenantId: string
     initialKioskMode?: boolean // Server-side initial state from cookie
 }
@@ -40,31 +47,46 @@ interface Props {
 export default function KioskModeProvider({
     children,
     userRole,
+    userEmail = '',
     tenantId,
     initialKioskMode = false
 }: Props) {
-    const [isKioskMode, setIsKioskMode] = useState(initialKioskMode)
     const router = useRouter()
+
+    // ISOLATION CHECK: Only enable kiosk for the specific email/tenant
+    // Super Admins (kevinbarra2001@gmail.com) are NEVER affected by kiosk mode
+    const isKioskEnabled = userEmail.toLowerCase() === KIOSK_ENABLED_EMAIL.toLowerCase()
+
+    // If kiosk is not enabled for this user, force isKioskMode to false
+    const [isKioskMode, setIsKioskMode] = useState(isKioskEnabled ? initialKioskMode : false)
 
     // Track last activity time for auto-reactivation
     const lastActivityRef = useRef<number>(Date.now())
 
     // Only owner and super_admin can toggle kiosk mode
-    const canToggleKioskMode = userRole === 'owner' || userRole === 'super_admin'
+    // But only if kiosk is enabled for their email
+    const canToggleKioskMode = isKioskEnabled && (userRole === 'owner' || userRole === 'super_admin')
 
     // Sync with server state on mount (for client-side navigation)
+    // But only if kiosk is enabled for this user
     useEffect(() => {
-        setIsKioskMode(initialKioskMode)
-    }, [initialKioskMode])
+        if (isKioskEnabled) {
+            setIsKioskMode(initialKioskMode)
+        } else {
+            setIsKioskMode(false)
+        }
+    }, [initialKioskMode, isKioskEnabled])
 
     // ========== AUTO-REACTIVATION LOGIC ==========
-    // When kiosk mode is OFF (owner viewing data), track inactivity
-    // and auto-reactivate after 5 minutes
+    // ONLY runs for the fulanosbarbermx tenant
     useEffect(() => {
+        // ISOLATION: Skip entirely if kiosk is not enabled for this email
+        if (!isKioskEnabled) return
+
         // Only run if kiosk mode is OFF and user can toggle it
         if (isKioskMode || !canToggleKioskMode) return
 
-        console.log('[KioskModeProvider] Auto-reactivation timer started (5min)')
+        console.log('[KioskModeProvider] Auto-reactivation timer started (5min) for', userEmail)
 
         // Update last activity timestamp on user interaction
         const updateActivity = () => {
@@ -104,9 +126,12 @@ export default function KioskModeProvider({
             })
             clearInterval(checkInterval)
         }
-    }, [isKioskMode, canToggleKioskMode, tenantId])
+    }, [isKioskMode, canToggleKioskMode, tenantId, isKioskEnabled, userEmail])
 
     const activateKioskMode = useCallback(async () => {
+        // ISOLATION: Block if not enabled
+        if (!isKioskEnabled) return
+
         try {
             const result = await setKioskModeCookie(tenantId)
             if (result.success) {
@@ -117,9 +142,12 @@ export default function KioskModeProvider({
         } catch (error) {
             console.error('Error activating kiosk mode:', error)
         }
-    }, [tenantId, router])
+    }, [tenantId, router, isKioskEnabled])
 
     const deactivateKioskMode = useCallback(async (pin: string): Promise<boolean> => {
+        // ISOLATION: Block if not enabled
+        if (!isKioskEnabled) return false
+
         try {
             const result = await clearKioskModeCookie(pin, tenantId)
             if (result.success) {
@@ -134,12 +162,13 @@ export default function KioskModeProvider({
             console.error('Error deactivating kiosk mode:', error)
             return false
         }
-    }, [tenantId])
+    }, [tenantId, isKioskEnabled])
 
     return (
         <KioskModeContext.Provider value={{
-            isKioskMode,
+            isKioskMode: isKioskEnabled ? isKioskMode : false,  // Force false if not enabled
             canToggleKioskMode,
+            isKioskEnabled,
             activateKioskMode,
             deactivateKioskMode
         }}>
