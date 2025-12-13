@@ -11,6 +11,7 @@ interface BookingNotification {
     serviceName: string
     staffName: string
     time: string
+    date?: string  // Date string to navigate to calendar
     timestamp: Date
     read: boolean
 }
@@ -154,6 +155,7 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                 serviceName: data.serviceName || 'Servicio',
                 staffName: data.staffName || 'Staff',
                 time: data.time || '',
+                date: data.date || undefined,  // Store date for calendar navigation
                 timestamp: new Date(),
                 read: false
             }
@@ -363,24 +365,37 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
             {/* Toast for latest notification */}
             {notifications.length > 0 && !notifications[0].read && (
                 <div className="fixed bottom-4 right-4 z-50 animate-slide-up">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-sm flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                            <span className="text-lg">🔔</span>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 max-w-sm">
+                        <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
+                                <span className="text-lg">🔔</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-gray-900 dark:text-white">Nueva Reserva</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                                    {notifications[0].clientName} - {notifications[0].serviceName}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    {notifications[0].time} • {notifications[0].staffName}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => markAsRead(notifications[0].id)}
+                                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            >
+                                <X size={18} className="text-gray-400" />
+                            </button>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 dark:text-white">Nueva Reserva</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                                {notifications[0].clientName} - {notifications[0].serviceName}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                {notifications[0].time} • {notifications[0].staffName}
-                            </p>
-                        </div>
+                        {/* Action Button */}
                         <button
-                            onClick={() => markAsRead(notifications[0].id)}
-                            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                            onClick={() => {
+                                markAsRead(notifications[0].id)
+                                const dateParam = notifications[0].date ? `?date=${notifications[0].date}` : ''
+                                router.push(`/admin/calendar${dateParam}`)
+                            }}
+                            className="mt-3 w-full py-2 px-4 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
                         >
-                            <X size={18} className="text-gray-400" />
+                            Ver en Agenda
                         </button>
                     </div>
                 </div>
