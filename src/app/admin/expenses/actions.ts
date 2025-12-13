@@ -579,11 +579,8 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 }
 
 // ==================== GET DYNAMIC STAFF REVENUE ====================
-// Replaces staff_revenue_report view with direct transaction query
-// Attribution hierarchy:
-// 1. booking.staff_id (the barber who performed the service)
-// 2. created_by (the staff who made the sale, if not a booking)
-// 3. "Venta de Mostrador" (if created_by is the tablet user)
+// SIMPLIFIED: Transactions have staff_id directly - no complex joins needed!
+// Every transaction has proper staff attribution.
 export async function getDynamicStaffRevenue(startISO?: string, endISO?: string) {
     try {
         const { tenantId, error: authError } = await getSecureTenantId()
@@ -609,10 +606,10 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
 
         const adminClient = createAdminClient()
 
-        // Get transactions with booking info AND created_by
+        // SIMPLIFIED: Get transactions with direct staff_id column
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, booking_id, created_by')
+            .select('id, amount, staff_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -627,86 +624,40 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
             return { success: true, data: [] }
         }
 
-        // Get bookings for staff mapping
-        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
+        // Get all unique staff IDs directly from transactions
+        const staffIds = [...new Set(transactions.map(t => t.staff_id).filter(Boolean))]
 
-        const { data: bookings } = bookingIds.length > 0
-            ? await adminClient
-                .from('bookings')
-                .select('id, staff_id')
-                .in('id', bookingIds)
-            : { data: [] }
-
-        // Get all unique user IDs (booking staff + transaction creators)
-        const bookingStaffIds = bookings?.map(b => b.staff_id).filter(Boolean) || []
-        const creatorIds = transactions.map(t => t.created_by).filter(Boolean)
-        const allUserIds = [...new Set([...bookingStaffIds, ...creatorIds])]
-
-        // Get staff names AND emails to identify the tablet account
-        const { data: staffProfiles } = allUserIds.length > 0
+        // Get staff names
+        const { data: staffProfiles } = staffIds.length > 0
             ? await adminClient
                 .from('profiles')
-                .select('id, full_name, email')
-                .in('id', allUserIds)
+                .select('id, full_name')
+                .in('id', staffIds)
             : { data: [] }
 
-        // Build lookup maps
-        const bookingToStaff = new Map<string, string>()
-        for (const b of bookings || []) {
-            if (b.id && b.staff_id) bookingToStaff.set(b.id, b.staff_id)
-        }
-
         const staffNames = new Map<string, string>()
-        const staffEmails = new Map<string, string>()
         for (const p of staffProfiles || []) {
             if (p.id && p.full_name) staffNames.set(p.id, p.full_name)
-            if (p.id && p.email) staffEmails.set(p.id, p.email.toLowerCase())
         }
 
-        // The tablet email (sales made from here go to "Venta de Mostrador")
-        const TABLET_EMAIL = 'fulanosbarbermx@gmail.com'
-
-        // Aggregate by staff with intelligent attribution
+        // Aggregate by staff - staff_id is always present
         const staffMap = new Map<string, { revenue: number; services: number }>()
-        const COUNTER_SALE_KEY = '__VENTA_MOSTRADOR__'
 
         for (const tx of transactions) {
-            let staffId: string | null = null
-            let finalKey: string
+            const staffId = tx.staff_id || '__UNKNOWN__'
 
-            if (tx.booking_id) {
-                // Priority 1: Use booking staff_id
-                staffId = bookingToStaff.get(tx.booking_id) || null
-                finalKey = staffId || COUNTER_SALE_KEY
-            } else {
-                // Orphan transaction - check created_by
-                const creatorEmail = tx.created_by ? staffEmails.get(tx.created_by) : null
-
-                if (creatorEmail === TABLET_EMAIL) {
-                    // Created by tablet = "Venta de Mostrador"
-                    finalKey = COUNTER_SALE_KEY
-                } else if (tx.created_by) {
-                    // Created by another staff member = give them credit
-                    finalKey = tx.created_by
-                } else {
-                    finalKey = COUNTER_SALE_KEY
-                }
+            if (!staffMap.has(staffId)) {
+                staffMap.set(staffId, { revenue: 0, services: 0 })
             }
 
-            if (!staffMap.has(finalKey)) {
-                staffMap.set(finalKey, { revenue: 0, services: 0 })
-            }
-
-            const data = staffMap.get(finalKey)!
+            const data = staffMap.get(staffId)!
             data.revenue += Number(tx.amount) || 0
             data.services += 1
         }
 
         const result = Array.from(staffMap.entries())
             .map(([staffId, data]) => ({
-                staff_name: staffId === COUNTER_SALE_KEY
-                    ? 'Venta de Mostrador'
-                    : (staffNames.get(staffId) || 'Sin nombre'),
+                staff_name: staffNames.get(staffId) || 'Sin nombre',
                 total_revenue: data.revenue,
                 total_services: data.services,
                 avg_service_value: data.services > 0 ? Math.round(data.revenue / data.services) : 0
@@ -721,7 +672,8 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
 }
 
 // ==================== GET DYNAMIC TOP SERVICES ====================
-// Replaces top_services_report view with direct transaction query
+// SIMPLIFIED: Transactions have service_id directly - no complex joins needed!
+// Every transaction has proper service attribution.
 export async function getDynamicTopServices(startISO?: string, endISO?: string) {
     try {
         const { tenantId, error: authError } = await getSecureTenantId()
@@ -747,10 +699,10 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
 
         const adminClient = createAdminClient()
 
-        // Get transactions with booking info
+        // SIMPLIFIED: Get transactions with direct service_id column
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, booking_id')
+            .select('id, amount, service_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -765,53 +717,40 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
             return { success: true, data: [] }
         }
 
-        // Get bookings for service mapping
-        const bookingIds = [...new Set(transactions.map(t => t.booking_id).filter(Boolean))]
-
-        const { data: bookings } = await adminClient
-            .from('bookings')
-            .select('id, service_id')
-            .in('id', bookingIds)
+        // Get all unique service IDs directly from transactions
+        const serviceIds = [...new Set(transactions.map(t => t.service_id).filter(Boolean))]
 
         // Get service names
-        const serviceIds = [...new Set(bookings?.map(b => b.service_id).filter(Boolean) || [])]
-
-        const { data: services } = await adminClient
-            .from('services')
-            .select('id, name')
-            .in('id', serviceIds)
-
-        // Build lookup maps
-        const bookingToService = new Map<string, string>()
-        for (const b of bookings || []) {
-            if (b.id && b.service_id) bookingToService.set(b.id, b.service_id)
-        }
+        const { data: services } = serviceIds.length > 0
+            ? await adminClient
+                .from('services')
+                .select('id, name')
+                .in('id', serviceIds)
+            : { data: [] }
 
         const serviceNames = new Map<string, string>()
         for (const s of services || []) {
             if (s.id && s.name) serviceNames.set(s.id, s.name)
         }
 
-        // Aggregate by service - INCLUDE ORPHAN TRANSACTIONS
+        // Aggregate by service - service_id is always present
         const serviceMap = new Map<string, { revenue: number; count: number }>()
-        const ORPHAN_KEY = '__ORPHAN__'
 
         for (const tx of transactions) {
-            const serviceId = tx.booking_id ? bookingToService.get(tx.booking_id) : null
-            const finalKey = serviceId || ORPHAN_KEY
+            const serviceId = tx.service_id || '__UNKNOWN__'
 
-            if (!serviceMap.has(finalKey)) {
-                serviceMap.set(finalKey, { revenue: 0, count: 0 })
+            if (!serviceMap.has(serviceId)) {
+                serviceMap.set(serviceId, { revenue: 0, count: 0 })
             }
 
-            const data = serviceMap.get(finalKey)!
+            const data = serviceMap.get(serviceId)!
             data.revenue += Number(tx.amount) || 0
             data.count += 1
         }
 
         const result = Array.from(serviceMap.entries())
             .map(([serviceId, data]) => ({
-                service_name: serviceId === ORPHAN_KEY ? 'Ventas Generales' : (serviceNames.get(serviceId) || 'Servicio desconocido'),
+                service_name: serviceNames.get(serviceId) || 'Servicio desconocido',
                 total_revenue: data.revenue,
                 times_sold: data.count
             }))
