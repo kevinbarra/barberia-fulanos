@@ -1,34 +1,37 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
-import { setKioskModeCookie, clearKioskModeCookie } from '@/app/admin/settings/actions'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { verifyKioskPin } from '@/app/admin/settings/actions'
 
 // ============================================================
-// KIOSK MODE PROVIDER - Complete Rebuild
+// KIOSK MODE PROVIDER - LocalStorage-Based State
 // ============================================================
-// Security Features:
-// 1. Email Isolation: ONLY fulanosbarbermx@gmail.com is affected
-// 2. PIN from Database: Read from tenants.kiosk_pin
-// 3. Client-side deactivation with 1s delay
-// 4. Auto-reactivation after 5 minutes of inactivity
+// 
+// ARCHITECTURE CHANGE: Migrated from HttpOnly Cookie to LocalStorage
+// 
+// Why: The HttpOnly cookie was impossible to delete due to domain/path 
+// mismatches in Vercel's serverless environment.
+//
+// New Approach:
+// - Kiosk is ON by default (no token = kiosk active)
+// - Kiosk is OFF when localStorage has 'kiosk_unlocked_token' = 'TRUE'
+// - After 5 minutes of inactivity, the token is removed = kiosk returns ON
 // ============================================================
 
 // Auto-reactivation timeout: 5 minutes in milliseconds
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
 
-// Grace period after deactivation before timer starts: 2 minutes
-const GRACE_PERIOD_MS = 2 * 60 * 1000 // 120,000ms
+// LocalStorage key for unlocked state
+const KIOSK_UNLOCKED_KEY = 'kiosk_unlocked_token'
 
 // ISOLATION: Only this email uses kiosk mode
-// Super Admins and other tenants are NEVER affected
 const KIOSK_ENABLED_EMAIL = 'fulanosbarbermx@gmail.com'
 
 interface KioskModeContextType {
     isKioskMode: boolean
     canToggleKioskMode: boolean
     isKioskEnabled: boolean
-    activateKioskMode: () => Promise<void>
+    activateKioskMode: () => void
     deactivateKioskMode: (pin: string) => Promise<boolean>
 }
 
@@ -41,7 +44,7 @@ export function useKioskMode() {
             isKioskMode: false,
             canToggleKioskMode: false,
             isKioskEnabled: false,
-            activateKioskMode: async () => { },
+            activateKioskMode: () => { },
             deactivateKioskMode: async () => false
         }
     }
@@ -53,105 +56,81 @@ interface Props {
     userRole: string
     userEmail?: string
     tenantId: string
-    initialKioskMode?: boolean
+    initialKioskMode?: boolean // Ignored now - state is from localStorage
 }
 
 export default function KioskModeProvider({
     children,
     userRole,
     userEmail = '',
-    tenantId,
-    initialKioskMode = false
+    tenantId
 }: Props) {
-    const router = useRouter()
-    const searchParams = useSearchParams()
-
     // ========== EMAIL ISOLATION CHECK ==========
-    // If user email is NOT fulanosbarbermx@gmail.com, ALL kiosk logic is disabled
     const isKioskEnabled = userEmail.toLowerCase() === KIOSK_ENABLED_EMAIL.toLowerCase()
 
-    // If not enabled, force everything to false and don't initialize anything
-    const [isKioskMode, setIsKioskMode] = useState(isKioskEnabled ? initialKioskMode : false)
+    // ========== STATE FROM LOCALSTORAGE ==========
+    // Kiosk is ON by default (true), OFF only when unlocked token exists
+    const [isKioskMode, setIsKioskMode] = useState(() => {
+        if (!isKioskEnabled) return false
+        if (typeof window === 'undefined') return true // SSR: assume locked
+        const token = localStorage.getItem(KIOSK_UNLOCKED_KEY)
+        return token !== 'TRUE' // If token exists and is TRUE, kiosk is OFF
+    })
 
     // Track last activity time for auto-reactivation
     const lastActivityRef = useRef<number>(Date.now())
 
-    // Track deactivation time for grace period
-    const deactivatedAtRef = useRef<number | null>(null)
-
-    // Only owner can toggle kiosk mode, and only if enabled
+    // Only owner can toggle kiosk mode
     const canToggleKioskMode = isKioskEnabled && (userRole === 'owner' || userRole === 'super_admin')
 
-    // Detect if we just deactivated (URL has kiosk_disabled param)
+    // ========== SYNC STATE ON CLIENT MOUNT ==========
     useEffect(() => {
-        if (!isKioskEnabled) return
-
-        const kioskDisabled = searchParams.get('kiosk_disabled') || searchParams.get('kiosk_reset_final')
-        if (kioskDisabled) {
-            console.log('[KioskModeProvider] Detected kiosk_disabled param, setting grace period')
-            deactivatedAtRef.current = Date.now()
-            lastActivityRef.current = Date.now()
-        }
-    }, [searchParams, isKioskEnabled])
-
-    // Sync with server state on mount
-    useEffect(() => {
-        if (isKioskEnabled) {
-            setIsKioskMode(initialKioskMode)
-        } else {
+        if (!isKioskEnabled) {
             setIsKioskMode(false)
+            return
         }
-    }, [initialKioskMode, isKioskEnabled])
+
+        // Check localStorage on mount
+        const token = localStorage.getItem(KIOSK_UNLOCKED_KEY)
+        const unlocked = token === 'TRUE'
+        setIsKioskMode(!unlocked) // If unlocked, kiosk is OFF
+
+        console.log(`[KioskModeProvider] Mounted. Token: ${token}, isKioskMode: ${!unlocked}`)
+    }, [isKioskEnabled])
 
     // ========== AUTO-REACTIVATION TIMER ==========
-    // Only runs for fulanosbarbermx@gmail.com when kiosk is OFF
+    // Only runs when kiosk is OFF (owner is viewing data)
     useEffect(() => {
-        // ISOLATION: Skip if not enabled
         if (!isKioskEnabled) return
+        if (isKioskMode) return // Only run when kiosk is OFF
+        if (!canToggleKioskMode) return
 
-        // Only run if kiosk mode is OFF and user can toggle it
-        if (isKioskMode || !canToggleKioskMode) return
+        console.log(`[KioskModeProvider] Starting 5-minute inactivity timer`)
 
-        console.log('[KioskModeProvider] Auto-reactivation timer initialized for', userEmail)
-
-        // Update last activity timestamp on user interaction
+        // Update activity on user interaction
         const updateActivity = () => {
             lastActivityRef.current = Date.now()
         }
 
-        // Listen for user interactions
         const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click']
         events.forEach(event => {
             window.addEventListener(event, updateActivity, { passive: true })
         })
 
         // Check for inactivity every 30 seconds
-        const checkInterval = setInterval(async () => {
-            // Check grace period first
-            if (deactivatedAtRef.current) {
-                const timeSinceDeactivation = Date.now() - deactivatedAtRef.current
-                if (timeSinceDeactivation < GRACE_PERIOD_MS) {
-                    console.log('[KioskModeProvider] Still in grace period, skipping check')
-                    return
-                }
-            }
-
+        const checkInterval = setInterval(() => {
             const inactiveTime = Date.now() - lastActivityRef.current
 
             if (inactiveTime > INACTIVITY_TIMEOUT_MS) {
-                console.log('[KioskModeProvider] 5 minutes of inactivity detected. Auto-activating kiosk mode...')
+                console.log(`[KioskModeProvider] 5 minutes of inactivity. Re-activating kiosk...`)
 
-                try {
-                    const result = await setKioskModeCookie(tenantId)
-                    if (result.success) {
-                        // Force reload to require PIN again
-                        window.location.href = '/admin?kiosk_timeout=1'
-                    }
-                } catch (error) {
-                    console.error('[KioskModeProvider] Error auto-activating kiosk mode:', error)
-                }
+                // Remove the unlocked token = kiosk turns ON
+                localStorage.removeItem(KIOSK_UNLOCKED_KEY)
+
+                // Force reload to apply new state
+                window.location.reload()
             }
-        }, 30000) // Check every 30 seconds
+        }, 30000)
 
         return () => {
             events.forEach(event => {
@@ -159,38 +138,46 @@ export default function KioskModeProvider({
             })
             clearInterval(checkInterval)
         }
-    }, [isKioskMode, canToggleKioskMode, tenantId, isKioskEnabled, userEmail])
+    }, [isKioskMode, canToggleKioskMode, isKioskEnabled])
 
-    const activateKioskMode = useCallback(async () => {
+    // ========== ACTIVATE KIOSK (Remove unlock token) ==========
+    const activateKioskMode = useCallback(() => {
         if (!isKioskEnabled) return
 
-        try {
-            const result = await setKioskModeCookie(tenantId)
-            if (result.success) {
-                setIsKioskMode(true)
-                deactivatedAtRef.current = null // Clear grace period
-                router.refresh()
-            }
-        } catch (error) {
-            console.error('[KioskModeProvider] Error activating kiosk mode:', error)
-        }
-    }, [tenantId, router, isKioskEnabled])
+        console.log(`[KioskModeProvider] Activating kiosk mode`)
+        localStorage.removeItem(KIOSK_UNLOCKED_KEY)
+        setIsKioskMode(true)
+    }, [isKioskEnabled])
 
+    // ========== DEACTIVATE KIOSK (Add unlock token after PIN) ==========
     const deactivateKioskMode = useCallback(async (pin: string): Promise<boolean> => {
         if (!isKioskEnabled) return false
 
+        console.log(`[KioskModeProvider] Attempting to deactivate kiosk with PIN...`)
+
         try {
-            // Server action verifies PIN and deletes cookie
-            const result = await clearKioskModeCookie(pin, tenantId)
-            if (result.success) {
-                setIsKioskMode(false)
-                lastActivityRef.current = Date.now()
-                deactivatedAtRef.current = Date.now() // Start grace period
-                return true
+            // Verify PIN via server action
+            const result = await verifyKioskPin(pin, tenantId)
+
+            if (!result.valid) {
+                console.log(`[KioskModeProvider] PIN verification failed`)
+                return false
             }
-            return false
+
+            console.log(`[KioskModeProvider] PIN verified. Setting unlock token...`)
+
+            // Set the unlock token in localStorage
+            localStorage.setItem(KIOSK_UNLOCKED_KEY, 'TRUE')
+
+            // Update state
+            setIsKioskMode(false)
+
+            // Reset activity timer
+            lastActivityRef.current = Date.now()
+
+            return true
         } catch (error) {
-            console.error('[KioskModeProvider] Error deactivating kiosk mode:', error)
+            console.error(`[KioskModeProvider] Error verifying PIN:`, error)
             return false
         }
     }, [tenantId, isKioskEnabled])

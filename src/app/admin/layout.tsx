@@ -127,13 +127,11 @@ export default async function AdminLayout({
         return <>{children}</>;
     }
 
-    // Read kiosk mode cookie for server-side state
-    const cookieStore = await cookies();
-    const kioskCookie = cookieStore.get('agendabarber_kiosk_mode');
-    const initialKioskMode = kioskCookie?.value === tenantId;
+    // Kiosk mode is now managed via localStorage in KioskModeProvider
+    // No server-side cookie reading needed
 
     return (
-        <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId} initialKioskMode={initialKioskMode}>
+        <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId}>
             <div className="min-h-screen bg-gray-50 flex flex-row">
                 <AutoRefreshWrapper />
                 <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
