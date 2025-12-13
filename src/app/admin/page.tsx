@@ -3,7 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import TransactionList from "@/components/admin/TransactionList";
 import { getTodayRange } from "@/lib/dates";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 
 const ROOT_DOMAIN = 'agendabarber.pro';
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app'];
@@ -55,6 +55,11 @@ export default async function AdminDashboard() {
     }
 
     if (!tenantId) return redirect("/login");
+
+    // Check if kiosk mode is active (from cookie)
+    const cookieStore = await cookies();
+    const kioskCookie = cookieStore.get('agendabarber_kiosk_mode');
+    const isKioskMode = kioskCookie?.value === tenantId;
 
     const userName = profile?.full_name?.split(" ")[0] || "Staff";
 
@@ -118,7 +123,7 @@ export default async function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
-                {userRole === 'owner' ? (
+                {userRole === 'owner' && !isKioskMode ? (
                     <div className="bg-black text-white p-5 rounded-2xl shadow-xl flex flex-col justify-between h-36 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-20 h-20 bg-zinc-800 rounded-full -mr-10 -mt-10 blur-xl opacity-50"></div>
                         <div className="flex justify-between items-start z-10">
@@ -128,6 +133,18 @@ export default async function AdminDashboard() {
                         <div className="z-10">
                             <h2 className="text-3xl font-black tracking-tight">{formatMoney(totalIncome)}</h2>
                             <p className="text-zinc-500 text-xs mt-1">Total acumulado</p>
+                        </div>
+                    </div>
+                ) : isKioskMode ? (
+                    <div className="bg-purple-600 text-white p-5 rounded-2xl shadow-xl flex flex-col justify-between h-36 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-20 h-20 bg-purple-500 rounded-full -mr-10 -mt-10 blur-xl opacity-50"></div>
+                        <div className="flex justify-between items-start z-10">
+                            <p className="text-purple-200 text-[10px] uppercase font-bold tracking-widest">Modo Activo</p>
+                            <span className="text-xl">🔒</span>
+                        </div>
+                        <div className="z-10">
+                            <h2 className="text-xl font-black tracking-tight">Modo Kiosko</h2>
+                            <p className="text-purple-200 text-xs mt-1">Datos protegidos</p>
                         </div>
                     </div>
                 ) : (
