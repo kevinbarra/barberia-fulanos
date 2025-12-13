@@ -56,6 +56,8 @@ function KioskExitButtonInner() {
 
             // ========== STEP 2: CLIENT-SIDE BACKUP CLEANUP ==========
             // These are backups - the server already deleted the HttpOnly cookie
+            console.log(`[KIOSK CLIENT] document.cookie BEFORE cleanup: ${document.cookie}`)
+
             try {
                 // Try to clear cookie from all possible paths (won't work for HttpOnly, but just in case)
                 document.cookie = `${KIOSK_COOKIE_NAME}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
@@ -66,12 +68,16 @@ function KioskExitButtonInner() {
                 localStorage.removeItem('kiosk_mode')
                 sessionStorage.clear()
             } catch (e) {
-                // Ignore storage errors
+                console.log(`[KIOSK CLIENT] Error during cleanup: ${e}`)
             }
+
+            console.log(`[KIOSK CLIENT] document.cookie AFTER cleanup: ${document.cookie}`)
 
             // ========== STEP 3: ROBUST DELAY ==========
             // Wait 1 full second to ensure all async operations complete
+            console.log(`[KIOSK CLIENT] Starting 1 second delay...`)
             await new Promise(resolve => setTimeout(resolve, 1000))
+            console.log(`[KIOSK CLIENT] Delay complete. Navigating to /admin?kiosk_disabled=...`)
 
             // ========== STEP 4: FORCED NAVIGATION ==========
             // Use kiosk_disabled param so provider knows to start grace period

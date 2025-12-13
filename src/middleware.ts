@@ -2,6 +2,10 @@ import { type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
+    // ========== KIOSK DEBUG LOGGING ==========
+    const kioskCookie = request.cookies.get('agendabarber_kiosk_mode')
+    console.log(`[KIOSK MIDDLEWARE] URL: ${request.nextUrl.pathname} | Cookie: ${kioskCookie ? 'PRESENTE (' + kioskCookie.value.substring(0, 8) + '...)' : 'AUSENTE'}`)
+
     // Simplemente delega el trabajo a la función de utilidad
     return await updateSession(request)
 }

@@ -227,16 +227,31 @@ export async function setKioskModeCookie(tenantId: string) {
 }
 
 export async function clearKioskModeCookie(pin: string, tenantId: string) {
+    console.log(`[KIOSK SERVER] clearKioskModeCookie called. Timestamp: ${Date.now()}`)
+
     // First verify the PIN
     const result = await verifyKioskPin(pin, tenantId)
 
     if (!result.valid) {
+        console.log(`[KIOSK SERVER] PIN verification FAILED`)
         return { error: 'PIN incorrecto', success: false }
     }
 
+    console.log(`[KIOSK SERVER] PIN verification PASSED. Deleting cookie...`)
+
     // Clear the cookie
     const cookieStore = await cookies()
+
+    // Log cookie state BEFORE deletion
+    const existingCookie = cookieStore.get(KIOSK_COOKIE_NAME)
+    console.log(`[KIOSK SERVER] Cookie BEFORE delete: ${existingCookie ? 'EXISTE (' + existingCookie.value.substring(0, 8) + '...)' : 'NO EXISTE'}`)
+
     cookieStore.delete(KIOSK_COOKIE_NAME)
+
+    // Log cookie state AFTER deletion
+    const afterCookie = cookieStore.get(KIOSK_COOKIE_NAME)
+    console.log(`[KIOSK SERVER] Cookie AFTER delete: ${afterCookie ? 'TODAVIA EXISTE!' : 'ELIMINADA CORRECTAMENTE'}`)
+    console.log(`[KIOSK SERVER] clearKioskModeCookie completed. Returning success.`)
 
     return { success: true }
 }
