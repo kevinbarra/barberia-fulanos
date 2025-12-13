@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server';
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function markNoShow(bookingId: string, reason?: string) {
@@ -46,23 +46,15 @@ export async function forgiveNoShow(noShowId: string) {
 export async function getClientsWithWarnings() {
     const supabase = await createClient();
 
-    // Obtener tenant_id del usuario actual para filtrar
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
-
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
-
-    if (!profile?.tenant_id) return [];
+    // Obtener tenant_id usando getTenantIdForAdmin (soporta super admin)
+    const tenantId = await getTenantIdForAdmin();
+    if (!tenantId) return [];
 
     // Filtrar solo clientes de MI barbería
     const { data, error } = await supabase
         .from('clients_with_warnings_v2')
         .select('*')
-        .eq('tenant_id', profile.tenant_id)
+        .eq('tenant_id', tenantId)
         .order('total_no_shows', { ascending: false });
 
     if (error) throw error;

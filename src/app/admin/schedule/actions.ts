@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { fromZonedTime } from 'date-fns-tz'
 
@@ -28,7 +28,8 @@ export async function saveSchedule(formData: FormData) {
     // - Si soy Staff, SOLO puedo editarme a mí mismo (user.id), ignoro el form.
     const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
     const targetStaffId = isManager ? (formTargetId || user.id) : user.id;
-    const tenantId = requester?.tenant_id;
+    // Use getTenantIdForAdmin for super admin support
+    const tenantId = await getTenantIdForAdmin();
 
     if (!tenantId) return { error: 'Error de configuración de cuenta.' }
 

@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { tenantSchema } from '@/lib/schemas'
 
@@ -17,7 +17,12 @@ export async function updateTenant(formData: FormData) {
         .eq('id', user.id)
         .single()
 
-    if (profile?.role !== 'owner') return { error: 'Solo el dueño puede configurar el negocio.' }
+    // Allow owner or super_admin
+    if (profile?.role !== 'owner' && profile?.role !== 'super_admin') return { error: 'Solo el dueño puede configurar el negocio.' }
+
+    // Get tenant from subdomain for super admin
+    const tenantId = await getTenantIdForAdmin();
+    if (!tenantId) return { error: 'Error de configuración de cuenta.' }
 
     // 2. Validación Zod
     const rawData = {
@@ -45,7 +50,7 @@ export async function updateTenant(formData: FormData) {
         if (file.size > 2 * 1024 * 1024) return { error: 'El logo debe pesar menos de 2MB.' }
 
         const fileExt = file.name.split('.').pop()
-        const filePath = `${profile.tenant_id}/logo-${Date.now()}.${fileExt}`
+        const filePath = `${tenantId}/logo-${Date.now()}.${fileExt}`
 
         const { error: uploadError } = await supabase.storage
             .from('logos')
@@ -64,7 +69,7 @@ export async function updateTenant(formData: FormData) {
     const { error } = await supabase
         .from('tenants')
         .update(updateData)
-        .eq('id', profile.tenant_id)
+        .eq('id', tenantId)
 
     if (error) {
         if (error.code === '23505') return { error: 'Ese enlace (slug) ya está ocupado. Intenta con otro.' }
