@@ -60,13 +60,15 @@ export default async function SchedulePage({
     const { data: blocks } = await blocksQuery;
 
     // 5. Lista de Staff para el Dropdown (Solo Manager)
+    // Filter by is_calendar_visible to exclude admin users like "Caja Principal"
     let staffList: { id: string, full_name: string }[] = [];
     if (isManager) {
         const { data: staff } = await supabase
             .from('profiles')
             .select('id, full_name')
             .eq('tenant_id', tenantId)
-            .neq('role', 'customer');
+            .neq('role', 'customer')
+            .eq('is_calendar_visible', true);
         staffList = staff || [];
     }
 

@@ -68,9 +68,14 @@ export default function KioskModeProvider({
         try {
             const result = await clearKioskModeCookie(pin, tenantId)
             if (result.success) {
+                // First, update local state
                 setIsKioskMode(false)
+
+                // Small delay to ensure cookie is fully cleared by the browser
+                // This prevents the "zombie kiosk" bug where reload happens before cookie is deleted
+                await new Promise(resolve => setTimeout(resolve, 300))
+
                 // Force full page reload to ensure clean state
-                // This is critical for restoring full privileges
                 window.location.reload()
                 return true
             }
