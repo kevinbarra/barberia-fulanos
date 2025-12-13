@@ -56,15 +56,38 @@ export default async function LoginPage({
 
         // Super Admin: Simple redirect logic
         // Only redirect to platform if on www/root
-        // On any subdomain, just go to /admin (layout handles the rest)
         if (isSuperAdmin) {
             const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN;
 
             if (isOnWww) {
                 return redirect('/admin/platform');
             }
-            // On any subdomain (tenant or otherwise), just go to /admin
-            return redirect('/admin');
+
+            // On tenant/custom subdomain: Show manual button to break loop
+            // This confirms session exists on this subdomain
+            return (
+                <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+                    <div className="absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+                    <div className="z-10 w-full max-w-sm text-center">
+                        <h1 className="text-3xl font-black mb-4">Super Admin</h1>
+                        <p className="text-zinc-400 mb-8">Sesión activa detectada en subdominio.</p>
+
+                        <div className="bg-zinc-900 p-6 rounded-2xl border border-zinc-800 mb-6">
+                            <p className="text-sm font-medium text-zinc-300 mb-4">Estás en: <span className="text-white">{hostname}</span></p>
+                            <a
+                                href="/admin"
+                                className="block w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors"
+                            >
+                                Acceder al Panel
+                            </a>
+                        </div>
+
+                        <Link href={`https://www.${ROOT_DOMAIN}/admin/platform`} className="text-xs text-zinc-500 hover:text-white underline">
+                            Volver a Platform (WWW)
+                        </Link>
+                    </div>
+                </div>
+            );
         }
 
         // Si el tenant está suspendido, redirigir a /admin (mostrará pantalla de suspensión)
