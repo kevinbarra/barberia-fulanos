@@ -237,7 +237,7 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
         return { error: 'PIN incorrecto', success: false }
     }
 
-    console.log(`[KIOSK SERVER] PIN verification PASSED. Deleting cookie with EXACT attributes...`)
+    console.log(`[KIOSK SERVER] PIN verification PASSED. BRUTE FORCE DELETION starting...`)
 
     const cookieStore = await cookies()
 
@@ -245,58 +245,88 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
     const existingCookie = cookieStore.get(KIOSK_COOKIE_NAME)
     console.log(`[KIOSK SERVER] Cookie BEFORE delete: ${existingCookie ? 'EXISTE (' + existingCookie.value.substring(0, 8) + '...)' : 'NO EXISTE'}`)
 
-    // ========== DEFINITIVE DELETION ==========
-    // The cookie was created with these EXACT options:
-    // - httpOnly: true
-    // - secure: true (in production)
-    // - sameSite: 'lax'
-    // - path: '/admin'
-    // - NO explicit domain (defaults to current hostname)
-    //
-    // To delete it, we MUST set it with the same options but with maxAge: -1 or expired date
+    // ========== COMPLETE BRUTE FORCE DELETION ==========
+    // Try ALL combinations of path and domain to guarantee cookie death
 
-    // PRIMARY METHOD: Set to expired with EXACT SAME attributes
-    console.log(`[KIOSK SERVER] Setting cookie to EXPIRED with exact creation attributes`)
+    // ===== STEP 1: DELETE() with all path variations =====
+    console.log(`[KIOSK SERVER] STEP 1: delete() with path variations`)
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete(KIOSK_COOKIE_NAME) } catch (e) { /* ignore */ }
+
+    // ===== STEP 2: DELETE() with domain variations =====
+    console.log(`[KIOSK SERVER] STEP 2: delete() with domain variations`)
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: '.agendabarber.pro' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: '.agendabarber.pro' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: 'fulanos.agendabarber.pro' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: 'fulanos.agendabarber.pro' }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: 'agendabarber.pro' }) } catch (e) { /* ignore */ }
+
+    // ===== STEP 3: SET() to expired - NO domain (default to current) =====
+    console.log(`[KIOSK SERVER] STEP 3: set() to expired - no domain`)
     cookieStore.set(KIOSK_COOKIE_NAME, '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/admin',
-        maxAge: -1,  // Negative maxAge = delete immediately
-        expires: new Date(0)  // Also set expired date for good measure
+        maxAge: 0,
+        expires: new Date(0)
     })
-
-    // BACKUP: Also try delete() with path
-    console.log(`[KIOSK SERVER] Also calling delete() with path='/admin'`)
-    try {
-        cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin' })
-    } catch (e) {
-        console.log(`[KIOSK SERVER] delete() threw: ${e}`)
-    }
-
-    // BACKUP 2: Delete without path
-    console.log(`[KIOSK SERVER] Also calling simple delete()`)
-    try {
-        cookieStore.delete(KIOSK_COOKIE_NAME)
-    } catch (e) {
-        console.log(`[KIOSK SERVER] simple delete() threw: ${e}`)
-    }
-
-    // BACKUP 3: Set with path='/' too in case it was set there
-    console.log(`[KIOSK SERVER] Also expiring with path='/'`)
     cookieStore.set(KIOSK_COOKIE_NAME, '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        maxAge: -1,
+        maxAge: 0,
+        expires: new Date(0)
+    })
+
+    // ===== STEP 4: SET() to expired WITH .agendabarber.pro domain =====
+    console.log(`[KIOSK SERVER] STEP 4: set() to expired - domain=.agendabarber.pro`)
+    cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/admin',
+        domain: '.agendabarber.pro',
+        maxAge: 0,
+        expires: new Date(0)
+    })
+    cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        domain: '.agendabarber.pro',
+        maxAge: 0,
+        expires: new Date(0)
+    })
+
+    // ===== STEP 5: SET() to expired WITH fulanos.agendabarber.pro domain =====
+    console.log(`[KIOSK SERVER] STEP 5: set() to expired - domain=fulanos.agendabarber.pro`)
+    cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/admin',
+        domain: 'fulanos.agendabarber.pro',
+        maxAge: 0,
+        expires: new Date(0)
+    })
+    cookieStore.set(KIOSK_COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        domain: 'fulanos.agendabarber.pro',
+        maxAge: 0,
         expires: new Date(0)
     })
 
     // Log cookie state AFTER deletion
     const afterCookie = cookieStore.get(KIOSK_COOKIE_NAME)
     console.log(`[KIOSK SERVER] Cookie AFTER delete: ${afterCookie ? 'TODAVIA EXISTE! Value: "' + afterCookie.value + '"' : 'ELIMINADA CORRECTAMENTE'}`)
-    console.log(`[KIOSK SERVER] clearKioskModeCookie completed. Returning success.`)
+    console.log(`[KIOSK SERVER] BRUTE FORCE completed. Returning success.`)
 
     return { success: true }
 }
