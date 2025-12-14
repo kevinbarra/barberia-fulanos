@@ -104,7 +104,8 @@ export async function processPayment(data: {
     }
 }
 
-// --- FUNCIÓN 2: VINCULAR CLIENTE (QR) ---
+// --- FUNCIÓN 2: VINCULAR CLIENTE (QR) con Smart Resolution ---
+// Resuelve inteligentemente: puede recibir user_id directo o booking_id
 // Usamos adminClient porque staff necesita leer profiles de clientes (RLS lo bloquea)
 export async function linkTransactionToUser(transactionId: string, scannedValue: string) {
     const supabase = createAdminClient()
@@ -126,40 +127,68 @@ export async function linkTransactionToUser(transactionId: string, scannedValue:
         if (transaction.status !== 'completed') throw new Error('Cobro no finalizado.')
         if (transaction.client_id) throw new Error('Esta venta ya tiene dueño.')
 
-        // 2. Buscar Usuario - Intentar primero por UUID, luego por email
-        let profile = null
+        // 2. SMART RESOLUTION: Intentar identificar qué tipo de QR es
+        let finalUserId: string | null = null
+        let source = 'direct'
 
-        // Intentar buscar por UUID
-        const { data: profileById, error: profileByIdError } = await supabase
+        // PASO A: ¿Es un usuario directo (profile)?
+        const { data: userProfile } = await supabase
             .from('profiles')
-            .select('id, loyalty_points, full_name')
+            .select('id, full_name, loyalty_points')
             .eq('id', scannedValue)
             .single()
 
-        if (profileById) {
-            profile = profileById
-            console.log('[linkTransactionToUser] Found by UUID:', profile.full_name)
+        if (userProfile) {
+            finalUserId = userProfile.id
+            source = 'profile'
+            console.log(`[LINK] Usuario encontrado directamente: ${userProfile.full_name}`)
         } else {
-            // Intentar buscar por email (algunos QR pueden contener email)
-            console.log('[linkTransactionToUser] UUID lookup failed, trying email lookup...')
-            const { data: profileByEmail, error: profileByEmailError } = await supabase
-                .from('profiles')
-                .select('id, loyalty_points, full_name')
-                .eq('email', scannedValue.toLowerCase().trim())
+            // PASO B: ¿Es un ID de reserva (booking)?
+            console.log(`[LINK] ID ${scannedValue} no es perfil, buscando en bookings...`)
+            const { data: booking } = await supabase
+                .from('bookings')
+                .select('customer_id')
+                .eq('id', scannedValue)
                 .single()
 
-            if (profileByEmail) {
-                profile = profileByEmail
-                console.log('[linkTransactionToUser] Found by email:', profile.full_name)
+            if (booking && booking.customer_id) {
+                finalUserId = booking.customer_id
+                source = 'booking'
+                console.log(`[LINK] Cliente encontrado vía reserva: ${booking.customer_id}`)
             } else {
-                console.error('[linkTransactionToUser] Profile not found:', { scannedValue, profileByIdError, profileByEmailError })
-                throw new Error('Cliente no encontrado.')
+                // PASO C: Intentar por email (legacy)
+                console.log('[LINK] No es booking, intentando por email...')
+                const { data: profileByEmail } = await supabase
+                    .from('profiles')
+                    .select('id, full_name, loyalty_points')
+                    .eq('email', scannedValue.toLowerCase().trim())
+                    .single()
+
+                if (profileByEmail) {
+                    finalUserId = profileByEmail.id
+                    source = 'email'
+                    console.log(`[LINK] Usuario encontrado por email: ${profileByEmail.full_name}`)
+                }
             }
         }
 
-        if (!profile) throw new Error('Cliente no encontrado.')
+        // Si no encontró nada, error
+        if (!finalUserId) {
+            throw new Error('QR no válido: No se encontró cliente ni reserva asociada.')
+        }
 
-        // 3. ACTUALIZACIÓN ATÓMICA
+        // 3. Obtener perfil del usuario final (para puntos y nombre)
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('id, loyalty_points, full_name')
+            .eq('id', finalUserId)
+            .single()
+
+        if (!profile) {
+            throw new Error('Cliente no encontrado en el sistema.')
+        }
+
+        // 4. ACTUALIZACIÓN ATÓMICA
         const { error: updateTxError } = await supabase
             .from('transactions')
             .update({ client_id: profile.id })
@@ -180,14 +209,21 @@ export async function linkTransactionToUser(transactionId: string, scannedValue:
         }
 
         revalidatePath('/admin')
+        revalidatePath('/admin/pos')
 
-        return {
-            success: true,
-            message: `¡${transaction.points_earned} Puntos asignados a ${profile.full_name?.split(' ')[0]}!`
+        // 5. Mensajes diferenciados según fuente
+        const firstName = profile.full_name?.split(' ')[0] || 'Cliente'
+        const points = transaction.points_earned || 0
+
+        let message = `¡${points} Puntos asignados a ${firstName}!`
+        if (source === 'booking') {
+            message = `¡Cliente vinculado desde su Cita! +${points} puntos para ${firstName}`
         }
 
+        return { success: true, message }
+
     } catch (error) {
-        console.error('Error vinculando:', error)
+        console.error('[LINK_TX_ERROR]', error)
         return {
             success: false,
             message: error instanceof Error ? error.message : 'Error desconocido'
