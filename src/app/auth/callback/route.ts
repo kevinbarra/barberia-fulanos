@@ -22,6 +22,19 @@ function extractTenantFromHostname(hostname: string): string | null {
     return null
 }
 
+/**
+ * POST-LOGIN REDIRECT FLOW
+ * 
+ * Uses new multi-tenant structure:
+ * - profiles.is_platform_admin -> /admin-saas
+ * - tenant_members table for user-tenant relationships
+ * 
+ * Routing Rules:
+ * A) Platform Admin: /admin-saas
+ * B) No memberships: /onboarding
+ * C) 1 membership: https://{slug}.agendabarber.pro/admin
+ * D) 2+ memberships: /select-account
+ */
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
@@ -38,49 +51,83 @@ export async function GET(request: Request) {
             const headersList = await headers()
             const hostname = headersList.get('host') || ''
             const currentSubdomain = extractTenantFromHostname(hostname)
-            const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN
 
+            // ========== STEP 1: Check if Platform Admin ==========
             const { data: profile } = await supabase
                 .from('profiles')
-                .select('role, tenant_id, tenants(slug)')
+                .select('is_platform_admin')
                 .eq('id', data.user.id)
                 .single()
 
-            let tenantSlug: string | null = null
-
-            if (profile?.tenants) {
-                const tenantData = profile.tenants as unknown
-                if (Array.isArray(tenantData) && tenantData.length > 0) {
-                    tenantSlug = tenantData[0]?.slug || null
-                } else if (typeof tenantData === 'object' && tenantData !== null) {
-                    tenantSlug = (tenantData as { slug: string }).slug || null
+            // CASE A: Platform Admin -> /admin-saas
+            if (profile?.is_platform_admin === true) {
+                console.log('[Auth Callback] Platform Admin detected, redirecting to /admin-saas')
+                if (isLocalEnv) {
+                    return NextResponse.redirect(`${origin}/admin-saas`)
                 }
+                return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/admin-saas`)
             }
 
-            const userRole = profile?.role
+            // ========== STEP 2: Get User's Tenant Memberships ==========
+            const { data: memberships } = await supabase
+                .from('tenant_members')
+                .select(`
+                    tenant_id,
+                    role,
+                    tenants(slug, name)
+                `)
+                .eq('user_id', data.user.id)
+                .eq('is_active', true)
 
-            if (isLocalEnv) {
-                return NextResponse.redirect(`${origin}${next}`)
+            // CASE B: No memberships -> /onboarding
+            if (!memberships || memberships.length === 0) {
+                console.log('[Auth Callback] No tenant memberships, redirecting to /onboarding')
+                if (isLocalEnv) {
+                    return NextResponse.redirect(`${origin}/onboarding`)
+                }
+                return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/onboarding`)
             }
 
-            // Super admin: respect subdomain context
-            if (userRole === 'super_admin') {
-                if (currentSubdomain && !isOnWww) {
-                    // Super admin on tenant subdomain -> stay there
+            // ========== STEP 3: Route Based on Membership Count ==========
+
+            // If user is on a specific subdomain, check if they have access
+            if (currentSubdomain) {
+                const hasAccessToCurrentTenant = memberships.some(m => {
+                    const tenant = m.tenants as unknown as { slug: string } | null
+                    return tenant?.slug === currentSubdomain
+                })
+
+                if (hasAccessToCurrentTenant) {
+                    console.log(`[Auth Callback] User has access to ${currentSubdomain}, staying`)
+                    if (isLocalEnv) {
+                        return NextResponse.redirect(`${origin}${next}`)
+                    }
                     return NextResponse.redirect(`https://${currentSubdomain}.${ROOT_DOMAIN}${next}`)
-                } else {
-                    // Super admin on www -> go to platform
-                    return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/admin/platform`)
                 }
             }
 
-            // Regular users
-            if (tenantSlug) {
-                const redirectUrl = `https://${tenantSlug}.${ROOT_DOMAIN}${next}`
-                return NextResponse.redirect(redirectUrl)
-            } else {
-                return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/admin`)
+            // CASE C: Single membership -> Redirect to that tenant's subdomain
+            if (memberships.length === 1) {
+                const tenant = memberships[0].tenants as unknown as { slug: string } | null
+                const slug = tenant?.slug
+
+                if (slug) {
+                    console.log(`[Auth Callback] Single tenant: ${slug}, redirecting`)
+                    if (isLocalEnv) {
+                        // In dev, simulate with console log and redirect to /admin
+                        console.log(`[DEV] Would redirect to: https://${slug}.${ROOT_DOMAIN}/admin`)
+                        return NextResponse.redirect(`${origin}/admin`)
+                    }
+                    return NextResponse.redirect(`https://${slug}.${ROOT_DOMAIN}/admin`)
+                }
             }
+
+            // CASE D: Multiple memberships -> /select-account
+            console.log(`[Auth Callback] Multiple tenants (${memberships.length}), redirecting to /select-account`)
+            if (isLocalEnv) {
+                return NextResponse.redirect(`${origin}/select-account`)
+            }
+            return NextResponse.redirect(`https://www.${ROOT_DOMAIN}/select-account`)
         }
     }
 
