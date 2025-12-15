@@ -143,7 +143,7 @@ export default function BookingsCalendar({
                         </div>
 
                         {staff.map(member => (
-                            <div key={member.id} className="flex-1 min-w-[180px] border-r border-gray-100 relative group">
+                            <div key={member.id} className="flex-1 min-w-[180px] max-w-[280px] border-r border-gray-100 relative group">
 
                                 {/* STAFF HEADER */}
                                 <div className="h-14 border-b border-gray-100 bg-white sticky top-0 z-10 flex items-center gap-3 px-4 shadow-sm">

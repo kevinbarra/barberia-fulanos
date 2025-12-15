@@ -429,9 +429,12 @@ export default function BookingWizard({
                                 )}
                             </div>
 
-                            <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg shadow-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all mt-6 active:scale-95">
-                                {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
-                            </button>
+                            {/* Sticky button for mobile */}
+                            <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 -mx-6 -mb-6 mt-6">
+                                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg shadow-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95">
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
+                                </button>
+                            </div>
                         </motion.section>
                     )}
                 </AnimatePresence>
