@@ -9,8 +9,9 @@ import Image from 'next/image'
 import { cancelBookingAdmin, markNoShow } from '@/app/admin/bookings/actions'
 import { seatBooking } from '@/app/admin/pos/actions'
 import { toast } from 'sonner'
+import { DEFAULT_TIMEZONE } from '@/lib/constants';
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 import { PosBookingData } from "@/types/supabase-joined";
 

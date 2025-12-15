@@ -5,8 +5,9 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { sendBookingEmail, sendStaffNewBookingNotification } from '@/lib/email'
 import { fromZonedTime } from 'date-fns-tz'
 import { revalidatePath } from 'next/cache'
+import { DEFAULT_TIMEZONE } from '@/lib/constants';
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 export async function getTakenRanges(staffId: string, dateStr: string) {
     const supabase = await createClient()

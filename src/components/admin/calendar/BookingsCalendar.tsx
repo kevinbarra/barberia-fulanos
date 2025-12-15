@@ -13,9 +13,10 @@ import CheckOutModal from '../CheckOutModal';
 import { seatBooking } from '@/app/admin/pos/actions';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import { DEFAULT_TIMEZONE } from '@/lib/constants';
 // import BookingDetailModal from './BookingDetailModal'; // To be implemented if complex interactions needed
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 const CELL_HEIGHT = 120; // Pixels per hour
 
 type StaffMember = {

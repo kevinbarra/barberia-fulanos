@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react'
 import { verifyKioskPin } from '@/app/admin/settings/actions'
+import { MASTER_ADMIN_EMAIL } from '@/lib/constants'
 
 // ============================================================
 // KIOSK MODE PROVIDER - LocalStorage-Based State
@@ -13,8 +14,9 @@ const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000 // 300,000ms
 // LocalStorage key for unlocked state
 const KIOSK_UNLOCKED_KEY = 'kiosk_unlocked_token'
 
-// ISOLATION: Only this email uses kiosk mode
-const KIOSK_ENABLED_EMAIL = 'fulanosbarbermx@gmail.com'
+// TODO: Migrate this email-based feature gate to role-based permissions
+// This should be replaced with a has_kiosk_access flag in profiles or tenants table
+const KIOSK_ENABLED_EMAIL = MASTER_ADMIN_EMAIL
 
 interface KioskModeContextType {
     isKioskMode: boolean

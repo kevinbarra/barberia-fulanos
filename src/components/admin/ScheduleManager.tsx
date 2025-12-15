@@ -3,11 +3,12 @@
 import { useState, useRef, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveSchedule, addTimeBlock, deleteTimeBlock } from '@/app/admin/schedule/actions'
+import { DEFAULT_TIMEZONE } from '@/lib/constants';
 import { toast } from 'sonner'
 import { Trash2, Calendar, Loader2, User, Users, Lock } from 'lucide-react'
 import { toZonedTime, format } from 'date-fns-tz'
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 // TIPOS
 type Schedule = { day: string; start_time: string; end_time: string; is_active: boolean | null }

@@ -6,8 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { startOfDay, endOfDay, format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { headers } from 'next/headers'
+import { DEFAULT_TIMEZONE, MASTER_ADMIN_EMAIL } from '@/lib/constants'
 
-const TIMEZONE = 'America/Mexico_City'
+const TIMEZONE = DEFAULT_TIMEZONE
 
 // ==================== HELPER: Get Secure Tenant ID ====================
 // Uses admin client to bypass RLS and guarantee profile resolution
@@ -467,7 +468,7 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             : { data: [] }
 
         // Build lookup maps and identify kiosk user to exclude
-        const KIOSK_EMAIL = 'fulanosbarbermx@gmail.com'
+        const KIOSK_EMAIL = MASTER_ADMIN_EMAIL
         const staffNames = new Map<string, string>()
         const staffToExclude = new Set<string>()
 
@@ -603,7 +604,7 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
             : { data: [] }
 
         // Build lookup maps and identify kiosk user to exclude
-        const KIOSK_EMAIL = 'fulanosbarbermx@gmail.com'
+        const KIOSK_EMAIL = MASTER_ADMIN_EMAIL
         const staffNames = new Map<string, string>()
         const staffToExclude = new Set<string>()
 

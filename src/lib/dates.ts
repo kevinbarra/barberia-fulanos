@@ -1,9 +1,10 @@
-import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
 import { startOfDay, endOfDay } from 'date-fns';
+import { toZonedTime, fromZonedTime, format } from 'date-fns-tz';
+import { DEFAULT_TIMEZONE } from './constants';
 
 // 🌎 Configuración Maestra: Zona Horaria del Negocio
 // Si algún día tienes clientes en otros países, esto podría venir de la DB (tenant.timezone)
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 export function getTodayRange() {
     const now = new Date();

@@ -3,8 +3,9 @@
 import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { fromZonedTime } from 'date-fns-tz'
+import { DEFAULT_TIMEZONE } from '@/lib/constants'
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 // --- 1. HORARIO SEMANAL ---
 export async function saveSchedule(formData: FormData) {

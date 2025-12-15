@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendBookingReminder } from '@/lib/email';
+import { DEFAULT_TIMEZONE } from '@/lib/constants';
 
-const TIMEZONE = 'America/Mexico_City';
+const TIMEZONE = DEFAULT_TIMEZONE;
 
 // Types for Supabase relations
 type ServiceRelation = { name: string } | { name: string }[] | null;
