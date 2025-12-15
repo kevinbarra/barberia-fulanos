@@ -22,10 +22,13 @@
     - *Detalle:* Se movieron `DEFAULT_TIMEZONE`, `MASTER_ADMIN_EMAIL` y `SUPPORT_EMAIL` a `src/lib/constants.ts`.
     - *Estado:* Completado el 2024-12-15. Commit: `refactor(config): centralize domain, timezone, and admin emails into constants`
 
-- [x] **Centralizar Dominio (Fase 2 - Auth & Routing):**
-    - *Detalle:* Reemplazar los strings hardcodeados de `agendabarber.pro` por la constante `ROOT_DOMAIN` de `src/lib/constants.ts`.
-    - *Archivos refactorizados:* middleware.ts, server.ts, login/page.tsx, login/actions.ts, auth/callback/route.ts, admin/page.tsx, admin/layout.tsx, app/page.tsx
-    - *Estado:* Completado el 2024-12-15. Commit: `refactor(core): replace hardcoded domain with ROOT_DOMAIN constant in auth and routing`
+- [x] **Centralizar Dominio (Fase 2 - Auth + UI + Emails):**
+    - *Detalle:* Reemplazar TODOS los strings hardcodeados de `agendabarber.pro` por constantes de `src/lib/constants.ts`.
+    - *Archivos refactorizados:* 
+      - Auth/Routing: middleware.ts, server.ts, login/page.tsx, login/actions.ts, auth/callback/route.ts, admin/page.tsx, admin/layout.tsx, app/page.tsx
+      - Emails: lib/email.ts (4 senders + 1 link)
+      - UI: SelectAccountClient.tsx, select-account/page.tsx, TenantSuspendedScreen.tsx, NoTenantFallback.tsx
+    - *Estado:* Completado el 2024-12-15. Commits: `refactor(core): replace hardcoded domain...` + `refactor(ui): finalize domain centralization...`
 
 - [ ] **Configuración de Moneda por Tenant:**
     - *Detalle:* El símbolo `$` está hardcodeado en ~50 componentes UI.

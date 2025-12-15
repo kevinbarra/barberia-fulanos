@@ -1,6 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
 import SelectAccountClient from './SelectAccountClient'
+import { buildSubdomainUrl } from '@/lib/constants'
 
 /**
  * SELECT ACCOUNT PAGE (SERVER COMPONENT)
@@ -46,7 +47,7 @@ export default async function SelectAccountPage() {
             if (isLocalEnv) {
                 redirect('/admin')
             }
-            redirect(`https://${tenant.slug}.agendabarber.pro/admin`)
+            redirect(buildSubdomainUrl(tenant.slug, '/admin'))
         }
     }
 

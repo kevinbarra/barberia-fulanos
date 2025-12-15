@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Building2, Users, Crown, ArrowRight } from 'lucide-react'
+import { ROOT_DOMAIN, buildSubdomainUrl } from '@/lib/constants'
 
 interface Account {
     tenantId: string
@@ -30,11 +31,11 @@ export default function SelectAccountClient({ accounts }: Props) {
 
         if (isLocalEnv) {
             // In dev, redirect to /admin (single tenant simulation)
-            console.log(`[DEV] Would redirect to: https://${slug}.agendabarber.pro/admin`)
+            console.log(`[DEV] Would redirect to: ${buildSubdomainUrl(slug, '/admin')}`)
             window.location.href = '/admin'
         } else {
             // In prod, redirect to the tenant's subdomain
-            window.location.href = `https://${slug}.agendabarber.pro/admin`
+            window.location.href = buildSubdomainUrl(slug, '/admin')
         }
     }
 
@@ -97,7 +98,7 @@ export default function SelectAccountClient({ accounts }: Props) {
                                             </span>
                                         )}
                                         <span className="text-xs text-gray-400">
-                                            {account.slug}.agendabarber.pro
+                                            {account.slug}.{ROOT_DOMAIN}
                                         </span>
                                     </div>
                                 </div>

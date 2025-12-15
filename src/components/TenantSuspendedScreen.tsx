@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle, Mail, Phone } from 'lucide-react';
+import { SUPPORT_EMAIL } from '@/lib/constants';
 
 interface TenantSuspendedScreenProps {
     tenantName: string;
@@ -40,11 +41,11 @@ export default function TenantSuspendedScreen({ tenantName }: TenantSuspendedScr
                     <h3 className="text-blue-400 font-semibold mb-3">¿Necesitas ayuda?</h3>
                     <div className="space-y-2">
                         <a
-                            href="mailto:soporte@agendabarber.pro"
+                            href={`mailto:${SUPPORT_EMAIL}`}
                             className="flex items-center gap-3 text-zinc-300 hover:text-white transition-colors"
                         >
                             <Mail size={18} className="text-blue-400" />
-                            soporte@agendabarber.pro
+                            {SUPPORT_EMAIL}
                         </a>
                         <a
                             href="https://wa.me/522291589149"

@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { ROOT_DOMAIN, SENDER_EMAIL } from './constants';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -18,7 +19,7 @@ export async function sendBookingEmail(data: {
 
   try {
     await resend.emails.send({
-      from: `${business} <contacto@agendabarber.pro>`,
+      from: `${business} <${SENDER_EMAIL}>`,
       to: [data.clientEmail],
       subject: `✅ Cita Confirmada: ${data.serviceName}`,
       html: `
@@ -72,7 +73,7 @@ export async function sendStaffNewBookingNotification(data: {
 
   try {
     const result = await resend.emails.send({
-      from: `${business} <contacto@agendabarber.pro>`,
+      from: `${business} <${SENDER_EMAIL}>`,
       to: [data.staffEmail],
       subject: `📅 Nueva Reserva: ${data.clientName} - ${data.serviceName}`,
       html: `
@@ -88,7 +89,7 @@ export async function sendStaffNewBookingNotification(data: {
           <p style="color: #666;">Prepárate para recibir a tu cliente.</p>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://agendabarber.pro/admin" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 100px; text-decoration: none; font-weight: bold; display: inline-block;">
+            <a href="https://${ROOT_DOMAIN}/admin" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 100px; text-decoration: none; font-weight: bold; display: inline-block;">
               Ver en Agenda
             </a>
           </div>
@@ -120,7 +121,7 @@ export async function sendBookingReminder(data: {
 
   try {
     await resend.emails.send({
-      from: `${business} <contacto@agendabarber.pro>`,
+      from: `${business} <${SENDER_EMAIL}>`,
       to: [data.clientEmail],
       subject: `⏰ Recordatorio: Tu cita es mañana`,
       html: `
@@ -155,7 +156,7 @@ export async function sendStaffInvitation(data: {
 }) {
   try {
     const { data: emailData, error } = await resend.emails.send({
-      from: 'AgendaBarber <contacto@agendabarber.pro>',
+      from: `AgendaBarber <${SENDER_EMAIL}>`,
       to: [data.email],
       subject: `Invitación: Únete al equipo de ${data.businessName}`,
       html: `

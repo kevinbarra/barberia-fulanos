@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, Home } from "lucide-react";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 
 export default function NoTenantFallback() {
     return (
@@ -23,7 +24,7 @@ export default function NoTenantFallback() {
                 </Link>
                 {/* Opcional: Si tienes soporte */}
                 <a
-                    href="mailto:soporte@agendabarber.pro"
+                    href={`mailto:${SUPPORT_EMAIL}`}
                     className="px-6 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors"
                 >
                     Contactar Soporte
