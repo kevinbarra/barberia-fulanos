@@ -14,7 +14,7 @@ export async function saveSchedule(formData: FormData) {
     if (!user) return { error: 'No autorizado' }
 
     // 1. Determinar OBJETIVO (A quién editamos)
-    const formTargetId = formData.get('target_staff_id') as string;
+    const formTargetId = formData.get('target_staff_id') as string | null;
 
     // Obtener perfil del que solicita (Requester)
     const { data: requester } = await supabase
@@ -27,7 +27,19 @@ export async function saveSchedule(formData: FormData) {
     // - Si soy Owner o Super Admin, puedo editar a quien quiera (formTargetId).
     // - Si soy Staff, SOLO puedo editarme a mí mismo (user.id), ignoro el form.
     const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
-    const targetStaffId = isManager ? (formTargetId || user.id) : user.id;
+
+    // FIX: Check for truthy value AND non-empty string
+    const hasValidTargetId = formTargetId && formTargetId.trim().length > 0;
+    const targetStaffId = isManager && hasValidTargetId ? formTargetId : user.id;
+
+    console.log('[SCHEDULE] Save request:', {
+        requesterId: user.id,
+        isManager,
+        formTargetId,
+        finalTargetId: targetStaffId,
+        role: requester?.role
+    });
+
     // Use getTenantIdForAdmin for super admin support
     const tenantId = await getTenantIdForAdmin();
 
