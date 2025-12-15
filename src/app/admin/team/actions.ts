@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { sendStaffInvitation } from '@/lib/email'
@@ -106,17 +106,49 @@ export async function removeStaff(targetId: string) {
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
     const { data: requester } = await supabase
         .from('profiles')
-        .select('role')
-        .eq('id', user?.id)
+        .select('role, tenant_id')
+        .eq('id', user.id)
         .single()
 
     const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
     if (!isManager) return { error: 'No autorizado' }
 
-    const { error: invError } = await supabase.from('staff_invitations').delete().eq('id', targetId)
-    const { error: profError } = await supabase.from('profiles').update({ role: 'customer', tenant_id: null }).eq('id', targetId)
+    // SECURITY: Verify target belongs to same tenant
+    const tenantId = requester.role === 'super_admin'
+        ? await getTenantIdForAdmin()
+        : requester.tenant_id
+
+    if (!tenantId) return { error: 'Tenant no encontrado' }
+
+    // Check if target is in same tenant before removing
+    const { data: targetProfile } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', targetId)
+        .single()
+
+    // Only allow removal if target is in same tenant (or doesn't exist - might be invite)
+    if (targetProfile && targetProfile.tenant_id !== tenantId) {
+        return { error: 'No puedes modificar usuarios de otro negocio' }
+    }
+
+    // Delete invitation if exists (for same tenant)
+    const { error: invError } = await supabase
+        .from('staff_invitations')
+        .delete()
+        .eq('id', targetId)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
+
+    // Revoke profile access
+    const { error: profError } = await supabase
+        .from('profiles')
+        .update({ role: 'customer', tenant_id: null })
+        .eq('id', targetId)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
     if (invError && profError) {
         return { error: 'No se pudo encontrar el usuario o invitación.' }

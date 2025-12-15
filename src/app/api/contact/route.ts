@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         // Enviar email usando Resend
         const emailData = await resend.emails.send({
             from: 'AgendaBarber <contacto@agendabarber.pro>', // Dominio verificado
-            to: ['kevinbarra2001@gmail.com'], // Email donde recibes los leads
+            to: [process.env.CONTACT_EMAIL || 'kevinbarra2001@gmail.com'], // Use env variable, fallback for dev
             replyTo: email,
             subject: `🚀 Nuevo Lead: ${businessName}`,
             html: `

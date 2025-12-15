@@ -1,32 +1,61 @@
 'use server'
 
-import { createClient } from '@/utils/supabase/server'
+import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
+
+// Helper for auth + role + tenant validation
+async function validateAdminAccess() {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { error: 'No autorizado', supabase: null, tenantId: null }
+    }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!profile || !['owner', 'super_admin', 'staff'].includes(profile.role)) {
+        return { error: 'Permisos insuficientes', supabase: null, tenantId: null }
+    }
+
+    // For super_admin, get tenant from context
+    const tenantId = profile.role === 'super_admin'
+        ? await getTenantIdForAdmin()
+        : profile.tenant_id
+
+    if (!tenantId) {
+        return { error: 'Tenant no encontrado', supabase: null, tenantId: null }
+    }
+
+    return { error: null, supabase, tenantId, role: profile.role }
+}
 
 // --- CREAR SERVICIO ---
 export async function createService(formData: FormData) {
-    const supabase = await createClient()
-
-    // Auth Check
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { error: 'No autorizado' }
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
 
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
-    const category = formData.get('category') as string || 'General' // <--- NUEVO
-    const tenant_id = formData.get('tenant_id') as string
+    const category = formData.get('category') as string || 'General'
+    const formTenantId = formData.get('tenant_id') as string
 
-    const { error } = await supabase.from('services').insert({
+    // Security: Use validated tenantId, not form input
+    const { error: insertError } = await supabase.from('services').insert({
         name,
         price: parseFloat(price),
         duration_min: parseInt(duration),
         category,
-        tenant_id: tenant_id,
+        tenant_id: formTenantId || tenantId, // Fallback to validated tenant
         is_active: true
     })
 
-    if (error) return { error: 'Error al crear servicio' }
+    if (insertError) return { error: 'Error al crear servicio' }
 
     revalidatePath('/admin/services')
     revalidatePath('/admin/pos')
@@ -36,14 +65,17 @@ export async function createService(formData: FormData) {
 
 // --- ACTUALIZAR SERVICIO ---
 export async function updateService(formData: FormData) {
-    const supabase = await createClient()
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
+
     const id = formData.get('id') as string
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
-    const category = formData.get('category') as string // <--- NUEVO
+    const category = formData.get('category') as string
 
-    const { error } = await supabase
+    // SECURITY: Filter by BOTH id AND tenant_id
+    const { error: updateError } = await supabase
         .from('services')
         .update({
             name,
@@ -52,8 +84,9 @@ export async function updateService(formData: FormData) {
             category
         })
         .eq('id', id)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
-    if (error) return { error: 'Error al actualizar' }
+    if (updateError) return { error: 'Error al actualizar' }
 
     revalidatePath('/admin/services')
     revalidatePath('/admin/pos')
@@ -63,14 +96,17 @@ export async function updateService(formData: FormData) {
 
 // --- CAMBIAR ESTADO (ACTIVAR/DESACTIVAR) ---
 export async function toggleServiceStatus(id: string, currentStatus: boolean) {
-    const supabase = await createClient()
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
 
-    const { error } = await supabase
+    // SECURITY: Filter by BOTH id AND tenant_id
+    const { error: updateError } = await supabase
         .from('services')
         .update({ is_active: !currentStatus })
         .eq('id', id)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
-    if (error) return { error: 'Error al cambiar estado' }
+    if (updateError) return { error: 'Error al cambiar estado' }
 
     revalidatePath('/admin/services')
     return { success: true, message: currentStatus ? 'Servicio desactivado' : 'Servicio activado' }
@@ -78,20 +114,22 @@ export async function toggleServiceStatus(id: string, currentStatus: boolean) {
 
 // --- ELIMINAR SERVICIO (CON SEGURIDAD) ---
 export async function deleteService(id: string) {
-    const supabase = await createClient()
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { success: false, error }
 
-    // 1. Verificar si tiene uso histórico (Citas o Transacciones)
+    // 1. Verificar si tiene uso histórico (dentro del tenant)
     const { count: bookingsCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
         .eq('service_id', id)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
     const { count: transactionsCount } = await supabase
         .from('transactions')
         .select('*', { count: 'exact', head: true })
         .eq('service_id', id)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
-    // Si tiene historial, bloqueamos el borrado
     if ((bookingsCount || 0) > 0 || (transactionsCount || 0) > 0) {
         return {
             success: false,
@@ -99,13 +137,14 @@ export async function deleteService(id: string) {
         }
     }
 
-    // 2. Si está limpio, procedemos a borrar
-    const { error } = await supabase
+    // 2. SECURITY: Delete only if belongs to user's tenant
+    const { error: deleteError } = await supabase
         .from('services')
         .delete()
         .eq('id', id)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
 
-    if (error) return { success: false, error: 'Error al eliminar servicio' }
+    if (deleteError) return { success: false, error: 'Error al eliminar servicio' }
 
     revalidatePath('/admin/services')
     return { success: true, message: 'Servicio eliminado correctamente' }

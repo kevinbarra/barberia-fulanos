@@ -124,8 +124,38 @@ export async function addTimeBlock(formData: FormData) {
 
 export async function deleteTimeBlock(blockId: string) {
     const supabase = await createClient()
-    const { error } = await supabase.from('time_blocks').delete().eq('id', blockId)
+
+    // 1. Auth Check
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // 2. Role + Tenant Check
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester || !['owner', 'super_admin', 'staff'].includes(requester.role)) {
+        return { error: 'Permisos insuficientes' }
+    }
+
+    // For super_admin, get tenant from context
+    const tenantId = requester.role === 'super_admin'
+        ? await getTenantIdForAdmin()
+        : requester.tenant_id
+
+    if (!tenantId) return { error: 'Tenant no encontrado' }
+
+    // 3. SECURITY: Delete only if block belongs to user's tenant
+    const { error } = await supabase
+        .from('time_blocks')
+        .delete()
+        .eq('id', blockId)
+        .eq('tenant_id', tenantId) // TENANT ISOLATION
+
     if (error) return { error: 'Error al eliminar.' }
+
     revalidatePath('/admin/schedule')
     return { success: true, message: 'Bloqueo eliminado.' }
 }
