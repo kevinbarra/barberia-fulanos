@@ -3,6 +3,8 @@
 import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { tenantSchema } from '@/lib/schemas'
+import { headers } from 'next/headers'
+import { ROOT_DOMAIN, COOKIE_DOMAIN, extractTenantSlug } from '@/lib/constants'
 
 export async function updateTenant(formData: FormData) {
     const supabase = await createClient()
@@ -255,12 +257,20 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
     try { cookieStore.delete(KIOSK_COOKIE_NAME) } catch (e) { /* ignore */ }
 
     // ===== STEP 2: DELETE() with domain variations =====
-    console.log(`[KIOSK SERVER] STEP 2: delete() with domain variations`)
-    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: '.agendabarber.pro' }) } catch (e) { /* ignore */ }
-    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: '.agendabarber.pro' }) } catch (e) { /* ignore */ }
-    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: 'fulanos.agendabarber.pro' }) } catch (e) { /* ignore */ }
-    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: 'fulanos.agendabarber.pro' }) } catch (e) { /* ignore */ }
-    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: 'agendabarber.pro' }) } catch (e) { /* ignore */ }
+    // Get current tenant subdomain dynamically from headers
+    const headersList = await headers()
+    const hostname = headersList.get('host') || ''
+    const tenantSlug = extractTenantSlug(hostname)
+    const tenantDomain = tenantSlug ? `${tenantSlug}.${ROOT_DOMAIN}` : undefined
+
+    console.log(`[KIOSK SERVER] STEP 2: delete() with domain variations (tenant: ${tenantDomain || 'none'})`)
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: COOKIE_DOMAIN }) } catch (e) { /* ignore */ }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: COOKIE_DOMAIN }) } catch (e) { /* ignore */ }
+    if (tenantDomain) {
+        try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: tenantDomain }) } catch (e) { /* ignore */ }
+        try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/', domain: tenantDomain }) } catch (e) { /* ignore */ }
+    }
+    try { cookieStore.delete({ name: KIOSK_COOKIE_NAME, path: '/admin', domain: ROOT_DOMAIN }) } catch (e) { /* ignore */ }
 
     // ===== STEP 3: SET() to expired - NO domain (default to current) =====
     console.log(`[KIOSK SERVER] STEP 3: set() to expired - no domain`)
@@ -281,14 +291,14 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
         expires: new Date(0)
     })
 
-    // ===== STEP 4: SET() to expired WITH .agendabarber.pro domain =====
-    console.log(`[KIOSK SERVER] STEP 4: set() to expired - domain=.agendabarber.pro`)
+    // ===== STEP 4: SET() to expired WITH COOKIE_DOMAIN =====
+    console.log(`[KIOSK SERVER] STEP 4: set() to expired - domain=${COOKIE_DOMAIN}`)
     cookieStore.set(KIOSK_COOKIE_NAME, '', {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/admin',
-        domain: '.agendabarber.pro',
+        domain: COOKIE_DOMAIN,
         maxAge: 0,
         expires: new Date(0)
     })
@@ -297,31 +307,33 @@ export async function clearKioskModeCookie(pin: string, tenantId: string) {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
-        domain: '.agendabarber.pro',
+        domain: COOKIE_DOMAIN,
         maxAge: 0,
         expires: new Date(0)
     })
 
-    // ===== STEP 5: SET() to expired WITH fulanos.agendabarber.pro domain =====
-    console.log(`[KIOSK SERVER] STEP 5: set() to expired - domain=fulanos.agendabarber.pro`)
-    cookieStore.set(KIOSK_COOKIE_NAME, '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/admin',
-        domain: 'fulanos.agendabarber.pro',
-        maxAge: 0,
-        expires: new Date(0)
-    })
-    cookieStore.set(KIOSK_COOKIE_NAME, '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        domain: 'fulanos.agendabarber.pro',
-        maxAge: 0,
-        expires: new Date(0)
-    })
+    // ===== STEP 5: SET() to expired WITH dynamic tenant domain =====
+    if (tenantDomain) {
+        console.log(`[KIOSK SERVER] STEP 5: set() to expired - domain=${tenantDomain}`)
+        cookieStore.set(KIOSK_COOKIE_NAME, '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/admin',
+            domain: tenantDomain,
+            maxAge: 0,
+            expires: new Date(0)
+        })
+        cookieStore.set(KIOSK_COOKIE_NAME, '', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            domain: tenantDomain,
+            maxAge: 0,
+            expires: new Date(0)
+        })
+    }
 
     // Log cookie state AFTER deletion
     const afterCookie = cookieStore.get(KIOSK_COOKIE_NAME)
