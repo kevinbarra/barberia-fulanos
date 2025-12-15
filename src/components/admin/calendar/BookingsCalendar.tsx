@@ -16,8 +16,6 @@ import { useRouter } from 'next/navigation';
 // import BookingDetailModal from './BookingDetailModal'; // To be implemented if complex interactions needed
 
 const TIMEZONE = 'America/Mexico_City';
-const START_HOUR = 9; // 9 AM
-const END_HOUR = 21; // 9 PM
 const CELL_HEIGHT = 120; // Pixels per hour
 
 type StaffMember = {
@@ -38,9 +36,19 @@ interface BookingsCalendarProps {
     services: Service[];
     tenantId: string;
     currentUserRole: string;
+    startHour?: number;  // Dynamic from schedules
+    endHour?: number;    // Dynamic from schedules
 }
 
-export default function BookingsCalendar({ bookings, staff, services, tenantId, currentUserRole }: BookingsCalendarProps) {
+export default function BookingsCalendar({
+    bookings,
+    staff,
+    services,
+    tenantId,
+    currentUserRole,
+    startHour = 9,
+    endHour = 21
+}: BookingsCalendarProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
@@ -53,16 +61,16 @@ export default function BookingsCalendar({ bookings, staff, services, tenantId, 
         return isSameDay(bookingDate, currentDate);
     });
 
-    // Time slots generation
-    const timeSlots = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => START_HOUR + i);
+    // Time slots generation (dynamic)
+    const timeSlots = Array.from({ length: endHour - startHour + 1 }, (_, i) => startHour + i);
 
     // Calculate position and height
     const getBookingStyle = (startTimeStr: string, durationMin: number) => {
         const startDate = toZonedTime(startTimeStr, TIMEZONE);
-        const startHour = startDate.getHours();
+        const startHourVal = startDate.getHours();
         const startMin = startDate.getMinutes();
 
-        const top = ((startHour - START_HOUR) * CELL_HEIGHT) + ((startMin / 60) * CELL_HEIGHT);
+        const top = ((startHourVal - startHour) * CELL_HEIGHT) + ((startMin / 60) * CELL_HEIGHT);
         const height = (durationMin / 60) * CELL_HEIGHT;
 
         return { top: `${top}px`, height: `${height}px` };
@@ -152,7 +160,7 @@ export default function BookingsCalendar({ bookings, staff, services, tenantId, 
                                 </div>
 
                                 {/* BOOKINGS COLUMN */}
-                                <div className="relative z-0" style={{ height: `${(END_HOUR - START_HOUR + 1) * CELL_HEIGHT}px` }}>
+                                <div className="relative z-0" style={{ height: `${(endHour - startHour + 1) * CELL_HEIGHT}px` }}>
                                     {dailyBookings
                                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                         .filter(b => (b as any).staff_id === member.id || b.profiles?.id === member.id)
@@ -221,7 +229,7 @@ export default function BookingsCalendar({ bookings, staff, services, tenantId, 
                                         <div
                                             className="absolute w-full border-t-2 border-red-500 z-10 pointer-events-none"
                                             style={{
-                                                top: `${((new Date().getHours() - START_HOUR) * CELL_HEIGHT) + ((new Date().getMinutes() / 60) * CELL_HEIGHT)}px`
+                                                top: `${((new Date().getHours() - startHour) * CELL_HEIGHT) + ((new Date().getMinutes() / 60) * CELL_HEIGHT)}px`
                                             }}
                                         >
                                             <div className="w-2 h-2 bg-red-500 rounded-full -mt-[5px] -ml-[5px]"></div>

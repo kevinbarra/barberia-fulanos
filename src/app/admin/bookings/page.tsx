@@ -6,6 +6,12 @@ import { subDays, addDays } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
+// Helper to parse "HH:MM" or "HH:MM:SS" to hour number
+function parseTimeToHour(timeStr: string): number {
+    const parts = timeStr.split(':');
+    return parseInt(parts[0], 10);
+}
+
 export default async function BookingsPage() {
     const supabase = await createClient();
     const tenantId = await getTenantIdForAdmin();
@@ -17,9 +23,7 @@ export default async function BookingsPage() {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
     const currentUserRole = profile?.role || 'staff';
 
-    // Rango de fechas: Cargar un rango amplio para navegación fluida (ej. 2 semanas alrededor de hoy)
-    // O mejor, cargar todo el mes, o filtrar dinámicamente. 
-    // Para simplificar y rendimiento: Cargar +- 7 días desde hoy.
+    // Rango de fechas: +- 7 días desde hoy
     const today = new Date();
     const startDate = subDays(today, 7).toISOString();
     const endDate = addDays(today, 14).toISOString();
@@ -50,6 +54,44 @@ export default async function BookingsPage() {
         .eq("is_active_barber", true)
         .order("created_at");
 
+    // ============ DYNAMIC HOURS CALCULATION ============
+    // Fetch all schedules for active barbers 
+    const staffIds = staff?.map(s => s.id) || [];
+
+    let startHour = 9;  // Default
+    let endHour = 21;   // Default
+
+    if (staffIds.length > 0) {
+        const { data: schedules } = await supabase
+            .from("staff_schedules")
+            .select("start_time, end_time")
+            .in("staff_id", staffIds)
+            .eq("is_active", true);
+
+        if (schedules && schedules.length > 0) {
+            // Find earliest start and latest end
+            let minStart = 24;
+            let maxEnd = 0;
+
+            for (const schedule of schedules) {
+                const start = parseTimeToHour(schedule.start_time);
+                const end = parseTimeToHour(schedule.end_time);
+
+                if (start < minStart) minStart = start;
+                if (end > maxEnd) maxEnd = end;
+            }
+
+            // Apply visual buffer: -1 hour start, +1 hour end
+            startHour = Math.max(0, minStart - 1);
+            endHour = Math.min(23, maxEnd + 1);
+
+            // Ensure at least 6 hour range for usability
+            if (endHour - startHour < 6) {
+                endHour = startHour + 6;
+            }
+        }
+    }
+
     return (
         <div className="max-w-[1600px] mx-auto p-4 md:p-6 pb-0 h-screen overflow-hidden">
             <BookingsCalendar
@@ -58,6 +100,8 @@ export default async function BookingsPage() {
                 services={services || []}
                 tenantId={tenantId}
                 currentUserRole={currentUserRole}
+                startHour={startHour}
+                endHour={endHour}
             />
         </div>
     );
