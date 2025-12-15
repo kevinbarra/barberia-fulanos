@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
+import { ensureTenantMembership } from '@/lib/auth-helpers'
 
 const ROOT_DOMAIN = 'agendabarber.pro'
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
@@ -51,6 +52,10 @@ export async function GET(request: Request) {
             const headersList = await headers()
             const hostname = headersList.get('host') || ''
             const currentSubdomain = extractTenantFromHostname(hostname)
+
+            // ========== AUTO-JOIN TENANT ==========
+            // If user is on a tenant subdomain, ensure they are a member
+            await ensureTenantMembership(supabase, data.user.id, currentSubdomain)
 
             // ========== STEP 1: Check if Platform Admin ==========
             const { data: profile } = await supabase
