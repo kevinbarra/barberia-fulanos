@@ -52,13 +52,20 @@ export default function ClientProfileForm({
         }
     }
 
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return 'N/A'
-        return new Date(dateStr).toLocaleDateString('es-MX', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        })
+    // Formateo robusto de fecha "Miembro desde"
+    const formatMemberSince = (dateStr: string | null | undefined): string => {
+        if (!dateStr || dateStr === '') return 'Reciente'
+        try {
+            const date = new Date(dateStr)
+            // Verificar que es una fecha válida
+            if (isNaN(date.getTime())) return 'Reciente'
+            return date.toLocaleDateString('es-MX', {
+                year: 'numeric',
+                month: 'long'
+            })
+        } catch {
+            return 'Reciente'
+        }
     }
 
     return (
@@ -90,7 +97,7 @@ export default function ClientProfileForm({
                             <Calendar size={18} />
                             <span className="text-xs font-bold uppercase">Miembro desde</span>
                         </div>
-                        <p className="text-sm font-semibold text-white">{formatDate(memberSince)}</p>
+                        <p className="text-sm font-semibold text-white">{formatMemberSince(memberSince)}</p>
                     </div>
                 </div>
 
