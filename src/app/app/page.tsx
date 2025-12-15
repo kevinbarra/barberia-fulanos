@@ -13,7 +13,7 @@ export default async function ClientAppPage() {
 
     const { data: profile } = await supabase
         .from("profiles")
-        .select("*")
+        .select("id, full_name, avatar_url, email, phone, role, tenant_id, loyalty_points, no_show_count, created_at")
         .eq("id", user.id)
         .single();
 
