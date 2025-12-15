@@ -12,6 +12,7 @@ interface PosTicketData {
     start_time: string;
     notes: string | null;
     staff_id: string;
+    customer_id: string | null;
     profiles: { id: string; full_name: string } | null;
     services: { id: string; name: string; price: number; duration_min: number } | null;
 }
@@ -57,7 +58,7 @@ export default async function PosPage() {
     const { data: activeTickets } = await supabase
         .from("bookings")
         .select(`
-            id, start_time, notes, staff_id,
+            id, start_time, notes, staff_id, customer_id,
             profiles:staff_id ( id, full_name ),
             services:service_id ( id, name, price, duration_min )
         `)
@@ -95,7 +96,8 @@ export default async function PosPage() {
             price: t.services.price,
             duration_min: t.services.duration_min
         }] : [],
-        status: 'active' as const
+        status: 'active' as const,
+        customerId: t.customer_id || null
     })) || [];
 
     // Format bookings for PosV2
