@@ -1,63 +1,44 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import ClientProfileForm from "@/components/client/ClientProfileForm";
 
-const ROOT_DOMAIN = 'agendabarber.pro'
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
+// Forzamos renderizado dinámico para que siempre muestre los cambios del nombre inmediatos
+export const dynamic = 'force-dynamic';
 
-function extractTenantFromHostname(hostname: string): string | null {
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        return null
-    }
-    if (hostname.endsWith('.vercel.app')) {
-        return null
-    }
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
-    if (parts.length >= 3) {
-        const subdomain = parts[0]
-        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
-            return subdomain
-        }
-    }
-    return null
-}
-
-export default async function ClientProfilePage() {
+export default async function ProfilePage() {
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
 
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return redirect("/login");
 
-    // Get current subdomain tenant
-    const headersList = await headers();
-    const hostname = headersList.get('host') || '';
-    const currentSlug = extractTenantFromHostname(hostname);
+    // Consulta explícita y completa
+    const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, phone, avatar_url, loyalty_points, created_at, tenant_id")
+        .eq("id", user.id)
+        .single();
 
-    // Get user profile and current tenant info
-    const [profileResult, tenantResult] = await Promise.all([
-        supabase
-            .from('profiles')
-            .select('full_name, avatar_url, email, phone, loyalty_points, created_at')
-            .eq('id', user.id)
-            .single(),
-        currentSlug
-            ? supabase.from('tenants').select('name').eq('slug', currentSlug).single()
-            : Promise.resolve({ data: null })
-    ]);
-
-    const profile = profileResult.data;
-    const currentTenantName = tenantResult.data?.name;
+    // Obtener nombre del negocio si existe
+    let tenantName = "";
+    if (profile?.tenant_id) {
+        const { data: tenant } = await supabase
+            .from("tenants")
+            .select("name")
+            .eq("id", profile.tenant_id)
+            .single();
+        tenantName = tenant?.name || "";
+    }
 
     return (
         <ClientProfileForm
-            initialName={profile?.full_name || ''}
-            initialAvatar={profile?.avatar_url}
-            email={profile?.email || user.email || ''}
-            phone={profile?.phone || ''}
+            initialName={profile?.full_name || ""}
+            initialAvatar={profile?.avatar_url || null}
+            email={user.email || ""}
+            phone={profile?.phone || ""}
             loyaltyPoints={profile?.loyalty_points || 0}
-            memberSince={profile?.created_at || ''}
-            tenantName={currentTenantName}
+            // Pasamos la fecha exacta de la BD
+            memberSince={profile?.created_at || new Date().toISOString()}
+            tenantName={tenantName}
         />
     );
 }
