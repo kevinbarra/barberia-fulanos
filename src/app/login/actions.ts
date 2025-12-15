@@ -2,9 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
-
-const ROOT_DOMAIN = 'agendabarber.pro'
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
+import { ROOT_DOMAIN, extractTenantSlug } from '@/lib/constants'
 
 export async function sendOtp(email: string) {
     const supabase = await createClient()
@@ -24,26 +22,6 @@ export async function sendOtp(email: string) {
     return { success: true }
 }
 
-/**
- * Extrae el slug del tenant desde el hostname
- */
-function extractTenantFromHostname(hostname: string): string | null {
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        return null
-    }
-    if (hostname.endsWith('.vercel.app')) {
-        return null
-    }
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
-    if (parts.length >= 3) {
-        const subdomain = parts[0]
-        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
-            return subdomain
-        }
-    }
-    return null
-}
-
 export async function verifyOtp(email: string, token: string, redirectTo?: string) {
     const supabase = await createClient()
 
@@ -61,7 +39,7 @@ export async function verifyOtp(email: string, token: string, redirectTo?: strin
     // Obtener contexto de subdominio actual
     const headersList = await headers()
     const hostname = headersList.get('host') || ''
-    const currentSubdomain = extractTenantFromHostname(hostname)
+    const currentSubdomain = extractTenantSlug(hostname)
     const isProduction = hostname.includes(ROOT_DOMAIN) || hostname.includes('vercel.app')
     const isOnWww = hostname.startsWith('www.')
     const isOnRootOrWww = isOnWww || hostname === ROOT_DOMAIN

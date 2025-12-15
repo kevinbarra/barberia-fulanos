@@ -5,8 +5,7 @@ import { redirect } from "next/navigation";
 import LoginForm from "@/components/login/LoginForm";
 import { getTenantSlug } from "@/lib/tenant";
 import { Scissors } from "lucide-react";
-
-const ROOT_DOMAIN = 'agendabarber.pro';
+import { ROOT_DOMAIN, isRootDomain as isRootDomainCheck } from "@/lib/constants";
 
 export default async function LoginPage({
     searchParams,
@@ -113,8 +112,8 @@ export default async function LoginPage({
     const hostname = headersList.get('host') || '';
     const tenantSlug = await getTenantSlug();
 
-    const isRootDomain = hostname === 'agendabarber.pro' ||
-        hostname === 'www.agendabarber.pro' ||
+    // Use imported helper function for root domain detection
+    const isRootDomain = isRootDomainCheck(hostname) ||
         (!tenantSlug && hostname.includes('vercel.app'));
 
     return (

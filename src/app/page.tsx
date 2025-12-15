@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import SaaSLandingPage from "@/components/marketing/SaaSLandingPage";
 import { getTenantSlug } from "@/lib/tenant";
+import { isRootDomain as isRootDomainCheck } from "@/lib/constants";
 
 export default async function HomePage() {
   // Detectar si estamos en el dominio raíz o en un subdominio
@@ -9,12 +10,8 @@ export default async function HomePage() {
   const hostname = headersList.get('host') || '';
   const tenantSlug = await getTenantSlug();
 
-  // Si estamos en agendabarber.pro (sin subdominio) o www.agendabarber.pro
-  // Mostrar la landing page del SaaS
-  const isRootDomain = hostname === 'agendabarber.pro' ||
-    hostname === 'www.agendabarber.pro' ||
-    hostname.includes('vercel.app') ||
-    hostname.includes('localhost');
+  // Use imported helper for root domain detection
+  const isRootDomain = isRootDomainCheck(hostname);
 
   // Si NO hay tenant slug, mostrar SaaS landing (aplica para root domain y localhost)
   if (!tenantSlug) {

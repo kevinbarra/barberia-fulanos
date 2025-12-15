@@ -5,20 +5,7 @@ import TransactionList from "@/components/admin/TransactionList";
 import { getTodayRange } from "@/lib/dates";
 import { headers } from "next/headers";
 import KioskStatusCard from "@/components/admin/KioskStatusCard";
-
-const ROOT_DOMAIN = 'agendabarber.pro';
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app'];
-
-function extractTenantFromHostname(hostname: string): string | null {
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return null;
-    if (hostname.endsWith('.vercel.app')) return null;
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.');
-    if (parts.length >= 3) {
-        const subdomain = parts[0];
-        if (!RESERVED_SUBDOMAINS.includes(subdomain)) return subdomain;
-    }
-    return null;
-}
+import { ROOT_DOMAIN, extractTenantSlug } from "@/lib/constants";
 
 export default async function AdminDashboard() {
     const supabase = await createClient();
@@ -41,7 +28,7 @@ export default async function AdminDashboard() {
     if (isSuperAdmin) {
         const headersList = await headers();
         const hostname = headersList.get('host') || '';
-        const currentSubdomain = extractTenantFromHostname(hostname);
+        const currentSubdomain = extractTenantSlug(hostname);
 
         if (currentSubdomain) {
             // Super admin on tenant subdomain - fetch tenant ID from subdomain

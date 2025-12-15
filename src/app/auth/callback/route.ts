@@ -2,26 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 import { ensureTenantMembership } from '@/lib/auth-helpers'
-
-const ROOT_DOMAIN = 'agendabarber.pro'
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
-
-function extractTenantFromHostname(hostname: string): string | null {
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        return null
-    }
-    if (hostname.endsWith('.vercel.app')) {
-        return null
-    }
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.')
-    if (parts.length >= 3) {
-        const subdomain = parts[0]
-        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
-            return subdomain
-        }
-    }
-    return null
-}
+import { ROOT_DOMAIN, extractTenantSlug } from '@/lib/constants'
 
 /**
  * POST-LOGIN REDIRECT FLOW
@@ -51,7 +32,7 @@ export async function GET(request: Request) {
             // Get hostname context
             const headersList = await headers()
             const hostname = headersList.get('host') || ''
-            const currentSubdomain = extractTenantFromHostname(hostname)
+            const currentSubdomain = extractTenantSlug(hostname)
 
             // ========== AUTO-JOIN TENANT ==========
             // If user is on a tenant subdomain, ensure they are a member

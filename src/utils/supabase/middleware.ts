@@ -1,9 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-
-// Dominios que NO son tenants (se acceden sin tenant context)
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
-const ROOT_DOMAIN = 'agendabarber.pro'
+import { ROOT_DOMAIN, RESERVED_SUBDOMAINS, COOKIE_DOMAIN } from '@/lib/constants'
 
 /**
  * Middleware principal que:
@@ -30,8 +27,8 @@ export async function updateSession(request: NextRequest) {
         },
     })
 
-    // Cookie domain for cross-subdomain auth
-    const cookieDomain = hostname.includes('agendabarber.pro') ? '.agendabarber.pro' : undefined
+    // Cookie domain for cross-subdomain auth (uses constant from lib/constants.ts)
+    const cookieDomain = hostname.includes(ROOT_DOMAIN) ? COOKIE_DOMAIN : undefined
 
     // 3. Manejar sesión Supabase
     const supabase = createServerClient(

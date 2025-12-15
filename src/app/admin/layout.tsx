@@ -8,26 +8,7 @@ import TenantSuspendedScreen from "@/components/TenantSuspendedScreen";
 import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AutoRefreshWrapper from "@/components/admin/AutoRefreshWrapper";
-
-const ROOT_DOMAIN = 'agendabarber.pro';
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app'];
-
-function extractTenantFromHostname(hostname: string): string | null {
-    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        return null;
-    }
-    if (hostname.endsWith('.vercel.app')) {
-        return null;
-    }
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.');
-    if (parts.length >= 3) {
-        const subdomain = parts[0];
-        if (!RESERVED_SUBDOMAINS.includes(subdomain)) {
-            return subdomain;
-        }
-    }
-    return null;
-}
+import { ROOT_DOMAIN, extractTenantSlug } from "@/lib/constants";
 
 export default async function AdminLayout({
     children,
@@ -47,7 +28,7 @@ export default async function AdminLayout({
     const headersList = await headers();
     const hostname = headersList.get('host') || '';
     const pathname = headersList.get('x-pathname') || '';
-    const currentSubdomain = extractTenantFromHostname(hostname);
+    const currentSubdomain = extractTenantSlug(hostname);
     const isOnWww = hostname.startsWith('www.') || hostname === ROOT_DOMAIN;
 
     // Check if this is a platform route - skip tenant sidebar

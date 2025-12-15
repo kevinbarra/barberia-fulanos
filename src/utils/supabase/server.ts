@@ -53,9 +53,7 @@ export async function getTenantId() {
 // --- FUNCIÓN PARA ADMIN PAGES (Soporta Super Admin) ---
 // Para super admin, obtiene tenant del subdomain en vez del profile
 import { headers } from 'next/headers'
-
-const ROOT_DOMAIN = 'agendabarber.pro'
-const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'app']
+import { ROOT_DOMAIN, RESERVED_SUBDOMAINS } from '@/lib/constants'
 
 function extractTenantFromHostname(hostname: string): string | null {
     if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return null
