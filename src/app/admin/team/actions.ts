@@ -205,3 +205,62 @@ export async function changeUserRole(targetId: string, newRole: string) {
     revalidatePath('/admin/team')
     return { success: true, message: `Rol cambiado a ${newRole} correctamente` }
 }
+
+// --- TOGGLE STAFF STATUS FLAGS ---
+export async function toggleStaffStatus(
+    targetId: string,
+    field: 'is_active_barber' | 'is_calendar_visible',
+    value: boolean
+) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Get requester's info
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester) return { error: 'No autorizado' }
+
+    // Only owners and super_admins can toggle these settings
+    const isManager = requester.role === 'owner' || requester.role === 'super_admin'
+    if (!isManager) return { error: 'No tienes permisos para modificar esto' }
+
+    // Get target user's info to verify same tenant
+    const { data: targetUser } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', targetId)
+        .single()
+
+    if (!targetUser) return { error: 'Usuario no encontrado' }
+
+    // Owner can only modify users in their tenant
+    if (requester.role === 'owner' && targetUser.tenant_id !== requester.tenant_id) {
+        return { error: 'No puedes modificar usuarios de otro negocio' }
+    }
+
+    // Apply the update
+    const { error } = await supabase
+        .from('profiles')
+        .update({ [field]: value })
+        .eq('id', targetId)
+
+    if (error) {
+        console.error('Error toggling staff status:', error)
+        return { error: 'Error al actualizar el estado' }
+    }
+
+    // Revalidate relevant paths
+    revalidatePath('/admin/team')
+    revalidatePath('/admin/pos')
+    revalidatePath('/admin/bookings')
+    // Booking widget paths are dynamic, but we revalidate what we can
+
+    const fieldLabel = field === 'is_active_barber' ? 'estado de barbero' : 'visibilidad en calendario'
+    return { success: true, message: `${fieldLabel} actualizado` }
+}

@@ -12,6 +12,8 @@ type StaffMember = {
     avatar_url: string | null;
     role: string;
     status: 'active' | 'pending';
+    is_active_barber: boolean;
+    is_calendar_visible: boolean;
 }
 
 export default async function TeamPage() {
@@ -35,10 +37,10 @@ export default async function TeamPage() {
 
     const currentUserRole = profile?.role || 'staff';
 
-    // Get all profiles for this tenant
+    // Get all profiles for this tenant (including new fields)
     const { data: activeStaff } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, role')
+        .select('id, full_name, email, avatar_url, role, is_active_barber, is_calendar_visible')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
 
@@ -68,7 +70,9 @@ export default async function TeamPage() {
             email: inv.email,
             avatar_url: null,
             role: 'staff',
-            status: 'pending' as const
+            status: 'pending' as const,
+            is_active_barber: false,
+            is_calendar_visible: false
         }))
     ];
 

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { inviteStaff, removeStaff, changeUserRole } from '@/app/admin/team/actions'
+import { inviteStaff, removeStaff, changeUserRole, toggleStaffStatus } from '@/app/admin/team/actions'
 import { toast } from 'sonner'
-import { User, Mail, Trash2, Plus, ShieldCheck, Clock, ChevronDown, Tablet, Scissors, Crown } from 'lucide-react'
+import { User, Mail, Trash2, Plus, ShieldCheck, Clock, ChevronDown, Tablet, Scissors, Crown, Calendar, Eye, EyeOff } from 'lucide-react'
 import Image from 'next/image'
 
 type StaffMember = {
@@ -13,6 +13,8 @@ type StaffMember = {
     avatar_url: string | null
     role: string
     status: 'active' | 'pending'
+    is_active_barber: boolean
+    is_calendar_visible: boolean
 }
 
 // Role configuration with labels, colors, and icons
@@ -24,11 +26,47 @@ const ROLE_CONFIG = {
     customer: { label: 'Cliente', color: 'bg-gray-100 text-gray-700', icon: User },
 }
 
-// Agregamos la prop currentUserRole
+// Toggle Switch Component
+function Toggle({
+    enabled,
+    onChange,
+    disabled,
+    loading
+}: {
+    enabled: boolean;
+    onChange: () => void;
+    disabled?: boolean;
+    loading?: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onChange}
+            disabled={disabled || loading}
+            className={`
+                relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent 
+                transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2
+                ${enabled ? 'bg-green-500' : 'bg-gray-200'}
+                ${disabled || loading ? 'opacity-50 cursor-not-allowed' : ''}
+            `}
+        >
+            <span
+                className={`
+                    pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 
+                    transition duration-200 ease-in-out
+                    ${enabled ? 'translate-x-5' : 'translate-x-0'}
+                    ${loading ? 'animate-pulse' : ''}
+                `}
+            />
+        </button>
+    )
+}
+
 export default function TeamList({ staff, currentUserRole }: { staff: StaffMember[], currentUserRole: string }) {
     const [isInviting, setIsInviting] = useState(false)
     const [changingRoleId, setChangingRoleId] = useState<string | null>(null)
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+    const [togglingField, setTogglingField] = useState<string | null>(null) // "memberId-field"
 
     const handleInvite = async (formData: FormData) => {
         setIsInviting(true)
@@ -64,14 +102,26 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
         setChangingRoleId(null)
     }
 
+    const handleToggle = async (memberId: string, field: 'is_active_barber' | 'is_calendar_visible', currentValue: boolean) => {
+        const key = `${memberId}-${field}`
+        setTogglingField(key)
+
+        const res = await toggleStaffStatus(memberId, field, !currentValue)
+
+        if (res.success) {
+            toast.success(res.message)
+        } else {
+            toast.error(res.error)
+        }
+
+        setTogglingField(null)
+    }
+
     // Get available roles based on current user's role
     const getAvailableRoles = (targetRole: string) => {
         if (currentUserRole === 'super_admin') {
-            // Super admin can assign any role
             return ['owner', 'staff', 'kiosk', 'customer']
         } else if (currentUserRole === 'owner') {
-            // Owner can only assign staff or kiosk
-            // Cannot modify another owner
             if (targetRole === 'owner') return []
             return ['staff', 'kiosk']
         }
@@ -79,18 +129,26 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
     }
 
     const canChangeRole = (member: StaffMember) => {
-        // Cannot change role of pending invitations
         if (member.status === 'pending') return false
-
-        // Staff/kiosk cannot change any roles
         if (currentUserRole !== 'owner' && currentUserRole !== 'super_admin') return false
-
-        // Check if there are available roles
         return getAvailableRoles(member.role).length > 0
+    }
+
+    const canEditToggles = (member: StaffMember) => {
+        // Only show toggles for active staff/owner roles, not pending or kiosk
+        if (member.status === 'pending') return false
+        if (member.role === 'kiosk' || member.role === 'customer') return false
+        // Only managers can edit
+        return currentUserRole === 'owner' || currentUserRole === 'super_admin'
     }
 
     const getRoleInfo = (role: string) => {
         return ROLE_CONFIG[role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.customer
+    }
+
+    // Check if staff/owner role (shows toggles)
+    const isBarberRole = (role: string) => {
+        return role === 'staff' || role === 'owner'
     }
 
     return (
@@ -135,6 +193,7 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                     const RoleIcon = roleInfo.icon
                     const availableRoles = getAvailableRoles(member.role)
                     const showRoleDropdown = canChangeRole(member)
+                    const showToggles = canEditToggles(member) && isBarberRole(member.role)
 
                     return (
                         <div
@@ -155,7 +214,6 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                                     </div>
                                     <div className="min-w-0">
                                         <h4 className="font-bold text-gray-900 truncate">{member.full_name}</h4>
-                                        {/* Mostrar email solo si es Owner/Super_Admin (Privacidad) */}
                                         {(currentUserRole === 'owner' || currentUserRole === 'super_admin') && (
                                             <p className="text-xs text-gray-400 truncate">{member.email}</p>
                                         )}
@@ -181,10 +239,8 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                                                 <ChevronDown size={12} />
                                             </button>
 
-                                            {/* Dropdown Menu */}
                                             {openDropdownId === member.id && (
                                                 <>
-                                                    {/* Backdrop to close dropdown */}
                                                     <div
                                                         className="fixed inset-0 z-10"
                                                         onClick={() => setOpenDropdownId(null)}
@@ -230,6 +286,43 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                                     )}
                                 </div>
                             </div>
+
+                            {/* TOGGLES ROW - Only for staff/owner roles */}
+                            {showToggles && (
+                                <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-6">
+                                    {/* Active Barber Toggle */}
+                                    <div className="flex items-center gap-3">
+                                        <Scissors size={16} className={member.is_active_barber ? 'text-green-500' : 'text-gray-300'} />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-700">Corta Pelo</span>
+                                            <span className="text-xs text-gray-400">Aparece en POS y Reservas</span>
+                                        </div>
+                                        <Toggle
+                                            enabled={member.is_active_barber}
+                                            onChange={() => handleToggle(member.id, 'is_active_barber', member.is_active_barber)}
+                                            loading={togglingField === `${member.id}-is_active_barber`}
+                                        />
+                                    </div>
+
+                                    {/* Calendar Visible Toggle */}
+                                    <div className="flex items-center gap-3">
+                                        {member.is_calendar_visible ? (
+                                            <Eye size={16} className="text-blue-500" />
+                                        ) : (
+                                            <EyeOff size={16} className="text-gray-300" />
+                                        )}
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-700">Visible en Calendario</span>
+                                            <span className="text-xs text-gray-400">Clientes pueden reservar</span>
+                                        </div>
+                                        <Toggle
+                                            enabled={member.is_calendar_visible}
+                                            onChange={() => handleToggle(member.id, 'is_calendar_visible', member.is_calendar_visible)}
+                                            loading={togglingField === `${member.id}-is_calendar_visible`}
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )
                 })}
