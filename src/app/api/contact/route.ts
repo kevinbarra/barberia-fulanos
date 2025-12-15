@@ -17,10 +17,16 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        // Check for CONTACT_EMAIL configuration
+        const contactEmail = process.env.CONTACT_EMAIL;
+        if (!contactEmail) {
+            console.warn('⚠️ [CONTACT] Variable CONTACT_EMAIL no configurada. Usando fallback: kevinbarra2001@gmail.com');
+        }
+
         // Enviar email usando Resend
         const emailData = await resend.emails.send({
             from: 'AgendaBarber <contacto@agendabarber.pro>', // Dominio verificado
-            to: [process.env.CONTACT_EMAIL || 'kevinbarra2001@gmail.com'], // Use env variable, fallback for dev
+            to: [contactEmail || 'kevinbarra2001@gmail.com'],
             replyTo: email,
             subject: `🚀 Nuevo Lead: ${businessName}`,
             html: `
