@@ -4,21 +4,59 @@ import { createClient } from '@/utils/supabase/server'
 import { headers } from 'next/headers'
 import { ROOT_DOMAIN, extractTenantSlug } from '@/lib/constants'
 
+/**
+ * Send OTP for login/registration
+ * 
+ * CRITICAL: Injects tenant_id into user metadata so the database trigger
+ * can properly assign new users to the correct tenant.
+ * This fixes the "orphan user" problem where users register without a tenant.
+ */
 export async function sendOtp(email: string) {
     const supabase = await createClient()
 
+    // 1. Extract tenant slug from current subdomain
+    const headersList = await headers()
+    const hostname = headersList.get('host') || ''
+    const tenantSlug = extractTenantSlug(hostname)
+
+    console.log(`[LOGIN] sendOtp called for ${email} on hostname: ${hostname}, tenantSlug: ${tenantSlug || 'none'}`)
+
+    // 2. If on a tenant subdomain, fetch the tenant_id
+    let tenantId: string | null = null
+    if (tenantSlug) {
+        const { data: tenant, error: tenantError } = await supabase
+            .from('tenants')
+            .select('id')
+            .eq('slug', tenantSlug)
+            .single()
+
+        if (tenantError) {
+            console.error(`[LOGIN] Error fetching tenant by slug "${tenantSlug}":`, tenantError)
+        } else {
+            tenantId = tenant?.id || null
+            console.log(`[LOGIN] Resolved tenant_id: ${tenantId}`)
+        }
+    }
+
+    // 3. Send OTP with tenant metadata
+    // The database trigger (handle_new_user) will use this metadata to set profile.tenant_id
     const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
             shouldCreateUser: true,
+            data: {
+                tenant_id: tenantId,        // Used by trigger to assign user to tenant
+                tenant_slug: tenantSlug,    // Useful for debugging/logging
+            },
         },
     })
 
     if (error) {
-        console.error('Error enviando OTP:', error)
+        console.error('[LOGIN] Error sending OTP:', error)
         return { success: false, error: error.message }
     }
 
+    console.log(`[LOGIN] OTP sent successfully to ${email} with tenant_id: ${tenantId || 'null (root domain)'}`)
     return { success: true }
 }
 
