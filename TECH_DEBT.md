@@ -30,6 +30,10 @@
       - UI: SelectAccountClient.tsx, select-account/page.tsx, TenantSuspendedScreen.tsx, NoTenantFallback.tsx
     - *Estado:* Completado el 2024-12-15. Commits: `refactor(core): replace hardcoded domain...` + `refactor(ui): finalize domain centralization...`
 
+- [x] **Limpieza de Cookies Dinámica (Settings):**
+    - *Detalle:* Se eliminó la lógica hardcodeada para 'fulanos' en `admin/settings/actions.ts`. Ahora la limpieza de cookies usa el `tenantSlug` dinámico extraído de headers.
+    - *Estado:* Completado el 2024-12-15. Commit: `fix(core): dynamic cookie cleanup and post-refactor stability fixes`
+
 - [ ] **Configuración de Moneda por Tenant:**
     - *Detalle:* El símbolo `$` está hardcodeado en ~50 componentes UI.
     - *Objetivo:* Agregar `currency_symbol` a la tabla `tenants` y propagarlo via context.
@@ -72,3 +76,9 @@ COOKIE_DOMAIN        - Dominio para cookies cross-subdomain
 - `buildSubdomainUrl(slug, path)` - Construye URLs de tenant
 - `isRootDomain(hostname)` - Detecta dominio raíz vs subdomain
 - `extractTenantSlug(hostname)` - Extrae slug de tenant del hostname
+
+---
+
+> **ESTADO DEL SISTEMA (v1.0 Release Candidate):**
+> Código base estabilizado. Deuda técnica crítica (seguridad, dominio, hardcoding) eliminada.
+> Listo para despliegue y operación White-Label.
