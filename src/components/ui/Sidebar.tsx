@@ -6,6 +6,7 @@ import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Sciss
 import { signOut } from '@/app/auth/actions'
 import { useKioskMode } from '@/components/admin/KioskModeProvider'
 import KioskExitButton from '@/components/admin/KioskExitButton'
+import KioskActivateButton from '@/components/admin/KioskActivateButton'
 import { toast } from 'sonner'
 
 // ZERO TRUST: Define routes by access level
@@ -126,7 +127,8 @@ export default function Sidebar({
             </nav>
 
             <div className="p-4 border-t border-gray-100 space-y-2">
-                {/* KIOSK EXIT BUTTON - Persistent escape route */}
+                {/* KIOSK BUTTONS - Activate when off, Exit when on */}
+                <KioskActivateButton />
                 <KioskExitButton />
 
                 {/* Sync/Reload Button for PWA */}

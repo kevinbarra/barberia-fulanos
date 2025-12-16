@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import RealtimeBookingNotifications from '@/components/admin/RealtimeBookingNotifications';
 import { useKioskMode } from '@/components/admin/KioskModeProvider';
 import KioskExitButton from '@/components/admin/KioskExitButton';
+import KioskActivateButton from '@/components/admin/KioskActivateButton';
 import { toast } from 'sonner';
 
 // ZERO TRUST: Define routes by access level
@@ -80,7 +81,8 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
                     </h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* KIOSK EXIT BUTTON - Persistent escape route */}
+                    {/* KIOSK BUTTONS - Activate when off, Exit when on */}
+                    <KioskActivateButton />
                     <KioskExitButton />
                     {/* Notification Bell for Mobile */}
                     {tenantId && (
