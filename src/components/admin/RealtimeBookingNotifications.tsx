@@ -386,16 +386,16 @@ export default function RealtimeBookingNotifications({ tenantId }: RealtimeBooki
                                 <X size={18} className="text-gray-400" />
                             </button>
                         </div>
-                        {/* Action Button */}
+                        {/* Action Button - CORREGIDO: Redirige al POS */}
                         <button
                             onClick={() => {
                                 markAsRead(notifications[0].id)
-                                const dateParam = notifications[0].date ? `?date=${notifications[0].date}` : ''
-                                router.push(`/admin/calendar${dateParam}`)
+                                // Redirección directa al POS como solicitó el Project Leader
+                                router.push('/admin/pos')
                             }}
                             className="mt-3 w-full py-2 px-4 bg-black text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
                         >
-                            Ver en Agenda
+                            Ver en POS
                         </button>
                     </div>
                 </div>
