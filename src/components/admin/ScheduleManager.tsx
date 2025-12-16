@@ -151,12 +151,16 @@ export default function ScheduleManager({
                         Save to: {targetStaffId.slice(0, 8)}...
                     </div>
 
-                    <form key={scheduleKey} action={(formData) => {
-                        console.log('[SCHEDULE FORM] Submitting with targetStaffId:', targetStaffId);
-                        console.log('[SCHEDULE FORM] scheduleKey:', scheduleKey);
-                        console.log('[SCHEDULE FORM] hidden input value:', formData.get('target_staff_id'));
-                        handleSaveWeekly(formData);
-                    }}>
+                    <form
+                        key={`schedule-form-${targetStaffId}`}
+                        action={(formData) => {
+                            // FORCE OVERRIDE: Ensure formData has the CURRENT targetStaffId
+                            formData.set('target_staff_id', targetStaffId);
+                            console.log('[SCHEDULE FORM] Forced target_staff_id to:', targetStaffId);
+                            handleSaveWeekly(formData);
+                        }}
+                    >
+                        {/* Hidden input as backup, but we force-set in action above */}
                         <input type="hidden" name="target_staff_id" value={targetStaffId} />
 
                         <div className="space-y-5">
