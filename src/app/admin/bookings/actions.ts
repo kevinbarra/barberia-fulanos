@@ -4,6 +4,8 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
+import { fromZonedTime } from 'date-fns-tz'
+import { DEFAULT_TIMEZONE } from '@/lib/constants'
 
 // --- FUNCIÓN 1: PROCESAR COBRO (OPTIMIZADA) ---
 export async function processPayment(data: {
@@ -231,7 +233,7 @@ export async function linkTransactionToUser(transactionId: string, scannedValue:
     }
 }
 
-// --- FUNCIÓN 3: REGISTRO RÁPIDO WALK-IN ---
+// --- FUNCIÓN 3: REGISTRO RÁPIDO WALK-IN (con Timezone Fix) ---
 export async function createWalkIn(formData: FormData) {
     const supabase = await createClient()
 
@@ -240,6 +242,7 @@ export async function createWalkIn(formData: FormData) {
     const tenantId = formData.get('tenant_id') as string
     const startTime = formData.get('start_time') as string
     const clientName = formData.get('client_name') as string || "Cliente Walk-in"
+    const clientEmail = formData.get('client_email') as string || null
 
     const { data: service } = await supabase
         .from('services')
@@ -249,8 +252,24 @@ export async function createWalkIn(formData: FormData) {
 
     if (!service) return { error: 'Servicio no válido' }
 
-    const startDate = new Date(startTime)
+    // TIMEZONE FIX: Interpretar el string como hora local de México
+    const startDate = fromZonedTime(startTime, DEFAULT_TIMEZONE)
     const endDate = new Date(startDate.getTime() + service.duration_min * 60000)
+
+    // CUSTOMER LINKING: Buscar por email si se proporciona
+    let customerId: string | null = null
+    if (clientEmail) {
+        const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', clientEmail.toLowerCase().trim())
+            .single()
+
+        if (existingProfile) {
+            customerId = existingProfile.id
+            console.log(`[WALK-IN] Cliente vinculado por email: ${clientEmail}`)
+        }
+    }
 
     const { error } = await supabase.from('bookings').insert({
         tenant_id: tenantId,
@@ -259,8 +278,8 @@ export async function createWalkIn(formData: FormData) {
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         status: 'confirmed',
-        notes: `WALK-IN | Cliente: ${clientName}`,
-        customer_id: null
+        notes: `WALK-IN | Cliente: ${clientName}${clientEmail ? ` | Email: ${clientEmail}` : ''}`,
+        customer_id: customerId
     })
 
     if (error) {

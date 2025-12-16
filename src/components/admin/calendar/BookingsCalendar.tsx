@@ -80,7 +80,7 @@ export default function BookingsCalendar({
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-100px)] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex flex-col h-[calc(100dvh-100px)] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
 
             {/* HEADER SUPERIOR - MOBILE FIRST */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6 border-b border-gray-100 bg-white z-20">

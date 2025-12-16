@@ -95,6 +95,18 @@ export default function NewBookingModal({
                         />
                     </div>
 
+                    {/* 5. EMAIL (Opcional - Para vincular cliente existente) */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email (Opcional)</label>
+                        <input
+                            type="email"
+                            name="client_email"
+                            placeholder="cliente@email.com"
+                            className="w-full p-3 border border-gray-300 rounded-xl focus:ring-black focus:border-black"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Si existe, se vinculará automáticamente</p>
+                    </div>
+
                     <button
                         type="submit"
                         disabled={isSubmitting}
