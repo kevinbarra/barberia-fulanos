@@ -17,8 +17,9 @@ import { DEFAULT_TIMEZONE } from '@/lib/constants';
 // import BookingDetailModal from './BookingDetailModal'; // To be implemented if complex interactions needed
 
 const TIMEZONE = DEFAULT_TIMEZONE;
-const CELL_HEIGHT = 100; // Pixels per hour - slightly reduced for better mobile fit
+const CELL_HEIGHT = 120; // Pixels per hour - increased for better card readability
 const MIN_COLUMN_WIDTH = 200; // Minimum width for each staff column
+const TIME_COLUMN_WIDTH = 64; // Width of time column (w-16 = 64px)
 
 type StaffMember = {
     id: string;
@@ -118,25 +119,25 @@ export default function BookingsCalendar({
                 </button>
             </div>
 
-            {/* CALENDAR BODY - Horizontal scroll with snap */}
-            <div className="flex-1 overflow-y-auto overflow-x-auto relative scroll-smooth bg-gray-50/50 snap-x snap-mandatory md:snap-none">
-                <div className="flex" style={{ minWidth: `${80 + (staff.length * MIN_COLUMN_WIDTH)}px` }}>
+            {/* CALENDAR BODY - Free horizontal scroll (no snap for usability) */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto relative scroll-smooth bg-gray-50/50">
+                <div className="flex" style={{ minWidth: `${TIME_COLUMN_WIDTH + (staff.length * MIN_COLUMN_WIDTH)}px` }}>
 
-                    {/* TIME COLUMN - Sticky for horizontal scroll */}
-                    <div className="w-16 md:w-20 flex-shrink-0 bg-white border-r border-gray-100 z-20 sticky left-0">
+                    {/* TIME COLUMN - High z-index, solid background to cover scrolling content */}
+                    <div className="flex-shrink-0 bg-white border-r border-gray-200 z-50 sticky left-0 shadow-md" style={{ width: `${TIME_COLUMN_WIDTH}px` }}>
                         <div className="h-12 md:h-14 border-b border-gray-100 bg-gray-50 flex items-center justify-center">
                             <Clock size={14} className="text-gray-400" />
                         </div>
                         {timeSlots.map(hour => (
-                            <div key={hour} className="relative border-b border-gray-50 text-right pr-2 md:pr-3 text-[10px] md:text-xs font-bold text-gray-400" style={{ height: `${CELL_HEIGHT}px` }}>
+                            <div key={hour} className="relative border-b border-gray-100 bg-white text-right pr-2 md:pr-3 text-[10px] md:text-xs font-bold text-gray-400" style={{ height: `${CELL_HEIGHT}px` }}>
                                 <span className="relative -top-2 bg-white px-1">
-                                    {format(setMinutes(setHours(new Date(), hour), 0), 'h aaa')}
+                                    {format(setMinutes(setHours(new Date(), hour), 0), 'h a')}
                                 </span>
                             </div>
                         ))}
                     </div>
 
-                    {/* STAFF COLUMNS - Snap scroll on mobile */}
+                    {/* STAFF COLUMNS - Free scroll */}
                     <div className="flex-1 flex relative">
                         {/* Background Grid Lines (Horizontal) */}
                         <div className="absolute inset-0 z-0 pointer-events-none">
@@ -149,12 +150,12 @@ export default function BookingsCalendar({
                         {staff.map(member => (
                             <div
                                 key={member.id}
-                                className="flex-shrink-0 border-r border-gray-100 relative group snap-start"
+                                className="flex-shrink-0 border-r border-gray-100 relative group"
                                 style={{ width: `${MIN_COLUMN_WIDTH}px`, minWidth: `${MIN_COLUMN_WIDTH}px` }}
                             >
 
-                                {/* STAFF HEADER */}
-                                <div className="h-12 md:h-14 border-b border-gray-100 bg-white sticky top-0 z-10 flex items-center gap-2 md:gap-3 px-3 md:px-4 shadow-sm">
+                                {/* STAFF HEADER - Higher z-index than cards */}
+                                <div className="h-12 md:h-14 border-b border-gray-100 bg-white sticky top-0 z-30 flex items-center gap-2 md:gap-3 px-3 md:px-4 shadow-sm">
                                     <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative border border-gray-100 flex-shrink-0">
                                         {member.avatar_url ? (
                                             <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
