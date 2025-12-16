@@ -6,7 +6,8 @@ import { ROOT_DOMAIN, RESERVED_SUBDOMAINS, COOKIE_DOMAIN } from '@/lib/constants
  * Middleware principal que:
  * 1. Detecta el subdominio (tenant slug)
  * 2. Inyecta x-tenant-slug en los headers
- * 3. Maneja la sesión de Supabase
+ * 3. Maneja la sesión de Supabase con refresh automático
+ * 4. Protege rutas /admin y previene login loops
  */
 export async function updateSession(request: NextRequest) {
     // 1. Detectar subdominio
@@ -30,7 +31,7 @@ export async function updateSession(request: NextRequest) {
     // Cookie domain for cross-subdomain auth (uses constant from lib/constants.ts)
     const cookieDomain = hostname.includes(ROOT_DOMAIN) ? COOKIE_DOMAIN : undefined
 
-    // 3. Manejar sesión Supabase
+    // 3. Manejar sesión Supabase con refresh automático
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -57,7 +58,24 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
-    await supabase.auth.getUser()
+    // ⚠️ LÍNEA MÁGICA: getUser() refresca el token si es necesario
+    // y llama a 'setAll' para actualizar la cookie en el navegador
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // 4. Protección de Rutas (evitar loops)
+    const pathname = request.nextUrl.pathname
+
+    // Si intenta acceder a /admin sin usuario, redirigir a login
+    // PERO: excluir rutas públicas y API
+    if (pathname.startsWith('/admin') && !user) {
+        // Evitar loop infinito: si ya viene de login con noredirect, no redirigir
+        if (!request.nextUrl.searchParams.has('noredirect')) {
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            url.searchParams.set('noredirect', '1')
+            return NextResponse.redirect(url)
+        }
+    }
 
     // Inyectar tenant slug en response headers también (útil para debugging)
     if (tenantSlug) {
@@ -69,11 +87,6 @@ export async function updateSession(request: NextRequest) {
 
 /**
  * Extrae el slug del tenant desde el hostname
- * Ejemplos:
- * - fulanos.agendabarber.pro -> 'fulanos'
- * - www.agendabarber.pro -> null
- * - agendabarber.pro -> null
- * - localhost:3000 -> null (dev mode, usar user profile)
  */
 function extractTenantSlug(hostname: string): string | null {
     // Localhost (desarrollo) - no hay subdominio
