@@ -146,21 +146,14 @@ export default function ScheduleManager({
                 </div>
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 relative">
-                    {/* DEBUG: Show which staff ID will be saved */}
-                    <div className="absolute top-2 right-2 text-[10px] font-mono bg-gray-100 px-2 py-1 rounded text-gray-500">
-                        Save to: {targetStaffId.slice(0, 8)}...
-                    </div>
-
                     <form
                         key={`schedule-form-${targetStaffId}`}
                         action={(formData) => {
                             // FORCE OVERRIDE: Ensure formData has the CURRENT targetStaffId
                             formData.set('target_staff_id', targetStaffId);
-                            console.log('[SCHEDULE FORM] Forced target_staff_id to:', targetStaffId);
                             handleSaveWeekly(formData);
                         }}
                     >
-                        {/* Hidden input as backup, but we force-set in action above */}
                         <input type="hidden" name="target_staff_id" value={targetStaffId} />
 
                         <div className="space-y-5">
@@ -210,9 +203,15 @@ export default function ScheduleManager({
                         </div>
                     )}
 
-                    <form ref={formRef} action={handleAddBlock} className="space-y-4">
-
-                        {/* CAMPO OCULTO MAESTRO: Obedece al targetStaffId global */}
+                    <form
+                        ref={formRef}
+                        action={(formData) => {
+                            // FORCE OVERRIDE: Ensure formData has the CURRENT targetStaffId
+                            formData.set('staff_id', targetStaffId);
+                            handleAddBlock(formData);
+                        }}
+                        className="space-y-4"
+                    >
                         <input type="hidden" name="staff_id" value={targetStaffId} />
 
                         <div>
