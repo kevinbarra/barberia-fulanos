@@ -14,13 +14,24 @@ export async function saveSchedule(formData: FormData) {
 
     if (!user) return { error: 'No autorizado' }
 
+    // DEBUG: Log all form data keys
+    const formEntries = Object.fromEntries(formData.entries());
+    console.log('[SCHEDULE DEBUG] Full formData:', formEntries);
+
     // 1. Determinar OBJETIVO (A quién editamos)
-    const formTargetId = formData.get('target_staff_id') as string | null;
+    const rawTargetId = formData.get('target_staff_id');
+    const formTargetId = typeof rawTargetId === 'string' ? rawTargetId.trim() : null;
+
+    console.log('[SCHEDULE DEBUG] target_staff_id parsing:', {
+        rawValue: rawTargetId,
+        rawType: typeof rawTargetId,
+        parsed: formTargetId
+    });
 
     // Obtener perfil del que solicita (Requester)
     const { data: requester } = await supabase
         .from('profiles')
-        .select('role, tenant_id')
+        .select('role, tenant_id, full_name')
         .eq('id', user.id)
         .single();
 
@@ -29,16 +40,19 @@ export async function saveSchedule(formData: FormData) {
     // - Si soy Staff, SOLO puedo editarme a mí mismo (user.id), ignoro el form.
     const isManager = requester?.role === 'owner' || requester?.role === 'super_admin';
 
-    // FIX: Check for truthy value AND non-empty string
-    const hasValidTargetId = formTargetId && formTargetId.trim().length > 0;
+    // FIX: Explicit check for valid UUID-like string
+    const hasValidTargetId = formTargetId && formTargetId.length >= 36; // UUID length
     const targetStaffId = isManager && hasValidTargetId ? formTargetId : user.id;
 
     console.log('[SCHEDULE] Save request:', {
         requesterId: user.id,
+        requesterName: requester?.full_name,
         isManager,
         formTargetId,
+        hasValidTargetId,
         finalTargetId: targetStaffId,
-        role: requester?.role
+        role: requester?.role,
+        willUpdateSelf: targetStaffId === user.id
     });
 
     // Use getTenantIdForAdmin for super admin support
@@ -64,6 +78,8 @@ export async function saveSchedule(formData: FormData) {
         })
     }
 
+    console.log('[SCHEDULE] About to upsert for staff_id:', targetStaffId, 'with', updates.length, 'day entries');
+
     // Upsert atómico basado en el índice único que acabamos de crear en SQL
     const { error } = await supabase
         .from('staff_schedules')
@@ -75,7 +91,7 @@ export async function saveSchedule(formData: FormData) {
     }
 
     revalidatePath('/admin/schedule')
-    return { success: true, message: 'Horario actualizado correctamente.' }
+    return { success: true, message: `Horario de ${targetStaffId === user.id ? 'ti mismo' : 'staff seleccionado'} actualizado correctamente.` }
 }
 
 // --- 2. BLOQUEOS DE TIEMPO ---
