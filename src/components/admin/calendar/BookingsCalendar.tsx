@@ -17,7 +17,8 @@ import { DEFAULT_TIMEZONE } from '@/lib/constants';
 // import BookingDetailModal from './BookingDetailModal'; // To be implemented if complex interactions needed
 
 const TIMEZONE = DEFAULT_TIMEZONE;
-const CELL_HEIGHT = 120; // Pixels per hour
+const CELL_HEIGHT = 100; // Pixels per hour - slightly reduced for better mobile fit
+const MIN_COLUMN_WIDTH = 200; // Minimum width for each staff column
 
 type StaffMember = {
     id: string;
@@ -80,52 +81,54 @@ export default function BookingsCalendar({
     return (
         <div className="flex flex-col h-[calc(100vh-100px)] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
 
-            {/* HEADER SUPERIOR */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-white z-20">
-                <div className="flex items-center gap-6">
-                    <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        <CalendarIcon className="text-gray-900" strokeWidth={2.5} />
-                        Agenda
-                    </h2>
+            {/* HEADER SUPERIOR - MOBILE FIRST */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6 border-b border-gray-100 bg-white z-20">
+                {/* Title - Hidden on mobile to save space */}
+                <h2 className="hidden md:flex text-xl lg:text-2xl font-black text-gray-900 tracking-tight items-center gap-2">
+                    <CalendarIcon className="text-gray-900" strokeWidth={2.5} />
+                    Agenda
+                </h2>
 
-                    {/* Date Navigation */}
-                    <div className="flex items-center bg-gray-50 rounded-full p-1 border border-gray-200">
-                        <button
-                            onClick={() => setCurrentDate(prev => subDays(prev, 1))}
-                            className="p-2 hover:bg-white hover:shadow-sm rounded-full transition-all text-gray-500 hover:text-black"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <div className="px-4 font-bold text-sm text-gray-700 w-40 text-center capitalize">
-                            {format(currentDate, 'EEEE d MMMM')}
-                        </div>
-                        <button
-                            onClick={() => setCurrentDate(prev => addDays(prev, 1))}
-                            className="p-2 hover:bg-white hover:shadow-sm rounded-full transition-all text-gray-500 hover:text-black"
-                        >
-                            <ChevronRight size={18} />
-                        </button>
+                {/* Date Navigation - Full width on mobile, centered */}
+                <div className="flex items-center justify-center bg-gray-50 rounded-2xl p-1.5 border border-gray-200 w-full md:w-auto">
+                    <button
+                        onClick={() => setCurrentDate(prev => subDays(prev, 1))}
+                        className="p-3 md:p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-gray-500 hover:text-black active:scale-95"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div className="flex-1 md:flex-none px-4 font-bold text-sm md:text-base text-gray-700 md:w-44 text-center capitalize">
+                        {format(currentDate, 'EEE d MMM')}
                     </div>
+                    <button
+                        onClick={() => setCurrentDate(prev => addDays(prev, 1))}
+                        className="p-3 md:p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-gray-500 hover:text-black active:scale-95"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
                 </div>
 
+                {/* New Booking Button */}
                 <button
                     onClick={() => setIsNewBookingOpen(true)}
-                    className="bg-black text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-zinc-800 transition-all flex items-center gap-2 shadow-lg shadow-gray-200 hover:shadow-xl active:scale-95"
+                    className="bg-black text-white px-5 py-3 md:py-2.5 rounded-xl font-bold text-sm hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-gray-200 hover:shadow-xl active:scale-95 w-full md:w-auto"
                 >
                     <Plus size={18} strokeWidth={3} />
                     Nueva Cita
                 </button>
             </div>
 
-            {/* CALENDAR BODY */}
-            <div className="flex-1 overflow-y-auto relative scroll-smooth bg-gray-50/50">
-                <div className="flex min-w-[800px]">
+            {/* CALENDAR BODY - Horizontal scroll with snap */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto relative scroll-smooth bg-gray-50/50 snap-x snap-mandatory md:snap-none">
+                <div className="flex" style={{ minWidth: `${80 + (staff.length * MIN_COLUMN_WIDTH)}px` }}>
 
-                    {/* TIME COLUMN */}
-                    <div className="w-20 flex-shrink-0 bg-white border-r border-gray-100 z-10 sticky left-0">
-                        <div className="h-10 border-b border-gray-100 bg-gray-50"></div> {/* Spacer for Staff Header */}
+                    {/* TIME COLUMN - Sticky for horizontal scroll */}
+                    <div className="w-16 md:w-20 flex-shrink-0 bg-white border-r border-gray-100 z-20 sticky left-0">
+                        <div className="h-12 md:h-14 border-b border-gray-100 bg-gray-50 flex items-center justify-center">
+                            <Clock size={14} className="text-gray-400" />
+                        </div>
                         {timeSlots.map(hour => (
-                            <div key={hour} className="relative border-b border-gray-50 text-right pr-3 text-xs font-bold text-gray-400" style={{ height: `${CELL_HEIGHT}px` }}>
+                            <div key={hour} className="relative border-b border-gray-50 text-right pr-2 md:pr-3 text-[10px] md:text-xs font-bold text-gray-400" style={{ height: `${CELL_HEIGHT}px` }}>
                                 <span className="relative -top-2 bg-white px-1">
                                     {format(setMinutes(setHours(new Date(), hour), 0), 'h aaa')}
                                 </span>
@@ -133,31 +136,35 @@ export default function BookingsCalendar({
                         ))}
                     </div>
 
-                    {/* STAFF COLUMNS */}
+                    {/* STAFF COLUMNS - Snap scroll on mobile */}
                     <div className="flex-1 flex relative">
                         {/* Background Grid Lines (Horizontal) */}
                         <div className="absolute inset-0 z-0 pointer-events-none">
-                            <div className="h-10"></div>
+                            <div className="h-12 md:h-14"></div>
                             {timeSlots.map(hour => (
                                 <div key={hour} className="border-b border-dashed border-gray-200 w-full" style={{ height: `${CELL_HEIGHT}px` }}></div>
                             ))}
                         </div>
 
                         {staff.map(member => (
-                            <div key={member.id} className="flex-1 min-w-[180px] max-w-[280px] border-r border-gray-100 relative group">
+                            <div
+                                key={member.id}
+                                className="flex-shrink-0 border-r border-gray-100 relative group snap-start"
+                                style={{ width: `${MIN_COLUMN_WIDTH}px`, minWidth: `${MIN_COLUMN_WIDTH}px` }}
+                            >
 
                                 {/* STAFF HEADER */}
-                                <div className="h-14 border-b border-gray-100 bg-white sticky top-0 z-10 flex items-center gap-3 px-4 shadow-sm">
-                                    <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden relative border border-gray-100">
+                                <div className="h-12 md:h-14 border-b border-gray-100 bg-white sticky top-0 z-10 flex items-center gap-2 md:gap-3 px-3 md:px-4 shadow-sm">
+                                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden relative border border-gray-100 flex-shrink-0">
                                         {member.avatar_url ? (
                                             <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
                                         ) : (
                                             <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                <User size={14} />
+                                                <User size={12} />
                                             </div>
                                         )}
                                     </div>
-                                    <span className="font-bold text-gray-700 text-sm truncate">{member.full_name}</span>
+                                    <span className="font-bold text-gray-700 text-xs md:text-sm truncate">{member.full_name}</span>
                                 </div>
 
                                 {/* BOOKINGS COLUMN */}
@@ -182,12 +189,16 @@ export default function BookingsCalendar({
                                             const serviceName = booking.services?.name || "Servicio General";
                                             const price = booking.services?.price || 0;
 
-                                            const statusColor =
-                                                booking.status === 'completed' ? 'bg-zinc-100 border-zinc-200 text-zinc-500 grayscale' :
-                                                    booking.status === 'confirmed' ? 'bg-blue-50 border-blue-200 text-blue-900 shadow-blue-100' :
-                                                        booking.status === 'seated' ? 'bg-green-50 border-green-200 text-green-900 shadow-green-100 ring-2 ring-green-500/20' :
-                                                            booking.status === 'no_show' ? 'bg-red-50 border-red-200 text-red-900 opacity-60' :
-                                                                'bg-gray-50 border-gray-200 text-gray-700';
+                                            // Google Calendar-style status colors with left border accent
+                                            const statusStyles = {
+                                                completed: 'bg-emerald-50 border-l-4 border-l-emerald-500 border-emerald-200 text-emerald-900',
+                                                confirmed: 'bg-blue-50 border-l-4 border-l-blue-500 border-blue-200 text-blue-900',
+                                                seated: 'bg-purple-50 border-l-4 border-l-purple-500 border-purple-200 text-purple-900 ring-2 ring-purple-300/30',
+                                                no_show: 'bg-red-50 border-l-4 border-l-red-400 border-red-200 text-red-800 opacity-75',
+                                                cancelled: 'bg-red-50 border-l-4 border-l-red-400 border-red-200 text-red-800 opacity-60 line-through decoration-red-300',
+                                                pending: 'bg-amber-50 border-l-4 border-l-amber-500 border-amber-200 text-amber-900',
+                                            };
+                                            const statusColor = statusStyles[booking.status as keyof typeof statusStyles] || 'bg-gray-50 border-l-4 border-l-gray-400 border-gray-200 text-gray-700';
 
                                             return (
                                                 <motion.div
@@ -196,27 +207,27 @@ export default function BookingsCalendar({
                                                     animate={{ opacity: 1, scale: 1 }}
                                                     onClick={() => setSelectedBooking(booking)}
                                                     className={cn(
-                                                        "absolute left-1 right-1 rounded-xl border p-2 cursor-pointer transition-all hover:brightness-95 hover:z-10 shadow-sm",
+                                                        "absolute left-1.5 right-1.5 rounded-lg border shadow-sm cursor-pointer transition-all hover:shadow-md hover:brightness-[0.98] hover:z-10",
                                                         statusColor
                                                     )}
-                                                    style={{ top, height }}
+                                                    style={{ top, height, minHeight: '32px' }}
                                                 >
-                                                    <div className="flex flex-col h-full justify-between overflow-hidden">
+                                                    <div className="flex flex-col h-full justify-between overflow-hidden p-1.5 md:p-2">
                                                         <div>
                                                             <div className="flex justify-between items-start gap-1">
-                                                                <span className="font-bold text-xs truncate leading-tight">{clientDisplay}</span>
-                                                                <span className="text-[10px] opacity-70 font-mono font-medium whitespace-nowrap">
+                                                                <span className="font-bold text-[10px] md:text-xs truncate leading-tight">{clientDisplay}</span>
+                                                                <span className="text-[9px] md:text-[10px] opacity-70 font-mono font-medium whitespace-nowrap">
                                                                     {format(toZonedTime(booking.start_time, TIMEZONE), 'h:mm')}
                                                                 </span>
                                                             </div>
-                                                            <div className="text-[10px] opacity-80 truncate mt-0.5">{serviceName}</div>
+                                                            <div className="text-[9px] md:text-[10px] opacity-80 truncate mt-0.5">{serviceName}</div>
                                                         </div>
 
-                                                        {(parseInt(height) > 60) && (
+                                                        {(parseInt(height) > 50) && (
                                                             <div className="flex justify-between items-end">
-                                                                <span className="text-[10px] font-bold opacity-60">${price}</span>
+                                                                <span className="text-[9px] md:text-[10px] font-bold opacity-60">${price}</span>
                                                                 {booking.status === 'seated' && (
-                                                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                                                    <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
                                                                 )}
                                                             </div>
                                                         )}
