@@ -109,14 +109,14 @@ export default function MobileAdminNav({ role, tenantId, tenantName = 'AgendaBar
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={toggleMenu}
-                            className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
+                            className="fixed inset-0 bg-black/50 z-[99] backdrop-blur-sm"
                         />
                         <motion.aside
                             initial={{ x: '-100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-50 flex flex-col shadow-xl"
+                            className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-gray-200 z-[100] flex flex-col shadow-xl"
                         >
                             <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                                 <p className="text-[10px] text-gray-400 font-bold tracking-[0.2em] mb-4 uppercase px-4">
