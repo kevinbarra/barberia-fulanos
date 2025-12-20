@@ -2,6 +2,20 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { ROOT_DOMAIN, RESERVED_SUBDOMAINS, COOKIE_DOMAIN } from '@/lib/constants'
 
+// 🔓 RUTAS PÚBLICAS: No requieren sesión, no ejecutar auto-heal
+const PUBLIC_ROUTES = [
+    '/login',
+    '/auth',
+    '/forgot-password',
+    '/reset-password',
+    '/book',
+    '/onboarding',
+    '/api',
+    '/_next',
+    '/favicon',
+    '/manifest',
+]
+
 /**
  * Middleware principal que:
  * 1. Detecta el subdominio (tenant slug)
@@ -10,6 +24,11 @@ import { ROOT_DOMAIN, RESERVED_SUBDOMAINS, COOKIE_DOMAIN } from '@/lib/constants
  * 4. Protege rutas /admin y previene login loops
  */
 export async function updateSession(request: NextRequest) {
+    const pathname = request.nextUrl.pathname
+
+    // 🔓 BYPASS: Si es ruta pública, no hacer validación de tokens
+    const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route))
+
     // 1. Detectar subdominio
     const hostname = request.headers.get('host') || ''
     const tenantSlug = extractTenantSlug(hostname)
@@ -20,7 +39,7 @@ export async function updateSession(request: NextRequest) {
         requestHeaders.set('x-tenant-slug', tenantSlug)
     }
     // Add pathname for server components to detect route
-    requestHeaders.set('x-pathname', request.nextUrl.pathname)
+    requestHeaders.set('x-pathname', pathname)
 
     let response = NextResponse.next({
         request: {
@@ -30,6 +49,7 @@ export async function updateSession(request: NextRequest) {
 
     // Cookie domain for cross-subdomain auth (uses constant from lib/constants.ts)
     const cookieDomain = hostname.includes(ROOT_DOMAIN) ? COOKIE_DOMAIN : undefined
+    const isProduction = process.env.NODE_ENV === 'production'
 
     // 3. Manejar sesión Supabase con refresh automático
     const supabase = createServerClient(
@@ -51,6 +71,9 @@ export async function updateSession(request: NextRequest) {
                         response.cookies.set(name, value, {
                             ...options,
                             domain: cookieDomain, // Cross-subdomain sharing
+                            secure: isProduction,
+                            sameSite: 'lax',
+                            httpOnly: true,
                         })
                     )
                 },
@@ -59,11 +82,11 @@ export async function updateSession(request: NextRequest) {
     )
 
     // ⚠️ LÍNEA MÁGICA: getUser() refresca el token si es necesario
-    // y llama a 'setAll' para actualizar la cookie en el navegador
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    // 🛡️ AUTO-HEAL: Si el token está corrupto o reutilizado, limpiar y redirigir
-    if (authError) {
+    // 🛡️ AUTO-HEAL: Solo para rutas PRIVADAS con tokens corruptos
+    // IMPORTANTE: NO ejecutar en rutas públicas (evita login loop)
+    if (authError && !isPublicRoute) {
         const isTokenError =
             authError.code === 'refresh_token_already_used' ||
             authError.message?.includes('Refresh Token') ||
@@ -94,8 +117,6 @@ export async function updateSession(request: NextRequest) {
     }
 
     // 4. Protección de Rutas (evitar loops)
-    const pathname = request.nextUrl.pathname
-
     // Si intenta acceder a /admin sin usuario, redirigir a login
     // PERO: excluir rutas públicas y API
     if (pathname.startsWith('/admin') && !user) {
