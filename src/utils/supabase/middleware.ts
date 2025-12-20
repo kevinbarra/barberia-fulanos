@@ -84,17 +84,26 @@ export async function updateSession(request: NextRequest) {
     // ⚠️ LÍNEA MÁGICA: getUser() refresca el token si es necesario
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    // 🛡️ AUTO-HEAL: Solo para rutas PRIVADAS con tokens corruptos
-    // IMPORTANTE: NO ejecutar en rutas públicas (evita login loop)
+    // 🛡️ AUTO-HEAL: Solo para tokens ESPECÍFICAMENTE corruptos/reutilizados
+    // IMPORTANTE: 
+    // - NO ejecutar en rutas públicas (evita login loop)
+    // - NO ejecutar para "Auth session missing" (es estado normal sin sesión)
+    // - SOLO ejecutar para refresh token específicamente corrupto
     if (authError && !isPublicRoute) {
-        const isTokenError =
-            authError.code === 'refresh_token_already_used' ||
-            authError.message?.includes('Refresh Token') ||
-            authError.message?.includes('Invalid Refresh Token') ||
-            authError.status === 400;
+        const errorMessage = authError.message || '';
 
-        if (isTokenError) {
-            console.error('[MIDDLEWARE] Token error detected, clearing session:', authError.message);
+        // Solo estos errores específicos indican un token corrupto que necesita limpieza
+        const isRefreshTokenCorrupt =
+            authError.code === 'refresh_token_already_used' ||
+            errorMessage.includes('Refresh Token') ||
+            errorMessage.includes('Invalid Refresh Token') ||
+            errorMessage.includes('refresh_token_not_found');
+
+        // "Auth session missing" NO es un error de token corrupto - es simplemente no tener sesión
+        const isJustMissingSession = errorMessage.includes('session missing');
+
+        if (isRefreshTokenCorrupt && !isJustMissingSession) {
+            console.error('[MIDDLEWARE] Refresh token corrupt, clearing session:', authError.message);
 
             const loginUrl = new URL('/login', request.url);
             loginUrl.searchParams.set('error', 'session_expired');
