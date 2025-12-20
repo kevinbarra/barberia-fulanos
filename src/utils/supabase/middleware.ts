@@ -60,7 +60,38 @@ export async function updateSession(request: NextRequest) {
 
     // ⚠️ LÍNEA MÁGICA: getUser() refresca el token si es necesario
     // y llama a 'setAll' para actualizar la cookie en el navegador
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+    // 🛡️ AUTO-HEAL: Si el token está corrupto o reutilizado, limpiar y redirigir
+    if (authError) {
+        const isTokenError =
+            authError.code === 'refresh_token_already_used' ||
+            authError.message?.includes('Refresh Token') ||
+            authError.message?.includes('Invalid Refresh Token') ||
+            authError.status === 400;
+
+        if (isTokenError) {
+            console.error('[MIDDLEWARE] Token error detected, clearing session:', authError.message);
+
+            const loginUrl = new URL('/login', request.url);
+            loginUrl.searchParams.set('error', 'session_expired');
+
+            const clearResponse = NextResponse.redirect(loginUrl);
+
+            // Borrar todas las cookies de Supabase
+            request.cookies.getAll().forEach(cookie => {
+                if (cookie.name.startsWith('sb-') || cookie.name.includes('supabase')) {
+                    clearResponse.cookies.set(cookie.name, '', {
+                        expires: new Date(0),
+                        path: '/',
+                        domain: cookieDomain,
+                    });
+                }
+            });
+
+            return clearResponse;
+        }
+    }
 
     // 4. Protección de Rutas (evitar loops)
     const pathname = request.nextUrl.pathname
