@@ -5,6 +5,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
 import { fromZonedTime } from 'date-fns-tz'
+import { isBefore } from 'date-fns'
 import { DEFAULT_TIMEZONE } from '@/lib/constants'
 
 // --- FUNCIÓN 1: PROCESAR COBRO (OPTIMIZADA) ---
@@ -18,7 +19,7 @@ export async function processPayment(data: {
     // 1. Obtener detalles de la cita (incluyendo customer_id para auto-vincular)
     const { data: booking } = await supabase
         .from('bookings')
-        .select('tenant_id, staff_id, service_id, status, customer_id, customers:customer_id(full_name)')
+        .select('tenant_id, staff_id, service_id, status, customer_id, start_time, customers:customer_id(full_name)')
         .eq('id', data.booking_id)
         .single()
 
@@ -39,7 +40,15 @@ export async function processPayment(data: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const customerName = (booking.customers as any)?.full_name || null
 
-    // 4. Crear la Transacción (ya vinculada si hay cliente)
+    // 4. BACK-DATING LOGIC: Si la cita es pasada, usar su fecha original.
+    // Esto permite registrar "cortes olvidados" con la fecha correcta.
+    const now = new Date()
+    const bookingDate = new Date(booking.start_time)
+    const transactionDate = isBefore(bookingDate, now)
+        ? booking.start_time  // Cita pasada → usar fecha de la cita
+        : now.toISOString()   // Cita futura/presente → usar ahora
+
+    // 5. Crear la Transacción (ya vinculada si hay cliente)
     const { data: transaction, error: txError } = await supabase
         .from('transactions')
         .insert({
@@ -51,7 +60,7 @@ export async function processPayment(data: {
             client_id: customerId, // Auto-vinculado si viene de reserva
             points_earned: pointsEarned,
             status: 'completed',
-            created_at: new Date().toISOString()
+            created_at: transactionDate
         })
         .select('id')
         .single()

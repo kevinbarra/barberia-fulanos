@@ -1,5 +1,5 @@
 import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
-import BookingsCalendar from "@/components/admin/calendar/BookingsCalendar";
+import BookingsViewSwitcher from "@/components/admin/BookingsViewSwitcher";
 import { PosBookingData } from "@/types/supabase-joined";
 import { redirect } from "next/navigation";
 import { subDays, addDays } from 'date-fns';
@@ -94,7 +94,7 @@ export default async function BookingsPage() {
 
     return (
         <div className="max-w-[1600px] mx-auto p-4 md:p-6 pb-0 h-screen overflow-hidden">
-            <BookingsCalendar
+            <BookingsViewSwitcher
                 bookings={(bookings || []) as unknown as PosBookingData[]}
                 staff={staff || []}
                 services={services || []}
