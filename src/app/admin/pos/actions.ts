@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
+import { isBefore } from 'date-fns'
 
 // --- ACCIÓN 1: CHECK-IN (Abrir Ticket / Bloquear Horario) ---
 export async function createTicket(data: {
@@ -99,10 +100,10 @@ export async function finalizeTicket(input: {
     const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null } = input;
     const supabase = createAdminClient()
 
-    // 1. Obtener datos de la cita original (para saber quién atendió)
+    // 1. Obtener datos de la cita original (incluyendo start_time para back-dating)
     const { data: booking } = await supabase
         .from('bookings')
-        .select('staff_id, customer_id')
+        .select('staff_id, customer_id, start_time')
         .eq('id', bookingId)
         .single()
 
@@ -124,6 +125,16 @@ export async function finalizeTicket(input: {
         });
 
         if (txError) throw txError;
+
+        // BACK-DATING: Si la cita es del pasado, actualizar fecha de la transacción
+        const now = new Date();
+        const bookingDate = new Date(booking.start_time);
+        if (isBefore(bookingDate, now) && transactionId) {
+            await supabase
+                .from('transactions')
+                .update({ created_at: booking.start_time })
+                .eq('id', transactionId);
+        }
 
         // 6. Cerrar la Cita y actualizar el servicio realizado
         const { error: updateError } = await supabase
@@ -197,10 +208,10 @@ export async function finalizeTicketV2(input: {
     // Usamos cliente admin para bypass RLS
     const supabase = createAdminClient();
 
-    // Obtener datos del booking
+    // Obtener datos del booking (incluyendo start_time para back-dating)
     const { data: booking } = await supabase
         .from('bookings')
-        .select('staff_id, customer_id, tenant_id')
+        .select('staff_id, customer_id, tenant_id, start_time')
         .eq('id', bookingId)
         .single();
 
@@ -222,6 +233,16 @@ export async function finalizeTicketV2(input: {
         });
 
         if (txError) throw txError;
+
+        // BACK-DATING: Si la cita es del pasado, actualizar fecha de la transacción
+        const now = new Date();
+        const bookingDate = new Date(booking.start_time);
+        if (isBefore(bookingDate, now) && transactionId) {
+            await supabase
+                .from('transactions')
+                .update({ created_at: booking.start_time })
+                .eq('id', transactionId);
+        }
 
         // Actualizar booking como completado (usar primer servicio como referencia)
         const { error: updateError } = await supabase
@@ -283,12 +304,13 @@ export async function seatBooking(bookingId: string) {
         }
     }
 
-    // 3. Cambiar estado a seated
+    // 3. Cambiar estado a seated (PRESERVAR start_time original para back-dating)
     const { error } = await supabase
         .from('bookings')
         .update({
-            status: 'seated',
-            start_time: new Date().toISOString() // Actualizar hora real de inicio
+            status: 'seated'
+            // NOTA: NO actualizamos start_time aquí para preservar la fecha original
+            // Esto permite el back-dating de citas pasadas
         })
         .eq('id', bookingId)
 
