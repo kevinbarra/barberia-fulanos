@@ -39,7 +39,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                 <div className="border-b-2 border-gray-900 pb-4 mb-6">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight">Fulanitos Barber</h1>
+                            <h1 className="text-3xl font-black tracking-tight">Fulanos Barber</h1>
                             <p className="text-gray-600 text-sm mt-1">Reporte Financiero</p>
                         </div>
                         <div className="text-right">
@@ -155,7 +155,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                                 contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb' }}
                                                 formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
                                             />
-                                            <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
@@ -179,6 +179,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                                     outerRadius={50}
                                                     fill="#8884d8"
                                                     dataKey="value"
+                                                    isAnimationActive={false}
                                                 >
                                                     {servicesChartData.map((entry, index) => (
                                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -187,14 +188,14 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="flex-1 space-y-1 text-xs">
+                                    <div className="flex-1 space-y-1.5 text-xs pl-2">
                                         {topServices.slice(0, 5).map((service, idx) => (
-                                            <div key={idx} className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                                    <span className="truncate max-w-[100px]">{service.service_name}</span>
+                                            <div key={idx} className="flex items-start justify-between gap-2">
+                                                <div className="flex items-start gap-2 flex-1 min-w-0">
+                                                    <div className="w-2 h-2 rounded-full mt-1 flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                                    <span className="leading-tight break-words">{service.service_name}</span>
                                                 </div>
-                                                <span className="font-mono font-bold">${Number(service.total_revenue).toLocaleString()}</span>
+                                                <span className="font-mono font-bold flex-shrink-0">${Number(service.total_revenue).toLocaleString()}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -208,8 +209,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
 
                 {/* FOOTER */}
                 <footer className="border-t border-gray-300 pt-4 mt-8 text-center text-xs text-gray-500">
-                    <p>Este reporte fue generado automáticamente por el sistema de gestión de Fulanitos Barber.</p>
-                    <p className="mt-1">© {new Date().getFullYear()} Fulanitos Barber - Todos los derechos reservados</p>
+                    <p>Reporte generado por AgendaBarber | © {new Date().getFullYear()} Todos los derechos reservados.</p>
                 </footer>
             </div>
         )

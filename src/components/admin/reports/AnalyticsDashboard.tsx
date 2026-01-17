@@ -103,10 +103,19 @@ export default function AnalyticsDashboard({
         clientData
     }
 
+    // Generate smart filename for PDF
+    const getSmartFilename = (): string => {
+        if (startDate && endDate) {
+            return `Reporte_FulanosBarber_${startDate}_al_${endDate}`
+        }
+        const today = format(new Date(), 'yyyy-MM-dd')
+        return `Reporte_FulanosBarber_${today}`
+    }
+
     // React-to-print handler
     const handlePrint = useReactToPrint({
         contentRef: componentRef,
-        documentTitle: `Reporte-Fulanitos-${format(new Date(), 'yyyy-MM-dd')}`,
+        documentTitle: getSmartFilename(),
     })
 
     return (
