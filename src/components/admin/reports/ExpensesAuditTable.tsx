@@ -1,77 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { getExpensesByDateRange } from '@/app/admin/expenses/actions'
-import { Receipt, Clock, User, AlertCircle } from 'lucide-react'
-import { format, parseISO, startOfDay, endOfDay, isSameDay } from 'date-fns'
+import { ExpenseItem } from '@/hooks/useAnalyticsData'
+import { Receipt, Clock, User } from 'lucide-react'
+import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
-type Expense = {
-    id: string
-    amount: number
-    description: string
-    payment_method: string
-    created_at: string
-    // Supabase returns this as array for foreign key joins
-    profiles: { full_name: string }[] | { full_name: string } | null
+interface ExpensesAuditTableProps {
+    data: ExpenseItem[]
+    isLoading?: boolean
 }
 
-export default function ExpensesAuditTable() {
-    const searchParams = useSearchParams()
-    const [expenses, setExpenses] = useState<Expense[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [dateLabel, setDateLabel] = useState<string>('')
-
-    useEffect(() => {
-        async function fetchData() {
-            setLoading(true)
-
-            // Get dates from URL params or default to today
-            const startISO = searchParams.get('startISO')
-            const endISO = searchParams.get('endISO')
-            const startDate = searchParams.get('startDate')
-            const endDate = searchParams.get('endDate')
-
-            let queryStart: Date
-            let queryEnd: Date
-
-            if (startISO && endISO) {
-                queryStart = new Date(startISO)
-                queryEnd = new Date(endISO)
-            } else if (startDate && endDate) {
-                // Create timezone-aware dates if only date strings provided
-                queryStart = startOfDay(parseISO(startDate))
-                queryEnd = endOfDay(parseISO(endDate))
-            } else {
-                // Default to today
-                const today = new Date()
-                queryStart = startOfDay(today)
-                queryEnd = endOfDay(today)
-            }
-
-            // Set display label
-            if (isSameDay(queryStart, queryEnd)) {
-                setDateLabel(format(queryStart, "d 'de' MMMM", { locale: es }))
-            } else {
-                setDateLabel(`${format(queryStart, "d MMM", { locale: es })} - ${format(queryEnd, "d MMM", { locale: es })}`)
-            }
-
-            const result = await getExpensesByDateRange(queryStart, queryEnd)
-            if (result.success && result.expenses) {
-                setExpenses(result.expenses as unknown as Expense[])
-                setError(null)
-            } else {
-                setError(result.error || 'Error al cargar gastos')
-            }
-            setLoading(false)
-        }
-        fetchData()
-    }, [searchParams])
+export default function ExpensesAuditTable({
+    data: expenses,
+    isLoading = false
+}: ExpensesAuditTableProps) {
 
     // Loading State
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse">
                 <div className="h-5 w-40 bg-gray-100 rounded mb-4"></div>
@@ -79,18 +24,6 @@ export default function ExpensesAuditTable() {
                     {[1, 2, 3].map(i => (
                         <div key={i} className="h-12 bg-gray-50 rounded-lg"></div>
                     ))}
-                </div>
-            </div>
-        )
-    }
-
-    // Error State
-    if (error) {
-        return (
-            <div className="bg-white rounded-2xl border border-red-100 p-6">
-                <div className="flex items-center gap-3 text-red-600">
-                    <AlertCircle className="w-5 h-5" />
-                    <p className="text-sm">{error}</p>
                 </div>
             </div>
         )
@@ -104,7 +37,6 @@ export default function ExpensesAuditTable() {
                     <Receipt className="w-6 h-6 text-gray-300" />
                 </div>
                 <p className="text-sm text-gray-500">Sin gastos registrados</p>
-                <p className="text-xs text-gray-400 mt-1">{dateLabel}</p>
             </div>
         )
     }

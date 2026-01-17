@@ -1,15 +1,6 @@
 import { getFinancialDashboard, getClientRetentionMetrics, getRevenueByWeekday, getHourlyRevenue } from './actions';
-import FinancialKPIs from '@/components/admin/reports/FinancialKPIs';
-import StaffRevenueChart from '@/components/admin/reports/StaffRevenueChart';
-import TopServicesChart from '@/components/admin/reports/TopServicesChart';
-import RetentionChart from '@/components/admin/reports/RetentionChart';
 import DateRangeSelector from '@/components/admin/reports/DateRangeSelector';
-import HourlyHeatmap from '@/components/admin/reports/HourlyHeatmap';
-import WeekdayTrendsChart from '@/components/admin/reports/WeekdayTrendsChart';
-import CashDrawerSummary from '@/components/admin/reports/CashDrawerSummary';
-import ExpensesAuditTable from '@/components/admin/reports/ExpensesAuditTable';
-import StaffFinanceTable from '@/components/admin/reports/StaffFinanceTable';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import AnalyticsDashboard from '@/components/admin/reports/AnalyticsDashboard';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { createClient } from '@/utils/supabase/server';
@@ -39,6 +30,7 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
     const startDate = searchParams?.startDate;
     const endDate = searchParams?.endDate;
 
+    // Fetch server-side data (these 4 are passed as props to wrapper)
     const [
         financialData,
         retention,
@@ -63,70 +55,15 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     <DateRangeSelector />
                 </div>
 
-                {/* Corte de Caja - Financial Summary */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="text-green-600">💰</span>
-                        Corte de Caja
-                    </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ErrorBoundary fallbackTitle="Error en Corte de Caja" fallbackMessage="No se pudo cargar el resumen. El resto de la app sigue funcionando.">
-                            <CashDrawerSummary />
-                        </ErrorBoundary>
-                        <ErrorBoundary fallbackTitle="Error en Gastos" fallbackMessage="No se pudo cargar la tabla de gastos.">
-                            <ExpensesAuditTable />
-                        </ErrorBoundary>
-                    </div>
-                </div>
-
-                {/* Staff Financial Breakdown */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="text-violet-600">✂️</span>
-                        Corte por Barbero
-                    </h2>
-                    <ErrorBoundary fallbackTitle="Error en Corte por Barbero" fallbackMessage="No se pudo cargar el desglose por barbero.">
-                        <StaffFinanceTable />
-                    </ErrorBoundary>
-                </div>
-
-                {/* Gráficas Financieras - Now Dynamic */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="text-blue-600">📊</span>
-                        Desempeño Financiero
-                    </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ErrorBoundary fallbackTitle="Error en Gráfico" fallbackMessage="No se pudo cargar el gráfico.">
-                            <StaffRevenueChart />
-                        </ErrorBoundary>
-                        <ErrorBoundary fallbackTitle="Error en Servicios" fallbackMessage="No se pudo cargar los servicios.">
-                            <TopServicesChart />
-                        </ErrorBoundary>
-                    </div>
-                </div>
-
-                {/* KPIs Principales */}
-                <FinancialKPIs data={financialData} />
-
-                {/* Sección Operativa */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <span className="text-purple-600">⚡</span>
-                        Métricas Operativas
-                    </h2>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <WeekdayTrendsChart data={weekdayData} />
-                        <HourlyHeatmap data={hourlyData} />
-                    </div>
-                </div>
-
-                {/* Retención de Clientes */}
-                <div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-4">Retención y Lealtad</h2>
-                    <RetentionChart data={retention} />
-                </div>
+                {/* Analytics Dashboard - Client Component with centralized data */}
+                <AnalyticsDashboard
+                    financialKPIs={financialData}
+                    retention={retention}
+                    weekdayTrends={weekdayData}
+                    hourlyData={hourlyData}
+                />
             </div>
         </div>
     );
 }
+

@@ -1,62 +1,38 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
-import { getDynamicTopServices } from '@/app/admin/expenses/actions';
-import { Package, RefreshCw } from 'lucide-react';
+import { TopServiceItem } from '@/hooks/useAnalyticsData'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { Package, RefreshCw } from 'lucide-react'
 
-const COLORS = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+const COLORS = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
-interface ServiceData {
-    service_name: string;
-    times_sold: number;
-    total_revenue: number;
+interface TopServicesChartProps {
+    data: TopServiceItem[]
+    isLoading?: boolean
+    onRefresh?: () => void
 }
 
-export default function TopServicesChart() {
-    const searchParams = useSearchParams();
-    const [data, setData] = useState<ServiceData[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-
-    const fetchData = async () => {
-        const startISO = searchParams.get('startISO');
-        const endISO = searchParams.get('endISO');
-
-        const result = await getDynamicTopServices(startISO || undefined, endISO || undefined);
-        if (result.success && result.data) {
-            setData(result.data);
-        }
-        setLoading(false);
-        setRefreshing(false);
-    };
-
-    useEffect(() => {
-        setLoading(true);
-        fetchData();
-    }, [searchParams]);
-
-    const handleRefresh = () => {
-        setRefreshing(true);
-        fetchData();
-    };
+export default function TopServicesChart({
+    data,
+    isLoading = false,
+    onRefresh
+}: TopServicesChartProps) {
 
     // Chart uses COUNT (times_sold) for popularity, not revenue
     const chartData = data.slice(0, 6).map(item => ({
         name: item.service_name,
         value: item.times_sold,
         revenue: Number(item.total_revenue)
-    }));
+    }))
 
     // Loading State
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                 <div className="h-5 w-48 bg-gray-100 rounded mb-6 animate-pulse"></div>
                 <div className="h-[300px] bg-gray-50 rounded animate-pulse"></div>
             </div>
-        );
+        )
     }
 
     // Empty State
@@ -65,25 +41,29 @@ export default function TopServicesChart() {
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="text-lg font-bold text-gray-900">Servicios Más Vendidos</h3>
-                    <button onClick={handleRefresh} disabled={refreshing} className="p-2 hover:bg-gray-100 rounded-lg">
-                        <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-                    </button>
+                    {onRefresh && (
+                        <button onClick={onRefresh} className="p-2 hover:bg-gray-100 rounded-lg">
+                            <RefreshCw className="w-4 h-4 text-gray-400" />
+                        </button>
+                    )}
                 </div>
                 <div className="h-[300px] flex flex-col items-center justify-center text-gray-400">
                     <Package className="w-12 h-12 mb-3 text-gray-200" />
                     <p className="text-sm">Sin servicios vendidos en este período</p>
                 </div>
             </div>
-        );
+        )
     }
 
     return (
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-gray-900">Servicios Más Vendidos</h3>
-                <button onClick={handleRefresh} disabled={refreshing} className="p-2 hover:bg-gray-100 rounded-lg">
-                    <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
+                {onRefresh && (
+                    <button onClick={onRefresh} className="p-2 hover:bg-gray-100 rounded-lg">
+                        <RefreshCw className="w-4 h-4 text-gray-400" />
+                    </button>
+                )}
             </div>
 
             <div className="h-[300px] w-full">
@@ -113,7 +93,7 @@ export default function TopServicesChart() {
                 </ResponsiveContainer>
             </div>
 
-            {/* Tabla resumen */}
+            {/* Summary Table */}
             <div className="mt-6 space-y-3">
                 {data.slice(0, 5).map((service, idx) => (
                     <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-50 pb-2 last:border-0 last:pb-0">
@@ -131,5 +111,5 @@ export default function TopServicesChart() {
                 ))}
             </div>
         </div>
-    );
+    )
 }

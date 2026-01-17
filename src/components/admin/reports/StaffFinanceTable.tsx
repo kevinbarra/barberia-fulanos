@@ -1,63 +1,24 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { getStaffFinancialBreakdown } from '@/app/admin/expenses/actions'
-import { Users, Banknote, CreditCard, ArrowRightLeft, AlertCircle, RefreshCw } from 'lucide-react'
+import { StaffBreakdownData } from '@/hooks/useAnalyticsData'
+import { Users, Banknote, CreditCard, ArrowRightLeft, RefreshCw } from 'lucide-react'
 
-type StaffBreakdown = {
-    staffId: string
-    staffName: string
-    cash: number
-    card: number
-    transfer: number
-    total: number
+interface StaffFinanceTableProps {
+    data: StaffBreakdownData | null
+    isLoading?: boolean
+    onRefresh?: () => void
 }
 
-type Totals = {
-    cash: number
-    card: number
-    transfer: number
-    total: number
-}
-
-export default function StaffFinanceTable() {
-    const searchParams = useSearchParams()
-    const [breakdown, setBreakdown] = useState<StaffBreakdown[]>([])
-    const [totals, setTotals] = useState<Totals>({ cash: 0, card: 0, transfer: 0, total: 0 })
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [refreshing, setRefreshing] = useState(false)
-
-    const fetchData = async () => {
-        const startISO = searchParams.get('startISO')
-        const endISO = searchParams.get('endISO')
-
-        const result = await getStaffFinancialBreakdown(startISO || undefined, endISO || undefined)
-
-        if (result.success && result.breakdown) {
-            setBreakdown(result.breakdown)
-            setTotals(result.totals || { cash: 0, card: 0, transfer: 0, total: 0 })
-            setError(null)
-        } else {
-            setError(result.error || 'Error al cargar datos')
-        }
-        setLoading(false)
-        setRefreshing(false)
-    }
-
-    useEffect(() => {
-        setLoading(true)
-        fetchData()
-    }, [searchParams])
-
-    const handleRefresh = () => {
-        setRefreshing(true)
-        fetchData()
-    }
+export default function StaffFinanceTable({
+    data,
+    isLoading = false,
+    onRefresh
+}: StaffFinanceTableProps) {
+    const breakdown = data?.breakdown || []
+    const totals = data?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
 
     // Loading State
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="p-6 animate-pulse">
@@ -67,18 +28,6 @@ export default function StaffFinanceTable() {
                             <div key={i} className="h-14 bg-gray-50 rounded-lg"></div>
                         ))}
                     </div>
-                </div>
-            </div>
-        )
-    }
-
-    // Error State
-    if (error) {
-        return (
-            <div className="bg-white rounded-2xl border border-red-100 p-6">
-                <div className="flex items-center gap-3 text-red-600">
-                    <AlertCircle className="w-5 h-5" />
-                    <p className="text-sm">{error}</p>
                 </div>
             </div>
         )
@@ -109,13 +58,14 @@ export default function StaffFinanceTable() {
                         <p className="text-xs text-gray-500">{breakdown.length} barbero{breakdown.length !== 1 ? 's' : ''}</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="p-2 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-                >
-                    <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
+                {onRefresh && (
+                    <button
+                        onClick={onRefresh}
+                        className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4 text-gray-400" />
+                    </button>
+                )}
             </div>
 
             {/* Table */}

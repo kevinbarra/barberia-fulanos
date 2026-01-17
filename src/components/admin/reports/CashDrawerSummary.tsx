@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { getCashDrawerByDateRange } from '@/app/admin/expenses/actions'
+import { CashDrawerData } from '@/hooks/useAnalyticsData'
 import {
     Banknote,
     CreditCard,
@@ -10,78 +8,23 @@ import {
     Receipt,
     TrendingUp,
     Wallet,
-    RefreshCw,
-    AlertCircle,
-    Calendar
+    RefreshCw
 } from 'lucide-react'
-import { format, parseISO, isSameDay } from 'date-fns'
-import { es } from 'date-fns/locale'
 
-type CashDrawerSummary = {
-    cashIncome: number
-    cardIncome: number
-    transferIncome: number
-    totalIncome: number
-    cashExpenses: number
-    totalExpenses: number
-    cashInDrawer: number
-    netBalance: number
-    transactionCount: number
-    expenseCount: number
-    dateRange?: string
+interface CashDrawerSummaryProps {
+    data: CashDrawerData | null
+    isLoading?: boolean
+    onRefresh?: () => void
 }
 
-export default function CashDrawerSummary() {
-    const searchParams = useSearchParams()
-    const [summary, setSummary] = useState<CashDrawerSummary | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [refreshing, setRefreshing] = useState(false)
-    const [dateLabel, setDateLabel] = useState<string>('')
-
-    const fetchData = async () => {
-        // Get dates from URL params
-        const startISO = searchParams.get('startISO')
-        const endISO = searchParams.get('endISO')
-        const startDate = searchParams.get('startDate')
-        const endDate = searchParams.get('endDate')
-
-        // Calculate display label
-        if (startDate && endDate) {
-            const start = parseISO(startDate)
-            const end = parseISO(endDate)
-            if (isSameDay(start, end)) {
-                setDateLabel(format(start, "EEEE d 'de' MMMM", { locale: es }))
-            } else {
-                setDateLabel(`${format(start, "d MMM", { locale: es })} - ${format(end, "d MMM yyyy", { locale: es })}`)
-            }
-        } else {
-            setDateLabel(format(new Date(), "EEEE d 'de' MMMM", { locale: es }))
-        }
-
-        const result = await getCashDrawerByDateRange(startISO || undefined, endISO || undefined)
-        if (result.success && result.summary) {
-            setSummary(result.summary)
-            setError(null)
-        } else {
-            setError(result.error || 'Error al cargar datos')
-        }
-        setLoading(false)
-        setRefreshing(false)
-    }
-
-    useEffect(() => {
-        setLoading(true)
-        fetchData()
-    }, [searchParams])
-
-    const handleRefresh = () => {
-        setRefreshing(true)
-        fetchData()
-    }
+export default function CashDrawerSummary({
+    data: summary,
+    isLoading = false,
+    onRefresh
+}: CashDrawerSummaryProps) {
 
     // Loading State
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                 <div className="p-6">
@@ -100,31 +43,6 @@ export default function CashDrawerSummary() {
                         </div>
                         <div className="h-24 bg-gray-100 rounded-xl"></div>
                     </div>
-                </div>
-            </div>
-        )
-    }
-
-    // Error State
-    if (error) {
-        return (
-            <div className="bg-white rounded-2xl border border-red-100 overflow-hidden">
-                <div className="p-6">
-                    <div className="flex items-center gap-3 text-red-600">
-                        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
-                            <AlertCircle className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <p className="font-medium">Error al cargar datos</p>
-                            <p className="text-sm text-red-500">{error}</p>
-                        </div>
-                    </div>
-                    <button
-                        onClick={handleRefresh}
-                        className="mt-4 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                        Reintentar
-                    </button>
                 </div>
             </div>
         )
@@ -157,19 +75,17 @@ export default function CashDrawerSummary() {
                     </div>
                     <div>
                         <h3 className="font-semibold text-gray-900">Corte de Caja</h3>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            <span className="capitalize">{dateLabel}</span>
-                        </div>
+                        <p className="text-xs text-gray-500">{summary.transactionCount} ventas</p>
                     </div>
                 </div>
-                <button
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="p-2 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50"
-                >
-                    <RefreshCw className={`w-4 h-4 text-gray-400 ${refreshing ? 'animate-spin' : ''}`} />
-                </button>
+                {onRefresh && (
+                    <button
+                        onClick={onRefresh}
+                        className="p-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                        <RefreshCw className="w-4 h-4 text-gray-400" />
+                    </button>
+                )}
             </div>
 
             <div className="p-6 space-y-5">
