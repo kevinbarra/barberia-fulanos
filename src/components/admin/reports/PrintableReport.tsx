@@ -2,7 +2,7 @@
 
 import { forwardRef } from 'react'
 import { FullReportData } from './AnalyticsDashboard'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
@@ -145,19 +145,17 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                         <div className="border border-gray-200 rounded-lg p-4">
                             <h3 className="text-sm font-bold text-gray-900 mb-3">Revenue por Barbero</h3>
                             {staffChartData.length > 0 ? (
-                                <div className="h-48">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={staffChartData}>
-                                            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                                            <XAxis dataKey="name" fontSize={10} stroke="#374151" />
-                                            <YAxis fontSize={10} stroke="#374151" tickFormatter={(v) => `$${v}`} />
-                                            <Tooltip
-                                                contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb' }}
-                                                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                                            />
-                                            <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
+                                <div>
+                                    <BarChart width={320} height={180} data={staffChartData}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                                        <XAxis dataKey="name" fontSize={10} stroke="#374151" />
+                                        <YAxis fontSize={10} stroke="#374151" tickFormatter={(v) => `$${v}`} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb' }}
+                                            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                                        />
+                                        <Bar dataKey="revenue" fill="#8b5cf6" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                                    </BarChart>
                                 </div>
                             ) : (
                                 <p className="text-gray-500 text-sm text-center py-8">Sin datos</p>
@@ -168,25 +166,23 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                         <div className="border border-gray-200 rounded-lg p-4">
                             <h3 className="text-sm font-bold text-gray-900 mb-3">Servicios Más Vendidos</h3>
                             {servicesChartData.length > 0 ? (
-                                <div className="flex items-center">
-                                    <div className="h-48 w-32">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <PieChart>
-                                                <Pie
-                                                    data={servicesChartData}
-                                                    cx="50%"
-                                                    cy="50%"
-                                                    outerRadius={50}
-                                                    fill="#8884d8"
-                                                    dataKey="value"
-                                                    isAnimationActive={false}
-                                                >
-                                                    {servicesChartData.map((entry, index) => (
-                                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                                    ))}
-                                                </Pie>
-                                            </PieChart>
-                                        </ResponsiveContainer>
+                                <div className="flex items-start gap-4">
+                                    <div>
+                                        <PieChart width={140} height={140}>
+                                            <Pie
+                                                data={servicesChartData}
+                                                cx={70}
+                                                cy={70}
+                                                outerRadius={55}
+                                                fill="#8884d8"
+                                                dataKey="value"
+                                                isAnimationActive={false}
+                                            >
+                                                {servicesChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                        </PieChart>
                                     </div>
                                     <div className="flex-1 space-y-1.5 text-xs pl-2">
                                         {topServices.slice(0, 5).map((service, idx) => (
