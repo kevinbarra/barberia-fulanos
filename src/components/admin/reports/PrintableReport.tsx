@@ -69,11 +69,6 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                             <p className="text-2xl font-black text-gray-900">
                                 ${financialKPIs?.total_revenue?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) ?? '0.00'}
                             </p>
-                            {financialKPIs?.growth_rate !== undefined && financialKPIs.growth_rate !== 0 && (
-                                <p className={`text-xs font-bold mt-1 ${financialKPIs.growth_rate >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {financialKPIs.growth_rate >= 0 ? '↑' : '↓'} {Math.abs(financialKPIs.growth_rate).toFixed(1)}% vs anterior
-                                </p>
-                            )}
                         </div>
                         <div className="border border-gray-200 rounded-lg p-4 text-center">
                             <p className="text-xs text-gray-500 uppercase font-bold mb-1">Transacciones</p>
