@@ -63,7 +63,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                     <h2 className="text-lg font-bold mb-4 border-l-4 border-blue-600 pl-3">
                         Resumen Financiero
                     </h2>
-                    <div className="grid grid-cols-4 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         <div className="border border-gray-200 rounded-lg p-4 text-center">
                             <p className="text-xs text-gray-500 uppercase font-bold mb-1">Revenue Total</p>
                             <p className="text-2xl font-black text-gray-900">
@@ -85,12 +85,6 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                             <p className="text-xs text-gray-500 uppercase font-bold mb-1">Ticket Promedio</p>
                             <p className="text-2xl font-black text-gray-900">
                                 ${financialKPIs?.avg_transaction_value?.toFixed(2) ?? '0.00'}
-                            </p>
-                        </div>
-                        <div className="border border-gray-200 rounded-lg p-4 text-center">
-                            <p className="text-xs text-gray-500 uppercase font-bold mb-1">Clientes Únicos</p>
-                            <p className="text-2xl font-black text-gray-900">
-                                {financialKPIs?.unique_clients || 0}
                             </p>
                         </div>
                     </div>
