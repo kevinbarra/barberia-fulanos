@@ -52,9 +52,12 @@ interface ServerSideData {
 
 export interface FullReportData extends ServerSideData {
     clientData: AnalyticsClientData
+    tenantName: string
 }
 
-interface AnalyticsDashboardProps extends ServerSideData { }
+interface AnalyticsDashboardProps extends ServerSideData {
+    tenantName: string
+}
 
 // ==================== COMPONENT ====================
 
@@ -62,7 +65,8 @@ export default function AnalyticsDashboard({
     financialKPIs,
     retention,
     weekdayTrends,
-    hourlyData
+    hourlyData,
+    tenantName
 }: AnalyticsDashboardProps) {
     const searchParams = useSearchParams()
     const componentRef = useRef<HTMLDivElement>(null)
@@ -100,16 +104,18 @@ export default function AnalyticsDashboard({
         retention,
         weekdayTrends,
         hourlyData,
-        clientData
+        clientData,
+        tenantName
     }
 
-    // Generate smart filename for PDF
+    // Generate smart filename for PDF (sanitize tenant name for filename safety)
     const getSmartFilename = (): string => {
+        const safeName = tenantName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_')
         if (startDate && endDate) {
-            return `Reporte_FulanosBarber_${startDate}_al_${endDate}`
+            return `Reporte_${safeName}_${startDate}_al_${endDate}`
         }
         const today = format(new Date(), 'yyyy-MM-dd')
-        return `Reporte_FulanosBarber_${today}`
+        return `Reporte_${safeName}_${today}`
     }
 
     // React-to-print handler

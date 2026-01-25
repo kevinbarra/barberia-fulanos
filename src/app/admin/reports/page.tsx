@@ -14,16 +14,27 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
 
     if (!user) redirect('/login');
 
-    // Use admin client to get profile (bypass RLS)
+    // Use admin client to get profile with tenant info (bypass RLS)
     const { data: profile } = await adminClient
         .from('profiles')
-        .select('role')
+        .select('role, tenant_id')
         .eq('id', user.id)
         .single();
 
     // Seguridad: Si es staff, lo mandamos al dashboard general
     if (profile?.role === 'staff') {
         redirect('/admin');
+    }
+
+    // Fetch tenant name for white-label branding
+    let tenantName = 'Mi Negocio';
+    if (profile?.tenant_id) {
+        const { data: tenant } = await adminClient
+            .from('tenants')
+            .select('name')
+            .eq('id', profile.tenant_id)
+            .single();
+        tenantName = tenant?.name || 'Mi Negocio';
     }
 
     const searchParams = await props.searchParams;
@@ -61,6 +72,7 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
                     retention={retention}
                     weekdayTrends={weekdayData}
                     hourlyData={hourlyData}
+                    tenantName={tenantName}
                 />
             </div>
         </div>

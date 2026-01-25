@@ -13,7 +13,7 @@ interface PrintableReportProps {
 
 const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
     ({ data, dateRange }, ref) => {
-        const { financialKPIs, clientData } = data
+        const { financialKPIs, clientData, tenantName } = data
         const staffBreakdown = clientData.staffBreakdown?.breakdown || []
         const staffTotals = clientData.staffBreakdown?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
         const topServices = clientData.topServices || []
@@ -39,7 +39,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                 <div className="border-b-2 border-gray-900 pb-4 mb-6">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h1 className="text-3xl font-black tracking-tight">Fulanos Barber</h1>
+                            <h1 className="text-3xl font-black tracking-tight">{tenantName}</h1>
                             <p className="text-gray-600 text-sm mt-1">Reporte Financiero</p>
                         </div>
                         <div className="text-right">
