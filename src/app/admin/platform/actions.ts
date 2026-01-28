@@ -3,6 +3,14 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
+interface ProvisionResult {
+    success: boolean;
+    tenant_id?: string;
+    tenant_slug?: string;
+    owner_assigned?: boolean;
+    message?: string;
+}
+
 export async function createTenant(formData: FormData) {
     const supabase = await createClient();
 
@@ -20,60 +28,48 @@ export async function createTenant(formData: FormData) {
         return { error: 'Permisos insuficientes. Solo Super Admin.' };
     }
 
-    // 2. Obtener datos
+    // 2. Extraer datos
     const name = formData.get('name') as string;
     const slug = formData.get('slug') as string;
     const ownerEmail = formData.get('owner_email') as string;
 
+    // Nuevos campos (con defaults)
+    const brandColor = (formData.get('brand_color') as string) || '#8b5cf6';
+    const plan = (formData.get('plan') as string) || 'trial';
+    const timezone = (formData.get('timezone') as string) || 'America/Mexico_City';
+
     if (!name || !slug || !ownerEmail) {
-        return { error: 'Todos los campos son requeridos.' };
+        return { error: 'Nombre, Slug y Email son obligatorios.' };
     }
 
-    // 3. Crear Tenant
-    const { data: newTenant, error: tenantError } = await supabase
-        .from('tenants')
-        .insert({
-            name,
-            slug: slug.toLowerCase().trim().replace(/\s+/g, '-'),
-            subscription_status: 'active'
-        })
-        .select()
-        .single();
+    // 3. LLAMAR AL MOTOR ATÓMICO (SQL RPC)
+    const { data, error } = await supabase.rpc('provision_tenant_atomic', {
+        p_name: name,
+        p_slug: slug,
+        p_owner_email: ownerEmail,
+        p_brand_color: brandColor,
+        p_plan: plan,
+        p_timezone: timezone
+    });
 
-    if (tenantError) {
-        if (tenantError.code === '23505') return { error: 'El slug ya existe.' };
-        return { error: 'Error al crear el negocio (Tenant).' };
+    if (error) {
+        console.error('Error provision_tenant_atomic:', error);
+        if (error.message.includes('slug')) return { error: 'El slug (URL) ya está en uso.' };
+        if (error.message.includes('Email')) return { error: 'Formato de email inválido.' };
+        return { error: `Error del sistema: ${error.message}` };
     }
 
-    // 4. Provisionar Owner
-    const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', ownerEmail)
-        .single();
+    const result = data as ProvisionResult;
 
-    if (existingProfile) {
-        const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-                tenant_id: newTenant.id,
-                role: 'owner'
-            })
-            .eq('id', existingProfile.id);
-
-        if (updateError) {
-            return { success: true, message: `Negocio creado, pero error al asignar dueño: ${updateError.message}` };
-        }
-    } else {
-        return {
-            success: true,
-            message: 'Negocio creado. El usuario deberá registrarse con ese email para ser vinculado.'
-        };
+    if (!result.success) {
+        return { error: result.message || 'Error desconocido.' };
     }
 
+    // 4. Éxito
     revalidatePath('/admin/platform');
-    return { success: true, message: 'Negocio y Dueño configurados exitosamente.' };
+    return { success: true, message: result.message };
 }
+
 
 // Toggle tenant status (suspend/activate)
 export async function toggleTenantStatus(tenantId: string, newStatus: 'active' | 'suspended') {
