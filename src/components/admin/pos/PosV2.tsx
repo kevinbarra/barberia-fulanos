@@ -14,8 +14,17 @@ import { createTicket, finalizeTicketV2, voidTicket, seatBooking } from '@/app/a
 import { linkTransactionToUser } from '@/app/admin/bookings/actions'
 import { markNoShow } from '@/app/admin/no-shows/actions'
 import QRScanner from '@/components/admin/QRScanner'
+import ClientSelector from '@/components/admin/pos/ClientSelector'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+
+// Type for selected client from ClientSelector
+interface SelectedClient {
+    id?: string;
+    name: string;
+    phone?: string;
+    isGuest: boolean;
+}
 
 // ==================== TYPES ====================
 interface Staff {
@@ -89,7 +98,7 @@ export default function PosV2({
 
     // New ticket form
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
-    const [clientName, setClientName] = useState('')
+    const [selectedClient, setSelectedClient] = useState<SelectedClient | null>(null)
     const [selectedServices, setSelectedServices] = useState<Service[]>([])
     const [activeCategory, setActiveCategory] = useState('Cortes')
 
@@ -146,7 +155,7 @@ export default function PosV2({
         setSelectedTicket(ticket)
         setSelectedServices(ticket.services || [])
         setSelectedStaff(staff.find(s => s.id === ticket.staffId) || null)
-        setClientName(ticket.clientName)
+        setSelectedClient({ name: ticket.clientName, id: ticket.customerId || undefined, isGuest: !ticket.customerId })
         setMode('viewing')
         setMobileView('panel')
     }
@@ -166,7 +175,7 @@ export default function PosV2({
         })
         setSelectedServices(service ? [service] : [])
         setSelectedStaff(staff.find(s => s.id === booking.staffId) || null)
-        setClientName(booking.clientName)
+        setSelectedClient({ name: booking.clientName, id: booking.customerId || undefined, isGuest: !booking.customerId })
         setMode('viewing')
         setMobileView('panel')
     }
@@ -187,10 +196,12 @@ export default function PosV2({
         }
 
         setIsProcessing(true)
+        const clientName = selectedClient?.name || 'Walk-in'
+        const customerId = selectedClient?.id || null
         const res = await createTicket({
             tenantId,
             staffId: selectedStaff.id,
-            clientName: clientName || 'Walk-in',
+            clientName,
             duration: totalDuration,
             serviceId: selectedServices[0].id,
             servicePrice: selectedServices[0].price
@@ -203,7 +214,8 @@ export default function PosV2({
             const newTicket: Ticket = {
                 id: res.bookingId,
                 startTime: new Date().toISOString(),
-                clientName: clientName || 'Walk-in',
+                clientName,
+                customerId: selectedClient?.id,
                 staffName: selectedStaff.full_name,
                 staffId: selectedStaff.id,
                 services: selectedServices,
@@ -308,7 +320,7 @@ export default function PosV2({
 
     const resetForm = () => {
         setSelectedStaff(null)
-        setClientName('')
+        setSelectedClient(null)
         setSelectedServices([])
         setPaymentMethod('cash')
         setSuccessTxId(null)
@@ -613,15 +625,12 @@ export default function PosV2({
                                 </div>
                             </div>
 
-                            {/* Client Name */}
+                            {/* Client Selector - Search, Register, or Guest */}
                             <div>
                                 <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Cliente</label>
-                                <input
-                                    type="text"
-                                    value={clientName}
-                                    onChange={(e) => setClientName(e.target.value)}
-                                    placeholder="Nombre del cliente (opcional)"
-                                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
+                                <ClientSelector
+                                    onSelect={(client) => setSelectedClient(client)}
+                                    initialClientName={selectedClient?.name || ''}
                                 />
                             </div>
                         </div>
