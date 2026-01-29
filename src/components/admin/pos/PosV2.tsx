@@ -197,14 +197,14 @@ export default function PosV2({
 
         setIsProcessing(true)
         const clientName = selectedClient?.name || 'Walk-in'
-        const customerId = selectedClient?.id || null
         const res = await createTicket({
             tenantId,
             staffId: selectedStaff.id,
             clientName,
             duration: totalDuration,
             serviceId: selectedServices[0].id,
-            servicePrice: selectedServices[0].price
+            servicePrice: selectedServices[0].price,
+            customerId: selectedClient?.id
         })
 
         setIsProcessing(false)

@@ -14,6 +14,7 @@ export async function createTicket(data: {
     duration: number
     serviceId?: string  // Opcional: Pre-seleccionar servicio para walk-ins
     servicePrice?: number
+    customerId?: string  // NUEVO: Vincular con cliente registrado para puntos
 }) {
     // Usamos cliente admin para bypass RLS en operaciones del POS
     const supabase = createAdminClient()
@@ -48,7 +49,7 @@ export async function createTicket(data: {
     const endTime = new Date(now.getTime() + data.duration * 60000)
 
     // Creamos la cita en estado 'seated' (En silla)
-    // service_id puede pre-seleccionarse si el walk-in ya sabe qué quiere
+    // Si viene customerId, lo guardamos para vincular puntos de lealtad
     const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
@@ -58,8 +59,8 @@ export async function createTicket(data: {
             start_time: now.toISOString(),
             end_time: endTime.toISOString(),
             status: 'seated',
-            notes: `Walk-in: ${data.clientName}`,
-            customer_id: null
+            notes: data.customerId ? data.clientName : `Walk-in: ${data.clientName}`,
+            customer_id: data.customerId || null  // VINCULACIÓN CON CLIENTE
         })
         .select('id')
         .single()
