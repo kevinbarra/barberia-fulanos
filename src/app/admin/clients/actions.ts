@@ -22,16 +22,10 @@ interface ManagedClientResponse {
 
 // ==================== HELPER FUNCTIONS ====================
 
-/**
- * Sanitize phone - remove all non-numeric characters
- */
 function sanitizePhone(phone: string): string {
     return phone.replace(/\D/g, '');
 }
 
-/**
- * Validate phone is exactly 10 digits
- */
 function validatePhone(phone: string): { valid: boolean; error?: string } {
     if (phone.length !== 10) {
         return { valid: false, error: 'El número debe ser de 10 dígitos' };
@@ -39,16 +33,10 @@ function validatePhone(phone: string): { valid: boolean; error?: string } {
     return { valid: true };
 }
 
-/**
- * Generate synthetic email from phone
- */
 function generateSyntheticEmail(phone: string): string {
     return `${phone}@phone.agendabarber.pro`;
 }
 
-/**
- * Generate password from last 6 digits of phone
- */
 function generatePassword(phone: string): string {
     return phone.slice(-6);
 }
@@ -81,7 +69,7 @@ export async function createManagedClient(
         return { success: false, message: validation.error!, error: validation.error };
     }
 
-    // 4. Check if user already exists with this phone
+    // 4. Check if user already exists with this phone (Smart Check)
     const adminClient = createAdminClient();
 
     const { data: existingProfile } = await adminClient
@@ -91,14 +79,13 @@ export async function createManagedClient(
         .single();
 
     if (existingProfile) {
-        // User already exists - return their info without creating new
+        // User already exists - Return ID but NO credentials
         return {
             success: true,
             message: 'El cliente ya está registrado.',
             data: {
                 userId: existingProfile.id,
-                // NO credentials for existing users
-                script: `¡Bienvenido de nuevo, ${existingProfile.full_name || 'cliente'}! Ya tienes cuenta con nosotros.`
+                script: `¡Atención! Este cliente ya tiene cuenta registrada como ${existingProfile.full_name}. No es necesario darle nueva contraseña.`
             }
         };
     }
@@ -122,12 +109,10 @@ export async function createManagedClient(
     if (createError) {
         console.error('Error creating managed client:', createError);
 
-        // Handle specific errors
         if (createError.message.includes('already been registered')) {
-            // Edge case: Auth user exists but profile doesn't
             return {
                 success: false,
-                message: 'Este teléfono ya tiene una cuenta asociada.',
+                message: 'Este teléfono ya tiene una cuenta asociada en el sistema.',
                 error: createError.message
             };
         }
@@ -139,7 +124,8 @@ export async function createManagedClient(
         };
     }
 
-    // 6. Create/update profile with tenant association
+    // 6. Create profile
+    // CORRECCIÓN: Eliminado "updated_at" para evitar error de base de datos
     const { error: profileError } = await adminClient
         .from('profiles')
         .upsert({
@@ -148,16 +134,14 @@ export async function createManagedClient(
             full_name: trimmedName,
             phone: cleanPhone,
             role: 'customer',
-            tenant_id: tenantId,
-            updated_at: new Date().toISOString()
+            tenant_id: tenantId
         }, { onConflict: 'id' });
 
     if (profileError) {
         console.error('Error creating profile:', profileError);
-        // User was created but profile failed - still return success with warning
     }
 
-    // 7. Return success with credentials
+    // 7. Return success with credentials & script
     return {
         success: true,
         message: 'Cliente registrado exitosamente.',
@@ -167,7 +151,8 @@ export async function createManagedClient(
                 user: cleanPhone,
                 pass: password
             },
-            script: `¡Listo, ${trimmedName}! Te hemos creado una cuenta. Tu usuario es tu teléfono: ${cleanPhone.slice(0, 4)}...${cleanPhone.slice(-2)} y tu contraseña son los últimos 6 dígitos de tu número. Con esto podrás ver tus citas y puntos desde la app.`
+            // CORRECCIÓN UX: Guion claro y directo
+            script: `¡Listo! Dígale al cliente: "Para entrar a la App, su usuario es su celular ${cleanPhone} y su contraseña son los últimos 6 dígitos: ${password}".`
         }
     };
 }
