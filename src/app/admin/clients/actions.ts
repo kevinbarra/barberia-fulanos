@@ -210,3 +210,149 @@ export async function searchClients(query: string): Promise<ClientSearchResult[]
     return results;
 }
 
+// ==================== UPDATE MANAGED CLIENT ====================
+
+interface UpdateManagedClientResponse {
+    success: boolean;
+    message: string;
+    error?: string;
+    mode?: 'name_only' | 'phone_change';
+    data?: {
+        newName: string;
+        newPhone: string;
+        credentials?: {
+            user: string;
+            pass: string;
+        };
+        script?: string;
+    };
+}
+
+export async function updateManagedClient(
+    userId: string,
+    newName: string,
+    newPhone: string
+): Promise<UpdateManagedClientResponse> {
+    // 1. Validate staff/owner access
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { success: false, message: 'No autorizado', error: 'No autorizado' };
+    }
+
+    // 2. Get tenant context
+    const tenantId = await getTenantIdFromContext();
+    if (!tenantId) {
+        return { success: false, message: 'No se pudo determinar el negocio', error: 'Tenant not found' };
+    }
+
+    // 3. Sanitize and validate new phone
+    const cleanPhone = sanitizePhone(newPhone);
+    const validation = validatePhone(cleanPhone);
+
+    if (!validation.valid) {
+        return { success: false, message: validation.error!, error: validation.error };
+    }
+
+    const trimmedName = newName.trim() || 'Cliente';
+    const adminClient = createAdminClient();
+
+    // 4. Get current profile to compare
+    const { data: currentProfile, error: profileFetchError } = await adminClient
+        .from('profiles')
+        .select('phone, full_name, email')
+        .eq('id', userId)
+        .single();
+
+    if (profileFetchError || !currentProfile) {
+        return { success: false, message: 'Cliente no encontrado', error: 'Profile not found' };
+    }
+
+    const phoneChanged = currentProfile.phone !== cleanPhone;
+
+    // 5. SCENARIO A: Name only change
+    if (!phoneChanged) {
+        const { error: updateError } = await adminClient
+            .from('profiles')
+            .update({ full_name: trimmedName })
+            .eq('id', userId);
+
+        if (updateError) {
+            return { success: false, message: 'Error al actualizar', error: updateError.message };
+        }
+
+        return {
+            success: true,
+            message: 'Nombre actualizado correctamente.',
+            mode: 'name_only',
+            data: {
+                newName: trimmedName,
+                newPhone: cleanPhone
+            }
+        };
+    }
+
+    // 6. SCENARIO B: Phone changed - need to update Auth + Profile
+    // Check if new phone is already in use
+    const { data: existingWithPhone } = await adminClient
+        .from('profiles')
+        .select('id')
+        .eq('phone', cleanPhone)
+        .neq('id', userId)
+        .single();
+
+    if (existingWithPhone) {
+        return { success: false, message: 'Este teléfono ya está registrado por otro cliente.', error: 'Phone in use' };
+    }
+
+    // Generate new credentials
+    const newEmail = generateSyntheticEmail(cleanPhone);
+    const newPassword = generatePassword(cleanPhone);
+
+    // Update Auth user
+    const { error: authError } = await adminClient.auth.admin.updateUserById(userId, {
+        email: newEmail,
+        password: newPassword,
+        user_metadata: {
+            full_name: trimmedName,
+            phone: cleanPhone,
+            is_managed: true
+        }
+    });
+
+    if (authError) {
+        console.error('Error updating auth user:', authError);
+        return { success: false, message: 'Error al actualizar credenciales', error: authError.message };
+    }
+
+    // Update Profile
+    const { error: profileUpdateError } = await adminClient
+        .from('profiles')
+        .update({
+            full_name: trimmedName,
+            phone: cleanPhone,
+            email: newEmail
+        })
+        .eq('id', userId);
+
+    if (profileUpdateError) {
+        console.error('Error updating profile:', profileUpdateError);
+        // Auth was updated but profile failed - still return partial success
+    }
+
+    return {
+        success: true,
+        message: 'Cliente actualizado con nuevas credenciales.',
+        mode: 'phone_change',
+        data: {
+            newName: trimmedName,
+            newPhone: cleanPhone,
+            credentials: {
+                user: cleanPhone,
+                pass: newPassword
+            },
+            script: `📱 IMPORTANTE: El teléfono cambió. Dígale al cliente: "Su NUEVO usuario es ${cleanPhone} y su NUEVA contraseña son los últimos 6 dígitos: ${newPassword}".`
+        }
+    };
+}

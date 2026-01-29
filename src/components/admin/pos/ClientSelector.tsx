@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, UserPlus, X, Check, User, Phone, Loader2 } from 'lucide-react';
+import { Search, UserPlus, X, Check, User, Phone, Loader2, Pencil } from 'lucide-react';
 import { createManagedClient, searchClients } from '@/app/admin/clients/actions';
+import EditClientModal from '@/components/admin/clients/EditClientModal';
 
 // ==================== TYPES ====================
 
@@ -39,6 +40,9 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     const [registerName, setRegisterName] = useState('');
     const [isRegistering, setIsRegistering] = useState(false);
     const [credentialsScript, setCredentialsScript] = useState<string | null>(null);
+
+    // Edit modal state
+    const [showEditModal, setShowEditModal] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -164,6 +168,18 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
         setCredentialsScript(null);
     };
 
+    const handleEditSuccess = (updatedClient: { id: string; name: string; phone: string }) => {
+        // Update selected client with new data
+        const updated: SelectedClient = {
+            id: updatedClient.id,
+            name: updatedClient.name,
+            phone: updatedClient.phone,
+            isGuest: false
+        };
+        setSelectedClient(updated);
+        onSelect(updated);
+    };
+
     // ==================== RENDER ====================
 
     // Credentials Alert (Persistent - shows after registration)
@@ -212,27 +228,54 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     // Selected Client Card
     if (selectedClient) {
         return (
-            <div className="flex items-center gap-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    {selectedClient.isGuest ? (
-                        <User className="w-5 h-5 text-blue-600" />
-                    ) : (
-                        <Check className="w-5 h-5 text-blue-600" />
+            <>
+                <div className="flex items-center gap-3 p-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        {selectedClient.isGuest ? (
+                            <User className="w-5 h-5 text-blue-600" />
+                        ) : (
+                            <Check className="w-5 h-5 text-blue-600" />
+                        )}
+                    </div>
+                    <div className="flex-1">
+                        <p className="font-bold text-blue-800">{selectedClient.name}</p>
+                        <p className="text-xs text-blue-600">
+                            {selectedClient.isGuest ? 'Invitado (sin cuenta)' : selectedClient.phone || 'Cliente registrado'}
+                        </p>
+                    </div>
+                    {/* Edit button - only for registered clients */}
+                    {!selectedClient.isGuest && selectedClient.id && (
+                        <button
+                            onClick={() => setShowEditModal(true)}
+                            className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
+                            title="Editar cliente"
+                        >
+                            <Pencil className="w-4 h-4" />
+                        </button>
                     )}
+                    <button
+                        onClick={handleDeselect}
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
+                        title="Quitar cliente"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
                 </div>
-                <div className="flex-1">
-                    <p className="font-bold text-blue-800">{selectedClient.name}</p>
-                    <p className="text-xs text-blue-600">
-                        {selectedClient.isGuest ? 'Invitado (sin cuenta)' : selectedClient.phone || 'Cliente registrado'}
-                    </p>
-                </div>
-                <button
-                    onClick={handleDeselect}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
-                >
-                    <X className="w-4 h-4" />
-                </button>
-            </div>
+
+                {/* Edit Modal */}
+                {selectedClient.id && (
+                    <EditClientModal
+                        isOpen={showEditModal}
+                        onClose={() => setShowEditModal(false)}
+                        client={{
+                            id: selectedClient.id,
+                            name: selectedClient.name,
+                            phone: selectedClient.phone
+                        }}
+                        onSuccess={handleEditSuccess}
+                    />
+                )}
+            </>
         );
     }
 
