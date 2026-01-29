@@ -177,7 +177,7 @@ export default function BookingWizard({
                 <p className="text-gray-500 mb-8 max-w-[250px] mx-auto leading-relaxed">
                     Tu cita quedó agendada.<br />Te esperamos.
                 </p>
-                <a href="/app" className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg hover:bg-zinc-800 transition-all shadow-xl active:scale-95">
+                <a href="/app" className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg hover:opacity-90 transition-all shadow-xl active:scale-95">
                     Ver mi Ticket
                 </a>
             </motion.div>
@@ -201,7 +201,7 @@ export default function BookingWizard({
                 {/* Barra de progreso */}
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                     <motion.div
-                        className="h-full bg-black"
+                        className="h-full bg-brand"
                         initial={{ width: 0 }}
                         animate={{ width: `${(step / 4) * 100}%` }}
                         transition={{ duration: 0.3 }}
@@ -233,7 +233,7 @@ export default function BookingWizard({
                                             >
                                                 <div className="flex justify-between items-center">
                                                     <div>
-                                                        <span className="font-bold text-gray-900 text-lg block group-hover:text-blue-600 transition-colors">{service.name}</span>
+                                                        <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
                                                         <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-1">
                                                             <Clock size={12} /> {service.duration_min} min
                                                         </span>
@@ -300,7 +300,7 @@ export default function BookingWizard({
                                             key={i}
                                             onClick={() => { setSelectedDate(date); setSelectedTime(""); }}
                                             className={`snap-start min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected
-                                                ? "bg-black text-white border-black shadow-lg scale-105"
+                                                ? "bg-brand text-brand-foreground border-brand shadow-lg scale-105"
                                                 : "bg-white text-gray-400 border-gray-200 hover:border-gray-400"
                                                 }`}
                                         >
@@ -338,8 +338,8 @@ export default function BookingWizard({
                                                 key={s.value}
                                                 onClick={() => setSelectedTime(s.value)}
                                                 className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${selectedTime === s.value
-                                                    ? "bg-blue-600 text-white border-blue-600 shadow-md transform scale-105"
-                                                    : "bg-white text-gray-700 border-gray-100 hover:border-blue-200"
+                                                    ? "bg-brand text-brand-foreground border-brand shadow-md transform scale-105"
+                                                    : "bg-white text-gray-700 border-gray-100 hover:border-brand/30"
                                                     }`}
                                             >
                                                 {s.label}
@@ -351,7 +351,7 @@ export default function BookingWizard({
 
                             {selectedTime && (
                                 <div className="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                                    <button onClick={() => setStep(4)} className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg shadow-xl hover:bg-gray-900 active:scale-95 transition-all">
+                                    <button onClick={() => setStep(4)} className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 active:scale-95 transition-all">
                                         Continuar
                                     </button>
                                 </div>
@@ -365,7 +365,7 @@ export default function BookingWizard({
                             <h2 className="text-2xl font-black text-gray-900 mb-6">Confirma tu cita</h2>
 
                             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl mb-8 space-y-4 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                                <div className="absolute top-0 left-0 w-full h-2 bg-brand"></div>
                                 <div className="flex justify-between items-center border-b border-gray-100 pb-4">
                                     <div>
                                         <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Servicio</span>
@@ -380,14 +380,14 @@ export default function BookingWizard({
                                     <div className="flex-1 bg-gray-50 p-3 rounded-xl">
                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Fecha</span>
                                         <div className="flex items-center gap-2 font-bold text-sm">
-                                            <Calendar size={14} className="text-blue-500" />
+                                            <Calendar size={14} className="text-brand" />
                                             {selectedDate && format(selectedDate, 'dd MMM', { locale: es })}
                                         </div>
                                     </div>
                                     <div className="flex-1 bg-gray-50 p-3 rounded-xl">
                                         <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Hora</span>
                                         <div className="flex items-center gap-2 font-bold text-sm">
-                                            <Clock size={14} className="text-purple-500" />
+                                            <Clock size={14} className="text-brand" />
                                             {selectedTime}
                                         </div>
                                     </div>
@@ -401,7 +401,7 @@ export default function BookingWizard({
                                     <input
                                         type="text"
                                         value={clientData.name}
-                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-black focus:ring-0 transition-all outline-none"
+                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
                                         placeholder="Tu nombre"
                                         onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
                                     />
@@ -411,7 +411,7 @@ export default function BookingWizard({
                                     <input
                                         type="tel"
                                         value={clientData.phone}
-                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-black focus:ring-0 transition-all outline-none"
+                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
                                         placeholder="Teléfono"
                                         onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
                                     />
@@ -421,7 +421,7 @@ export default function BookingWizard({
                                         <Mail size={18} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-black transition-colors" />
                                         <input
                                             type="email"
-                                            className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-black focus:ring-0 transition-all outline-none"
+                                            className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
                                             placeholder="Correo (Opcional)"
                                             onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
                                         />
@@ -431,7 +431,7 @@ export default function BookingWizard({
 
                             {/* Sticky button for mobile */}
                             <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 -mx-6 -mb-6 mt-6 z-20">
-                                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full bg-black text-white py-4 rounded-2xl font-bold text-lg shadow-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95">
+                                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95">
                                     {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
                                 </button>
                             </div>

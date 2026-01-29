@@ -5,7 +5,16 @@ const config: Config = {
     "./src/**/*.{js,ts,jsx,tsx,mdx}", // <--- ESTO ABARCA TODO DENTRO DE SRC
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        // Dynamic brand color using CSS variable (injected per-tenant)
+        brand: {
+          DEFAULT: 'var(--brand-color)',
+          foreground: '#ffffff',
+          muted: 'color-mix(in srgb, var(--brand-color) 15%, white)',
+        }
+      }
+    },
   },
   plugins: [],
 };
