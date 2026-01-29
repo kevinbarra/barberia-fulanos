@@ -157,6 +157,68 @@ export async function createManagedClient(
     };
 }
 
+// ==================== GET ALL CLIENTS ====================
+
+export interface ClientListItem {
+    id: string;
+    full_name: string;
+    phone: string | null;
+    loyalty_points: number;
+    created_at: string;
+    last_visit?: string | null;
+}
+
+export async function getAllClients(): Promise<ClientListItem[]> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return [];
+
+    const tenantId = await getTenantIdFromContext();
+    if (!tenantId) return [];
+
+    const adminClient = createAdminClient();
+
+    // Get all customers for this tenant
+    const { data: clients, error } = await adminClient
+        .from('profiles')
+        .select('id, full_name, phone, loyalty_points, created_at')
+        .eq('tenant_id', tenantId)
+        .eq('role', 'customer')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+    if (error || !clients) return [];
+
+    // Get last visit for each client (from bookings)
+    const clientIds = clients.map(c => c.id);
+    const { data: lastVisits } = await adminClient
+        .from('bookings')
+        .select('customer_id, start_time')
+        .in('customer_id', clientIds)
+        .eq('status', 'completed')
+        .order('start_time', { ascending: false });
+
+    // Map last visits by customer_id (taking the first/most recent one)
+    const lastVisitMap = new Map<string, string>();
+    if (lastVisits) {
+        for (const visit of lastVisits) {
+            if (visit.customer_id && !lastVisitMap.has(visit.customer_id)) {
+                lastVisitMap.set(visit.customer_id, visit.start_time);
+            }
+        }
+    }
+
+    return clients.map(c => ({
+        id: c.id,
+        full_name: c.full_name || 'Sin nombre',
+        phone: c.phone,
+        loyalty_points: c.loyalty_points || 0,
+        created_at: c.created_at,
+        last_visit: lastVisitMap.get(c.id) || null
+    }));
+}
+
 // ==================== SEARCH CLIENTS ====================
 
 interface ClientSearchResult {
