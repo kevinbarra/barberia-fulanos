@@ -156,3 +156,57 @@ export async function createManagedClient(
         }
     };
 }
+
+// ==================== SEARCH CLIENTS ====================
+
+interface ClientSearchResult {
+    id: string;
+    full_name: string;
+    phone: string | null;
+}
+
+export async function searchClients(query: string): Promise<ClientSearchResult[]> {
+    if (!query || query.length < 2) return [];
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return [];
+
+    // Get tenant context
+    const tenantId = await getTenantIdFromContext();
+    if (!tenantId) return [];
+
+    const adminClient = createAdminClient();
+    const cleanQuery = query.trim().toLowerCase();
+    const isPhoneSearch = /^\d+$/.test(cleanQuery);
+
+    let results: ClientSearchResult[] = [];
+
+    if (isPhoneSearch) {
+        // Search by phone (partial match)
+        const { data } = await adminClient
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('tenant_id', tenantId)
+            .eq('role', 'customer')
+            .like('phone', `%${cleanQuery}%`)
+            .limit(10);
+
+        results = data || [];
+    } else {
+        // Search by name (partial match, case insensitive)
+        const { data } = await adminClient
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('tenant_id', tenantId)
+            .eq('role', 'customer')
+            .ilike('full_name', `%${cleanQuery}%`)
+            .limit(10);
+
+        results = data || [];
+    }
+
+    return results;
+}
+
