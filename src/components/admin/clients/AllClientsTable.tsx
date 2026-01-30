@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, User, Phone, Trophy, Calendar, Pencil, UserPlus, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -16,6 +16,11 @@ export default function AllClientsTable({ clients: initialClients, isArchivedVie
     const [clients, setClients] = useState(initialClients);
     const [searchQuery, setSearchQuery] = useState('');
     const [editingClient, setEditingClient] = useState<{ id: string; name: string; phone?: string; isArchived?: boolean } | null>(null);
+
+    // Sync local state when props change (after router.refresh())
+    useEffect(() => {
+        setClients(initialClients);
+    }, [initialClients]);
 
     // Filter clients locally
     const filteredClients = clients.filter(client => {
