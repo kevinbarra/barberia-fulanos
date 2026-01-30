@@ -143,6 +143,14 @@ export async function createManagedClient(
 
     if (profileError) {
         console.error('Error creating profile:', profileError);
+        // Handle duplicate phone constraint violation
+        if (profileError.code === '23505') {
+            return {
+                success: false,
+                message: 'Este número de teléfono ya está registrado en esta sucursal.',
+                error: 'Duplicate phone'
+            };
+        }
     }
 
     // 7. Return success with credentials & script

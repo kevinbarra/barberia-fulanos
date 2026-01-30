@@ -12,7 +12,7 @@ import { es } from "date-fns/locale";
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
 type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
-type CurrentUser = { id: string; full_name: string; email: string; phone: string } | null;
+type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
 
 // --- UTILS UI ---
 // FIX: Tipado explícito ': Variants' para evitar error de inferencia en 'ease'

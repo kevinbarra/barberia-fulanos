@@ -26,7 +26,7 @@ interface PosBookingData {
     customer_id: string | null;
     profiles: { id: string; full_name: string } | null;
     services: { id: string; name: string; price: number; duration_min: number } | null;
-    customer: { full_name: string; phone: string; no_show_count: number } | null;
+    customer: { full_name: string; phone: string | null; no_show_count: number } | null;
 }
 
 export default async function PosPage() {
