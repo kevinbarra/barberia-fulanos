@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, User, Phone, Check, UserPlus, Mail } from 'lucide-react';
-import { createManagedClient } from '@/app/admin/clients/actions';
+import { X, Loader2, User, Phone, Check, UserPlus, Mail, RotateCcw } from 'lucide-react';
+import { createManagedClient, restoreClient } from '@/app/admin/clients/actions';
 import { useRouter } from 'next/navigation';
 
 // Simple email validation
@@ -22,11 +22,16 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
     const [error, setError] = useState<string | null>(null);
     const [credentialScript, setCredentialScript] = useState<string | null>(null);
 
+    // Smart Restore Flow state
+    const [archivedClient, setArchivedClient] = useState<{ id: string; name: string } | null>(null);
+    const [isRestoring, setIsRestoring] = useState(false);
+
     if (!isOpen) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setArchivedClient(null);
         setIsSubmitting(true);
 
         try {
@@ -39,6 +44,13 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
 
             // Create Shadow Profile with optional email
             const result = await createManagedClient(name, phone, email || undefined);
+
+            // SMART RESTORE FLOW: Archived client detected
+            if (result.mode === 'archived_detected' && result.archivedClient) {
+                setArchivedClient(result.archivedClient);
+                setIsSubmitting(false);
+                return;
+            }
 
             if (!result.success) {
                 setError(result.message || 'Error al crear cliente');
@@ -63,13 +75,103 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
         }
     };
 
+    // Handle restore of archived client
+    const handleRestore = async () => {
+        if (!archivedClient) return;
+
+        setIsRestoring(true);
+        setError(null);
+
+        try {
+            const result = await restoreClient(archivedClient.id);
+
+            if (!result.success) {
+                setError(result.message);
+                setIsRestoring(false);
+                return;
+            }
+
+            // Success
+            router.refresh();
+            alert(`✅ ${result.message}`);
+            handleDismiss();
+        } catch {
+            setError('Error de conexión');
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
     const handleDismiss = () => {
         setCredentialScript(null);
+        setArchivedClient(null);
         setName('');
         setPhone('');
         setEmail('');
         onClose();
     };
+
+    // MODO: CLIENTE ARCHIVADO DETECTADO (Smart Restore Flow)
+    if (archivedClient) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                    <div className="bg-amber-500 p-4 text-white flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <RotateCcw className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-lg">Cliente Archivado</h2>
+                            <p className="text-amber-100 text-sm">Este número ya existe</p>
+                        </div>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        <div className="p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
+                            <p className="text-amber-800 text-sm">
+                                ⚠️ El número <strong className="font-mono">{phone}</strong> pertenece a{' '}
+                                <strong>{archivedClient.name}</strong> que está archivado.
+                            </p>
+                        </div>
+                        <p className="text-gray-600 text-sm">
+                            ¿Quieres reactivar su cuenta y recuperar todo su historial de citas y puntos?
+                        </p>
+
+                        {error && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                                {error}
+                            </div>
+                        )}
+
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setArchivedClient(null)}
+                                disabled={isRestoring}
+                                className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleRestore}
+                                disabled={isRestoring}
+                                className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isRestoring ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <>
+                                        <RotateCcw className="w-4 h-4" />
+                                        Reactivar Cliente
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // MODO ÉXITO: Mostrar Credenciales
     if (credentialScript) {

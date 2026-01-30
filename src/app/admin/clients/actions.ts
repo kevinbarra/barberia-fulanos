@@ -10,6 +10,7 @@ interface ManagedClientResponse {
     success: boolean;
     message: string;
     error?: string;
+    mode?: 'new' | 'existing' | 'archived_detected';  // For smart restore flow
     data?: {
         userId: string;
         credentials?: {
@@ -17,6 +18,10 @@ interface ManagedClientResponse {
             pass: string;  // Last 6 digits (only for NEW users)
         };
         script: string;  // Text for staff to read to client
+    };
+    archivedClient?: {  // When mode = 'archived_detected'
+        id: string;
+        name: string;
     };
 }
 
@@ -79,15 +84,29 @@ export async function createManagedClient(
 
     const { data: existingProfile } = await adminClient
         .from('profiles')
-        .select('id, full_name, phone')
+        .select('id, full_name, phone, deleted_at')
         .eq('phone', cleanPhone)
         .single();
 
     if (existingProfile) {
-        // User already exists - Return ID but NO credentials
+        // Check if this is an ARCHIVED client (Smart Restore Flow)
+        if (existingProfile.deleted_at) {
+            return {
+                success: false,
+                message: `El número pertenece a "${existingProfile.full_name}" que está archivado.`,
+                mode: 'archived_detected',
+                archivedClient: {
+                    id: existingProfile.id,
+                    name: existingProfile.full_name || 'Cliente sin nombre'
+                }
+            };
+        }
+
+        // User already exists and is ACTIVE - Return ID but NO credentials
         return {
             success: true,
             message: 'El cliente ya está registrado.',
+            mode: 'existing',
             data: {
                 userId: existingProfile.id,
                 script: `¡Atención! Este cliente ya tiene cuenta registrada como ${existingProfile.full_name}. No es necesario darle nueva contraseña.`
