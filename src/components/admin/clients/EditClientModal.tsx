@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, User, Phone, Check, AlertTriangle } from 'lucide-react';
-import { updateManagedClient } from '@/app/admin/clients/actions';
+import { X, Loader2, User, Phone, Check, AlertTriangle, Archive } from 'lucide-react';
+import { updateManagedClient, archiveClient } from '@/app/admin/clients/actions';
+import { useRouter } from 'next/navigation';
 
 interface EditClientModalProps {
     isOpen: boolean;
@@ -13,9 +14,11 @@ interface EditClientModalProps {
         phone?: string;
     };
     onSuccess: (updatedClient: { id: string; name: string; phone: string }) => void;
+    onArchived?: () => void;  // Optional callback when client is archived
 }
 
-export default function EditClientModal({ isOpen, onClose, client, onSuccess }: EditClientModalProps) {
+export default function EditClientModal({ isOpen, onClose, client, onSuccess, onArchived }: EditClientModalProps) {
+    const router = useRouter();
     const [name, setName] = useState(client.name);
     const [phone, setPhone] = useState(client.phone || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -24,12 +27,17 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess }: 
     // Credential script state (shown after phone change)
     const [credentialScript, setCredentialScript] = useState<string | null>(null);
 
+    // Archive states
+    const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
+
     // Reset form when client changes
     useEffect(() => {
         setName(client.name);
         setPhone(client.phone || '');
         setError(null);
         setCredentialScript(null);
+        setShowArchiveConfirm(false);
     }, [client]);
 
     if (!isOpen) return null;
@@ -79,6 +87,33 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess }: 
     const handleDismissCredentials = () => {
         setCredentialScript(null);
         onClose();
+    };
+
+    // Handle archive (soft delete)
+    const handleArchive = async () => {
+        setIsArchiving(true);
+        setError(null);
+
+        try {
+            const result = await archiveClient(client.id);
+
+            if (!result.success) {
+                setError(result.message);
+                setShowArchiveConfirm(false);
+                setIsArchiving(false);
+                return;
+            }
+
+            // Success - close modal and notify parent
+            onClose();
+            onArchived?.();
+            router.refresh();
+        } catch {
+            setError('Error de conexión');
+            setShowArchiveConfirm(false);
+        } finally {
+            setIsArchiving(false);
+        }
     };
 
     // Showing credential script after phone change
@@ -227,6 +262,55 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess }: 
                         </button>
                     </div>
                 </form>
+
+                {/* Danger Zone - Archive */}
+                <div className="px-6 pb-6">
+                    <div className="border-t border-gray-200 pt-4">
+                        <p className="text-xs font-bold text-gray-400 uppercase mb-3">Zona de Peligro</p>
+
+                        {!showArchiveConfirm ? (
+                            <button
+                                type="button"
+                                onClick={() => setShowArchiveConfirm(true)}
+                                className="w-full py-3 border-2 border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Archive className="w-4 h-4" />
+                                Archivar Cliente
+                            </button>
+                        ) : (
+                            <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                                <p className="text-sm text-red-800 font-medium">
+                                    ¿Estás seguro de archivar a <strong>{client.name}</strong>?
+                                </p>
+                                <p className="text-xs text-red-600">
+                                    El cliente se ocultará de las búsquedas, pero su historial de citas permanecerá intacto.
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowArchiveConfirm(false)}
+                                        disabled={isArchiving}
+                                        className="flex-1 py-2 bg-white border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleArchive}
+                                        disabled={isArchiving}
+                                        className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                    >
+                                        {isArchiving ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            'Sí, Archivar'
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

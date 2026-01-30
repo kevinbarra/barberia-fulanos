@@ -192,12 +192,13 @@ export async function getAllClients(): Promise<ClientListItem[]> {
 
     const adminClient = createAdminClient();
 
-    // Get all customers for this tenant
+    // Get all ACTIVE customers for this tenant (exclude archived)
     const { data: clients, error } = await adminClient
         .from('profiles')
         .select('id, full_name, phone, loyalty_points, created_at')
         .eq('tenant_id', tenantId)
         .eq('role', 'customer')
+        .is('deleted_at', null)  // Soft delete filter
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -259,23 +260,25 @@ export async function searchClients(query: string): Promise<ClientSearchResult[]
     let results: ClientSearchResult[] = [];
 
     if (isPhoneSearch) {
-        // Search by phone (partial match)
+        // Search by phone (partial match) - exclude archived
         const { data } = await adminClient
             .from('profiles')
             .select('id, full_name, phone')
             .eq('tenant_id', tenantId)
             .eq('role', 'customer')
+            .is('deleted_at', null)  // Soft delete filter
             .like('phone', `%${cleanQuery}%`)
             .limit(10);
 
         results = data || [];
     } else {
-        // Search by name (partial match, case insensitive)
+        // Search by name (partial match, case insensitive) - exclude archived
         const { data } = await adminClient
             .from('profiles')
             .select('id, full_name, phone')
             .eq('tenant_id', tenantId)
             .eq('role', 'customer')
+            .is('deleted_at', null)  // Soft delete filter
             .ilike('full_name', `%${cleanQuery}%`)
             .limit(10);
 
@@ -283,6 +286,67 @@ export async function searchClients(query: string): Promise<ClientSearchResult[]
     }
 
     return results;
+}
+
+// ==================== ARCHIVE CLIENT (Soft Delete) ====================
+
+interface ArchiveClientResponse {
+    success: boolean;
+    message: string;
+    error?: string;
+}
+
+export async function archiveClient(clientId: string): Promise<ArchiveClientResponse> {
+    // 1. Validate staff/owner access
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { success: false, message: 'No autorizado', error: 'Unauthorized' };
+    }
+
+    // 2. Get tenant context
+    const tenantId = await getTenantIdFromContext();
+    if (!tenantId) {
+        return { success: false, message: 'No se pudo determinar el negocio', error: 'Tenant not found' };
+    }
+
+    const adminClient = createAdminClient();
+
+    // 3. Verify client belongs to this tenant and is a customer
+    const { data: existingClient, error: fetchError } = await adminClient
+        .from('profiles')
+        .select('id, full_name, role, tenant_id')
+        .eq('id', clientId)
+        .single();
+
+    if (fetchError || !existingClient) {
+        return { success: false, message: 'Cliente no encontrado', error: 'Client not found' };
+    }
+
+    if (existingClient.tenant_id !== tenantId) {
+        return { success: false, message: 'No tienes permiso para archivar este cliente', error: 'Forbidden' };
+    }
+
+    if (existingClient.role !== 'customer') {
+        return { success: false, message: 'Solo se pueden archivar clientes, no staff', error: 'Invalid role' };
+    }
+
+    // 4. Perform soft delete (set deleted_at timestamp)
+    const { error: updateError } = await adminClient
+        .from('profiles')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', clientId);
+
+    if (updateError) {
+        console.error('Error archiving client:', updateError);
+        return { success: false, message: 'Error al archivar cliente', error: updateError.message };
+    }
+
+    return {
+        success: true,
+        message: `Cliente "${existingClient.full_name}" archivado exitosamente. Su historial se mantiene intacto.`
+    };
 }
 
 // ==================== UPDATE MANAGED CLIENT ====================
