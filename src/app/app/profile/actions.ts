@@ -103,6 +103,26 @@ export async function updateClientProfile(formData: FormData) {
 
                 if (claimError) {
                     console.error('[PROFILE] Claim RPC error:', claimError)
+
+                    // Detectar errores de timeout/red vs errores lógicos
+                    const errorMessage = claimError.message?.toLowerCase() || ''
+                    const isTimeoutOrNetwork =
+                        claimError.code === 'PGRST301' ||
+                        claimError.code === '57014' ||  // query_canceled (timeout)
+                        errorMessage.includes('timeout') ||
+                        errorMessage.includes('network') ||
+                        errorMessage.includes('fetch') ||
+                        errorMessage.includes('aborted') ||
+                        errorMessage.includes('connection')
+
+                    if (isTimeoutOrNetwork) {
+                        return {
+                            success: false,
+                            error: 'El servicio está tardando, pero tu solicitud se está procesando. Intenta de nuevo en unos segundos.',
+                            isTimeout: true
+                        }
+                    }
+
                     return {
                         success: false,
                         error: 'Este número ya está registrado por otra persona.'
