@@ -11,10 +11,14 @@ interface ProfileUpdateData {
 }
 
 /**
- * updateClientProfile - Sanitized Profile Update
+ * updateClientProfile - Sanitized Profile Update with Shadow Profile Claiming
  * 
  * IMPORTANTE: Solo enviamos campos permitidos por la política RLS "Safe Self Edit"
  * NUNCA incluir: id, role, tenant_id, loyalty_points, is_platform_admin
+ * 
+ * SHADOW PROFILE CLAIMING:
+ * Si el teléfono ya existe (error 23505), intenta fusionar con el perfil existente
+ * mediante la RPC claim_shadow_profile.
  */
 export async function updateClientProfile(formData: FormData) {
     const supabase = await createClient()
@@ -66,8 +70,9 @@ export async function updateClientProfile(formData: FormData) {
         }
 
         // Solo agregar phone si tiene valor
-        if (phone?.trim()) {
-            updates.phone = phone.trim()
+        const cleanPhone = phone?.trim() || null
+        if (cleanPhone) {
+            updates.phone = cleanPhone
         }
 
         // Solo agregar avatar si se subió uno nuevo
@@ -85,6 +90,43 @@ export async function updateClientProfile(formData: FormData) {
 
         if (updateError) {
             console.error('[PROFILE] DB Error:', updateError)
+
+            // 5a. SHADOW PROFILE CLAIMING: Si es duplicado de teléfono, intentar fusión
+            if (updateError.code === '23505' && cleanPhone) {
+                console.log('[PROFILE] Duplicate phone detected, attempting shadow profile claim...')
+
+                const { data: claimResult, error: claimError } = await supabase
+                    .rpc('claim_shadow_profile', {
+                        target_phone: cleanPhone,
+                        new_user_id: user.id
+                    })
+
+                if (claimError) {
+                    console.error('[PROFILE] Claim RPC error:', claimError)
+                    return {
+                        success: false,
+                        error: 'Este número ya está registrado por otra persona.'
+                    }
+                }
+
+                if (claimResult?.success) {
+                    console.log('[PROFILE] Shadow profile claimed successfully!')
+                    revalidatePath('/app/profile')
+                    revalidatePath('/app')
+                    return {
+                        success: true,
+                        message: '¡Historial recuperado! Hemos vinculado tus citas anteriores.',
+                        claimed: true
+                    }
+                } else {
+                    console.log('[PROFILE] Claim failed:', claimResult?.message)
+                    return {
+                        success: false,
+                        error: claimResult?.message || 'Este número ya está registrado por otra persona.'
+                    }
+                }
+            }
+
             throw new Error(updateError.message)
         }
 
