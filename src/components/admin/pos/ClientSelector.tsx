@@ -38,6 +38,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     // Registration flow
     const [showRegisterForm, setShowRegisterForm] = useState(false);
     const [registerName, setRegisterName] = useState('');
+    const [registerPhone, setRegisterPhone] = useState('');  // NEW: For name-first flow
     const [isRegistering, setIsRegistering] = useState(false);
     const [credentialsScript, setCredentialsScript] = useState<string | null>(null);
 
@@ -121,21 +122,37 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
 
     const handleStartRegister = () => {
         setShowRegisterForm(true);
-        setRegisterName('');
+        // Detect if query is a phone or name and pre-fill accordingly
+        if (looksLikePhone(query) && isValidPhone(query)) {
+            // Phone-first: pre-fill phone, ask for name
+            setRegisterPhone(sanitizePhone(query));
+            setRegisterName('');
+        } else {
+            // Name-first: pre-fill name, ask for phone
+            setRegisterName(query.trim());
+            setRegisterPhone('');
+        }
     };
 
     const handleCancelRegister = () => {
         setShowRegisterForm(false);
         setRegisterName('');
+        setRegisterPhone('');  // Reset phone too
     };
 
     const handleRegister = async () => {
-        const phone = sanitizePhone(query);
-        if (!isValidPhone(phone)) return;
+        // Get phone from the correct source
+        const phone = registerPhone ? sanitizePhone(registerPhone) : sanitizePhone(query);
+        const name = registerName.trim() || 'Cliente';
+
+        if (!isValidPhone(phone)) {
+            alert('El teléfono debe ser de 10 dígitos');
+            return;
+        }
 
         setIsRegistering(true);
         try {
-            const res = await createManagedClient(registerName || 'Cliente', phone);
+            const res = await createManagedClient(name, phone);
 
             if (res.success && res.data) {
                 // Show credentials script
@@ -144,7 +161,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                 // Auto-select the new client
                 const newClient: SelectedClient = {
                     id: res.data.userId,
-                    name: registerName || 'Cliente',
+                    name: name,
                     phone: phone,
                     isGuest: false
                 };
@@ -152,6 +169,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                 setShowRegisterForm(false);
                 setShowDropdown(false);
                 setQuery('');
+                setRegisterPhone('');
                 onSelect(newClient);
             } else {
                 // Error - show in UI
@@ -334,16 +352,14 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                                 No se encontraron clientes
                             </p>
 
-                            {/* Show register if looks like valid phone */}
-                            {looksLikePhone(query) && isValidPhone(query) && (
-                                <button
-                                    onClick={handleStartRegister}
-                                    className="w-full flex items-center justify-center gap-2 p-3 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition-colors"
-                                >
-                                    <UserPlus className="w-5 h-5" />
-                                    Registrar Nuevo Cliente
-                                </button>
-                            )}
+                            {/* Always show register button when no results */}
+                            <button
+                                onClick={handleStartRegister}
+                                className="w-full flex items-center justify-center gap-2 p-3 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition-colors"
+                            >
+                                <UserPlus className="w-5 h-5" />
+                                Registrar Nuevo Cliente
+                            </button>
 
                             {/* Always show guest option */}
                             <button
@@ -365,21 +381,46 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                 </div>
             )}
 
-            {/* Register Form (Inline) */}
+            {/* Register Form (Inline) - Adaptive for phone-first or name-first */}
             {showRegisterForm && (
                 <div className="absolute z-50 w-full mt-2 bg-white border-2 border-green-300 rounded-xl shadow-xl p-4">
-                    <p className="text-sm font-bold text-gray-700 mb-3">
-                        📱 Teléfono: {sanitizePhone(query)}
-                    </p>
+                    {/* Phone-first flow: phone is pre-filled, ask for name */}
+                    {registerPhone && (
+                        <>
+                            <p className="text-sm font-bold text-gray-700 mb-3">
+                                📱 Teléfono: {registerPhone}
+                            </p>
+                            <input
+                                type="text"
+                                value={registerName}
+                                onChange={(e) => setRegisterName(e.target.value)}
+                                placeholder="Nombre del cliente"
+                                autoFocus
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-3"
+                            />
+                        </>
+                    )}
 
-                    <input
-                        type="text"
-                        value={registerName}
-                        onChange={(e) => setRegisterName(e.target.value)}
-                        placeholder="Nombre del cliente"
-                        autoFocus
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-3"
-                    />
+                    {/* Name-first flow: name is pre-filled, ask for phone */}
+                    {!registerPhone && (
+                        <>
+                            <p className="text-sm font-bold text-gray-700 mb-3">
+                                👤 Nombre: {registerName}
+                            </p>
+                            <input
+                                type="tel"
+                                value={registerPhone}
+                                onChange={(e) => setRegisterPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                placeholder="Teléfono (10 dígitos)"
+                                autoFocus
+                                inputMode="numeric"
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-3"
+                            />
+                            {registerPhone.length > 0 && registerPhone.length < 10 && (
+                                <p className="text-xs text-amber-600 mb-2">Faltan {10 - registerPhone.length} dígitos</p>
+                            )}
+                        </>
+                    )}
 
                     <div className="flex gap-2">
                         <button
@@ -391,7 +432,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                         </button>
                         <button
                             onClick={handleRegister}
-                            disabled={isRegistering || !registerName.trim()}
+                            disabled={isRegistering || !registerName.trim() || (registerPhone ? registerPhone.length !== 10 : false)}
                             className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isRegistering ? (
