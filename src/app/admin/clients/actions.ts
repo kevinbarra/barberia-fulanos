@@ -27,8 +27,12 @@ function sanitizePhone(phone: string): string {
 }
 
 function validatePhone(phone: string): { valid: boolean; error?: string } {
-    if (phone.length !== 10) {
-        return { valid: false, error: 'El número debe ser de 10 dígitos' };
+    // Regex: Permite 10 dígitos O una cadena que empiece con *
+    const isLegacy = phone.startsWith('*');
+    const isStandard = /^[0-9]{10}$/.test(phone);
+
+    if (!isLegacy && !isStandard) {
+        return { valid: false, error: 'Debe ser 10 dígitos o un cliente migrado (*)' };
     }
     return { valid: true };
 }
