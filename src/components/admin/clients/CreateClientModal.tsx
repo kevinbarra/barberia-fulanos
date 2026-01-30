@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Loader2, User, Phone, Check, UserPlus } from 'lucide-react';
+import { X, Loader2, User, Phone, Check, UserPlus, Mail } from 'lucide-react';
 import { createManagedClient } from '@/app/admin/clients/actions';
 import { useRouter } from 'next/navigation';
+
+// Simple email validation
+const isValidEmail = (email: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 interface CreateClientModalProps {
     isOpen: boolean;
@@ -14,6 +17,7 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
     const router = useRouter();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
+    const [email, setEmail] = useState('');  // Optional contact email
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [credentialScript, setCredentialScript] = useState<string | null>(null);
@@ -26,8 +30,15 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
         setIsSubmitting(true);
 
         try {
-            // Usamos la misma lógica del POS para crear Shadow Profile
-            const result = await createManagedClient(name, phone);
+            // Simple email validation if provided
+            if (email && !isValidEmail(email)) {
+                setError('El formato del correo no es válido');
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Create Shadow Profile with optional email
+            const result = await createManagedClient(name, phone, email || undefined);
 
             if (!result.success) {
                 setError(result.message || 'Error al crear cliente');
@@ -56,6 +67,7 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
         setCredentialScript(null);
         setName('');
         setPhone('');
+        setEmail('');
         onClose();
     };
 
@@ -147,6 +159,25 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
                         </div>
                         <p className="text-xs text-gray-400 mt-1">{phone.length}/10 dígitos</p>
                     </div>
+                    {/* Optional Email */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">
+                            Email <span className="text-gray-300 font-normal">(Opcional)</span>
+                        </label>
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="cliente@ejemplo.com"
+                                className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                        </div>
+                        {email && !isValidEmail(email) && (
+                            <p className="text-xs text-red-500 mt-1">Formato de correo inválido</p>
+                        )}
+                    </div>
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
                             {error}
@@ -156,7 +187,7 @@ export default function CreateClientModal({ isOpen, onClose }: CreateClientModal
                         <button type="button" onClick={onClose} disabled={isSubmitting} className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors disabled:opacity-50">
                             Cancelar
                         </button>
-                        <button type="submit" disabled={isSubmitting || phone.length !== 10 || !name.trim()} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                        <button type="submit" disabled={isSubmitting || phone.length !== 10 || !name.trim() || (!!email && !isValidEmail(email))} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Registrar Cliente'}
                         </button>
                     </div>

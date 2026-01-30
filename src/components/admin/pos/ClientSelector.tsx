@@ -1,9 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, UserPlus, X, Check, User, Phone, Loader2, Pencil } from 'lucide-react';
+import { Search, UserPlus, X, Check, User, Phone, Loader2, Pencil, Mail } from 'lucide-react';
 import { createManagedClient, searchClients } from '@/app/admin/clients/actions';
 import EditClientModal from '@/components/admin/clients/EditClientModal';
+
+// Simple email validation (empty is OK)
+const isValidEmail = (email: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 // ==================== TYPES ====================
 
@@ -38,7 +41,8 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     // Registration flow
     const [showRegisterForm, setShowRegisterForm] = useState(false);
     const [registerName, setRegisterName] = useState('');
-    const [registerPhone, setRegisterPhone] = useState('');  // NEW: For name-first flow
+    const [registerPhone, setRegisterPhone] = useState('');  // For name-first flow
+    const [registerEmail, setRegisterEmail] = useState('');  // Optional contact email
     const [isRegistering, setIsRegistering] = useState(false);
     const [credentialsScript, setCredentialsScript] = useState<string | null>(null);
 
@@ -137,22 +141,29 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     const handleCancelRegister = () => {
         setShowRegisterForm(false);
         setRegisterName('');
-        setRegisterPhone('');  // Reset phone too
+        setRegisterPhone('');
+        setRegisterEmail('');  // Reset email too
     };
 
     const handleRegister = async () => {
         // Get phone from the correct source
         const phone = registerPhone ? sanitizePhone(registerPhone) : sanitizePhone(query);
         const name = registerName.trim() || 'Cliente';
+        const email = registerEmail.trim();
 
         if (!isValidPhone(phone)) {
             alert('El teléfono debe ser de 10 dígitos');
             return;
         }
 
+        if (email && !isValidEmail(email)) {
+            alert('El formato del correo no es válido');
+            return;
+        }
+
         setIsRegistering(true);
         try {
-            const res = await createManagedClient(name, phone);
+            const res = await createManagedClient(name, phone, email || undefined);
 
             if (res.success && res.data) {
                 // Show credentials script
@@ -170,6 +181,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                 setShowDropdown(false);
                 setQuery('');
                 setRegisterPhone('');
+                setRegisterEmail('');
                 onSelect(newClient);
             } else {
                 // Error - show in UI
@@ -401,7 +413,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                         </>
                     )}
 
-                    {/* Name-first flow: name is pre-filled, ask for phone */}
+                    {/* Name-first flow: name is pre-filled, ask for phone + optional email */}
                     {!registerPhone && (
                         <>
                             <p className="text-sm font-bold text-gray-700 mb-3">
@@ -414,10 +426,24 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                                 placeholder="Teléfono (10 dígitos)"
                                 autoFocus
                                 inputMode="numeric"
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-3"
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-2"
                             />
                             {registerPhone.length > 0 && registerPhone.length < 10 && (
                                 <p className="text-xs text-amber-600 mb-2">Faltan {10 - registerPhone.length} dígitos</p>
+                            )}
+                            {/* Optional email field */}
+                            <div className="relative mt-2">
+                                <Mail className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+                                <input
+                                    type="email"
+                                    value={registerEmail}
+                                    onChange={(e) => setRegisterEmail(e.target.value)}
+                                    placeholder="Email (opcional)"
+                                    className="w-full pl-9 p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm"
+                                />
+                            </div>
+                            {registerEmail && !isValidEmail(registerEmail) && (
+                                <p className="text-xs text-red-500 mt-1">Formato de correo inválido</p>
                             )}
                         </>
                     )}
@@ -432,9 +458,9 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                         </button>
                         <button
                             onClick={handleRegister}
-                            disabled={isRegistering || !registerName.trim() || (registerPhone ? registerPhone.length !== 10 : false)}
-                            className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
+                            disabled={isRegistering || !registerName.trim() || (registerPhone ? registerPhone.length !== 10 : false) || (!!registerEmail && !isValidEmail(registerEmail))}
+                            className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+
                             {isRegistering ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
