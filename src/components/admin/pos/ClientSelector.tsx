@@ -1,12 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, UserPlus, X, Check, User, Phone, Loader2, Pencil, Mail } from 'lucide-react';
-import { createManagedClient, searchClients } from '@/app/admin/clients/actions';
+import { Search, UserPlus, X, Check, User, Phone, Loader2, Pencil } from 'lucide-react';
+import { searchClients } from '@/app/admin/clients/actions';
 import EditClientModal from '@/components/admin/clients/EditClientModal';
-
-// Simple email validation (empty is OK)
-const isValidEmail = (email: string) => !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+import CreateClientModal from '@/components/admin/clients/CreateClientModal';
 
 // ==================== TYPES ====================
 
@@ -38,25 +36,15 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
     const [showDropdown, setShowDropdown] = useState(false);
     const [selectedClient, setSelectedClient] = useState<SelectedClient | null>(null);
 
-    // Registration flow
-    const [showRegisterForm, setShowRegisterForm] = useState(false);
-    const [registerName, setRegisterName] = useState('');
-    const [registerPhone, setRegisterPhone] = useState('');  // For name-first flow
-    const [registerEmail, setRegisterEmail] = useState('');  // Optional contact email
-    const [isRegistering, setIsRegistering] = useState(false);
-    const [credentialsScript, setCredentialsScript] = useState<string | null>(null);
-
-    // Edit modal state
+    // Modal states
+    const [showCreateModal, setShowCreateModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
+
+    // Credentials display
+    const [credentialsScript, setCredentialsScript] = useState<string | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const debounceRef = useRef<NodeJS.Timeout | null>(null);
-
-    // ==================== HELPERS ====================
-
-    const sanitizePhone = (input: string) => input.replace(/\D/g, '');
-    const isValidPhone = (input: string) => sanitizePhone(input).length === 10;
-    const looksLikePhone = (input: string) => /^\d+$/.test(input.trim());
 
     // ==================== SEARCH EFFECT ====================
 
@@ -124,73 +112,16 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
         setTimeout(() => inputRef.current?.focus(), 100);
     };
 
-    const handleStartRegister = () => {
-        setShowRegisterForm(true);
-        // Detect if query is a phone or name and pre-fill accordingly
-        if (looksLikePhone(query) && isValidPhone(query)) {
-            // Phone-first: pre-fill phone, ask for name
-            setRegisterPhone(sanitizePhone(query));
-            setRegisterName('');
-        } else {
-            // Name-first: pre-fill name, ask for phone
-            setRegisterName(query.trim());
-            setRegisterPhone('');
-        }
+    const handleOpenCreateModal = () => {
+        setShowDropdown(false);
+        setShowCreateModal(true);
     };
 
-    const handleCancelRegister = () => {
-        setShowRegisterForm(false);
-        setRegisterName('');
-        setRegisterPhone('');
-        setRegisterEmail('');  // Reset email too
-    };
-
-    const handleRegister = async () => {
-        // Get phone from the correct source
-        const phone = registerPhone ? sanitizePhone(registerPhone) : sanitizePhone(query);
-        const name = registerName.trim() || 'Cliente';
-        const email = registerEmail.trim();
-
-        if (!isValidPhone(phone)) {
-            alert('El teléfono debe ser de 10 dígitos');
-            return;
-        }
-
-        if (email && !isValidEmail(email)) {
-            alert('El formato del correo no es válido');
-            return;
-        }
-
-        setIsRegistering(true);
-        try {
-            const res = await createManagedClient(name, phone, email || undefined);
-
-            if (res.success && res.data) {
-                // Show credentials script
-                setCredentialsScript(res.data.script);
-
-                // Auto-select the new client
-                const newClient: SelectedClient = {
-                    id: res.data.userId,
-                    name: name,
-                    phone: phone,
-                    isGuest: false
-                };
-                setSelectedClient(newClient);
-                setShowRegisterForm(false);
-                setShowDropdown(false);
-                setQuery('');
-                setRegisterPhone('');
-                setRegisterEmail('');
-                onSelect(newClient);
-            } else {
-                // Error - show in UI
-                alert(res.message || 'Error al registrar cliente');
-            }
-        } catch {
-            alert('Error de conexión');
-        } finally {
-            setIsRegistering(false);
+    const handleCreateModalClose = () => {
+        setShowCreateModal(false);
+        // Refocus search if no client selected
+        if (!selectedClient) {
+            setTimeout(() => inputRef.current?.focus(), 100);
         }
     };
 
@@ -309,7 +240,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
         );
     }
 
-    // Search Input + Dropdown
+    // Search Input + Dropdown + Create Modal
     return (
         <div className="relative">
             {/* Search Input */}
@@ -330,7 +261,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
             </div>
 
             {/* Dropdown */}
-            {showDropdown && !showRegisterForm && (
+            {showDropdown && (
                 <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto">
                     {/* Results */}
                     {results.length > 0 && (
@@ -364,9 +295,9 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                                 No se encontraron clientes
                             </p>
 
-                            {/* Always show register button when no results */}
+                            {/* Always show register button - opens proper modal */}
                             <button
-                                onClick={handleStartRegister}
+                                onClick={handleOpenCreateModal}
                                 className="w-full flex items-center justify-center gap-2 p-3 bg-green-50 text-green-700 rounded-xl font-bold hover:bg-green-100 transition-colors"
                             >
                                 <UserPlus className="w-5 h-5" />
@@ -378,7 +309,7 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                                 onClick={handleUseAsGuest}
                                 className="w-full flex items-center justify-center gap-2 p-3 mt-2 bg-gray-100 text-gray-600 rounded-xl font-medium hover:bg-gray-200 transition-colors text-sm"
                             >
-                                Usar "{query}" como invitado
+                                Usar &quot;{query}&quot; como invitado
                             </button>
                         </div>
                     )}
@@ -393,86 +324,11 @@ export default function ClientSelector({ onSelect, initialClientName = '' }: Cli
                 </div>
             )}
 
-            {/* Register Form (Inline) - Adaptive for phone-first or name-first */}
-            {showRegisterForm && (
-                <div className="absolute z-50 w-full mt-2 bg-white border-2 border-green-300 rounded-xl shadow-xl p-4">
-                    {/* Phone-first flow: phone is pre-filled, ask for name */}
-                    {registerPhone && (
-                        <>
-                            <p className="text-sm font-bold text-gray-700 mb-3">
-                                📱 Teléfono: {registerPhone}
-                            </p>
-                            <input
-                                type="text"
-                                value={registerName}
-                                onChange={(e) => setRegisterName(e.target.value)}
-                                placeholder="Nombre del cliente"
-                                autoFocus
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-3"
-                            />
-                        </>
-                    )}
-
-                    {/* Name-first flow: name is pre-filled, ask for phone + optional email */}
-                    {!registerPhone && (
-                        <>
-                            <p className="text-sm font-bold text-gray-700 mb-3">
-                                👤 Nombre: {registerName}
-                            </p>
-                            <input
-                                type="tel"
-                                value={registerPhone}
-                                onChange={(e) => setRegisterPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                                placeholder="Teléfono (10 dígitos)"
-                                autoFocus
-                                inputMode="numeric"
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm mb-2"
-                            />
-                            {registerPhone.length > 0 && registerPhone.length < 10 && (
-                                <p className="text-xs text-amber-600 mb-2">Faltan {10 - registerPhone.length} dígitos</p>
-                            )}
-                            {/* Optional email field */}
-                            <div className="relative mt-2">
-                                <Mail className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
-                                <input
-                                    type="email"
-                                    value={registerEmail}
-                                    onChange={(e) => setRegisterEmail(e.target.value)}
-                                    placeholder="Email (opcional)"
-                                    className="w-full pl-9 p-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none text-sm"
-                                />
-                            </div>
-                            {registerEmail && !isValidEmail(registerEmail) && (
-                                <p className="text-xs text-red-500 mt-1">Formato de correo inválido</p>
-                            )}
-                        </>
-                    )}
-
-                    <div className="flex gap-2">
-                        <button
-                            onClick={handleCancelRegister}
-                            disabled={isRegistering}
-                            className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            onClick={handleRegister}
-                            disabled={isRegistering || !registerName.trim() || (registerPhone ? registerPhone.length !== 10 : false) || (!!registerEmail && !isValidEmail(registerEmail))}
-                            className="flex-1 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-
-                            {isRegistering ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <>
-                                    <UserPlus className="w-5 h-5" />
-                                    Crear
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Create Client Modal - Proper full-screen modal */}
+            <CreateClientModal
+                isOpen={showCreateModal}
+                onClose={handleCreateModalClose}
+            />
         </div>
     );
 }
