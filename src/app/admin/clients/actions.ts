@@ -49,7 +49,8 @@ function generatePassword(phone: string): string {
 
 export async function createManagedClient(
     name: string,
-    phone: string
+    phone: string,
+    email?: string  // Optional contact email (saved to profiles, NOT auth)
 ): Promise<ManagedClientResponse> {
     // 1. Validate staff/owner access
     const supabase = await createClient();
@@ -128,8 +129,7 @@ export async function createManagedClient(
         };
     }
 
-    // 6. Create profile
-    // CORRECCIÓN: Eliminado "updated_at" para evitar error de base de datos
+    // 6. Create profile (contact_email is optional, stored separately from auth)
     const { error: profileError } = await adminClient
         .from('profiles')
         .upsert({
@@ -138,7 +138,8 @@ export async function createManagedClient(
             full_name: trimmedName,
             phone: cleanPhone,
             role: 'customer',
-            tenant_id: tenantId
+            tenant_id: tenantId,
+            ...(email && { contact_email: email.trim().toLowerCase() })  // Optional contact email
         }, { onConflict: 'id' });
 
     if (profileError) {
