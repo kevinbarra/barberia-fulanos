@@ -14,7 +14,7 @@ export async function createTicket(data: {
     duration: number
     serviceId?: string  // Opcional: Pre-seleccionar servicio para walk-ins
     servicePrice?: number
-    customerId?: string  // NUEVO: Vincular con cliente registrado para puntos
+    customerId?: string  // Vincular con cliente registrado para puntos
 }) {
     // Usamos cliente admin para bypass RLS en operaciones del POS
     const supabase = createAdminClient()
@@ -44,6 +44,23 @@ export async function createTicket(data: {
         }
     }
 
+    // PRICE SNAPSHOT: Fetch current service price and name for immutable record
+    let priceAtBooking: number | null = null;
+    let serviceNameAtBooking: string | null = null;
+
+    if (data.serviceId) {
+        const { data: service } = await supabase
+            .from('services')
+            .select('price, name')
+            .eq('id', data.serviceId)
+            .single();
+
+        if (service) {
+            priceAtBooking = service.price;
+            serviceNameAtBooking = service.name;
+        }
+    }
+
     // Calculamos la hora de fin basada en la duración seleccionada
     const now = new Date()
     const endTime = new Date(now.getTime() + data.duration * 60000)
@@ -60,12 +77,22 @@ export async function createTicket(data: {
             end_time: endTime.toISOString(),
             status: 'seated',
             notes: data.customerId ? data.clientName : `Walk-in: ${data.clientName}`,
-            customer_id: data.customerId || null  // VINCULACIÓN CON CLIENTE
+            customer_id: data.customerId || null,
+            // PRICE SNAPSHOT (immutable for financial integrity)
+            price_at_booking: priceAtBooking,
+            service_name_at_booking: serviceNameAtBooking
         })
         .select('id')
         .single()
 
     if (error) {
+        // Check if this is a double-booking constraint violation
+        if (error.message?.includes('no_double_booking')) {
+            return {
+                success: false,
+                error: 'Este horario ya está ocupado para este barbero. Selecciona otro horario.'
+            }
+        }
         console.error('Check-in error:', error.message, error.details, error.hint)
         return {
             success: false,

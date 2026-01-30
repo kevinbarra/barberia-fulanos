@@ -57,11 +57,12 @@ export async function createBooking(data: {
 
     // 1. Validaciones - Obtener info del servicio y tenant (públicas, no necesitan admin)
     const [serviceResult, tenantResult] = await Promise.all([
-        supabase.from('services').select('name').eq('id', data.service_id).single(),
+        supabase.from('services').select('name, price').eq('id', data.service_id).single(),
         supabase.from('tenants').select('name').eq('id', data.tenant_id).single()
     ]);
 
     const realServiceName = serviceResult.data?.name || "Servicio General";
+    const servicePrice = serviceResult.data?.price; // Price snapshot
     const businessName = tenantResult.data?.name || "AgendaBarber";
 
     // 1.1 Obtener datos del staff con admin client (bypass RLS para email)
@@ -157,12 +158,22 @@ export async function createBooking(data: {
             start_time: startDate.toISOString(),
             end_time: endDate.toISOString(),
             status: 'pending',
-            notes: guestInfo
+            notes: guestInfo,
+            // PRICE SNAPSHOT (immutable for financial integrity)
+            price_at_booking: servicePrice,
+            service_name_at_booking: realServiceName
         })
         .select('id')
         .single()
 
     if (insertError) {
+        // Check if this is a double-booking constraint violation
+        if (insertError.message?.includes('no_double_booking')) {
+            return {
+                success: false,
+                error: 'Lo sentimos, este horario acaba de ser ocupado por otra persona. Por favor selecciona otro horario.'
+            }
+        }
         console.error('[BOOKING] Error al insertar:', insertError)
         return { success: false, error: `Error al crear reserva: ${insertError.message}` }
     }

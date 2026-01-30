@@ -253,9 +253,10 @@ export async function createWalkIn(formData: FormData) {
     const clientName = formData.get('client_name') as string || "Cliente Walk-in"
     const clientEmail = formData.get('client_email') as string || null
 
+    // Fetch service with price for snapshot
     const { data: service } = await supabase
         .from('services')
-        .select('duration_min, price')
+        .select('duration_min, price, name')
         .eq('id', serviceId)
         .single()
 
@@ -288,16 +289,22 @@ export async function createWalkIn(formData: FormData) {
         end_time: endDate.toISOString(),
         status: 'confirmed',
         notes: `WALK-IN | Cliente: ${clientName}${clientEmail ? ` | Email: ${clientEmail}` : ''}`,
-        customer_id: customerId
+        customer_id: customerId,
+        // PRICE SNAPSHOT (immutable for financial integrity)
+        price_at_booking: service.price,
+        service_name_at_booking: service.name
     })
 
     if (error) {
+        // Check if this is a double-booking constraint violation
+        if (error.message?.includes('no_double_booking')) {
+            return { error: 'Este horario ya está ocupado para este barbero. Selecciona otro horario.' }
+        }
         console.error('Error walk-in:', error)
         return { error: 'No se pudo registrar.' }
     }
 
-    // Get service and staff names for broadcast
-    const { data: serviceData } = await supabase.from('services').select('name').eq('id', serviceId).single()
+    // Get staff name for broadcast (service name already available)
     const { data: staffData } = await supabase.from('profiles').select('full_name').eq('id', staffId).single()
 
     const timeStr = startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -306,7 +313,7 @@ export async function createWalkIn(formData: FormData) {
     await broadcastBookingEvent(tenantId, 'new-booking', {
         id: 'walkin-' + Date.now(),
         clientName: clientName,
-        serviceName: serviceData?.name || 'Servicio',
+        serviceName: service.name || 'Servicio',
         staffName: staffData?.full_name || 'Staff',
         time: timeStr
     })
