@@ -104,10 +104,15 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess, on
                 return;
             }
 
-            // Success - close modal and notify parent
+            // Success - refresh data FIRST, then close modal
+            router.refresh();
+
+            // Show success feedback
+            alert(`✅ ${result.message}`);
+
+            // Close modal and notify parent
             onClose();
             onArchived?.();
-            router.refresh();
         } catch {
             setError('Error de conexión');
             setShowArchiveConfirm(false);
