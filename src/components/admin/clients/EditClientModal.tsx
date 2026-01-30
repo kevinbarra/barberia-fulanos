@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, User, Phone, Check, AlertTriangle, Archive } from 'lucide-react';
-import { updateManagedClient, archiveClient } from '@/app/admin/clients/actions';
+import { X, Loader2, User, Phone, Check, AlertTriangle, Archive, RotateCcw } from 'lucide-react';
+import { updateManagedClient, archiveClient, restoreClient } from '@/app/admin/clients/actions';
 import { useRouter } from 'next/navigation';
 
 interface EditClientModalProps {
@@ -14,10 +14,11 @@ interface EditClientModalProps {
         phone?: string;
     };
     onSuccess: (updatedClient: { id: string; name: string; phone: string }) => void;
-    onArchived?: () => void;  // Optional callback when client is archived
+    onArchived?: () => void;  // Optional callback when client is archived/restored
+    isArchived?: boolean;     // Whether client is currently archived
 }
 
-export default function EditClientModal({ isOpen, onClose, client, onSuccess, onArchived }: EditClientModalProps) {
+export default function EditClientModal({ isOpen, onClose, client, onSuccess, onArchived, isArchived = false }: EditClientModalProps) {
     const router = useRouter();
     const [name, setName] = useState(client.name);
     const [phone, setPhone] = useState(client.phone || '');
@@ -96,6 +97,38 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess, on
 
         try {
             const result = await archiveClient(client.id);
+
+            if (!result.success) {
+                setError(result.message);
+                setShowArchiveConfirm(false);
+                setIsArchiving(false);
+                return;
+            }
+
+            // Success - refresh data FIRST, then close modal
+            router.refresh();
+
+            // Show success feedback
+            alert(`✅ ${result.message}`);
+
+            // Close modal and notify parent
+            onClose();
+            onArchived?.();
+        } catch {
+            setError('Error de conexión');
+            setShowArchiveConfirm(false);
+        } finally {
+            setIsArchiving(false);
+        }
+    };
+
+    // Handle restore (undo soft delete)
+    const handleRestore = async () => {
+        setIsArchiving(true);
+        setError(null);
+
+        try {
+            const result = await restoreClient(client.id);
 
             if (!result.success) {
                 setError(result.message);
@@ -268,51 +301,103 @@ export default function EditClientModal({ isOpen, onClose, client, onSuccess, on
                     </div>
                 </form>
 
-                {/* Danger Zone - Archive */}
+                {/* Archive/Restore Zone - Context Sensitive */}
                 <div className="px-6 pb-6">
                     <div className="border-t border-gray-200 pt-4">
-                        <p className="text-xs font-bold text-gray-400 uppercase mb-3">Zona de Peligro</p>
+                        {isArchived ? (
+                            /* RESTORE ZONE - For archived clients */
+                            <>
+                                <p className="text-xs font-bold text-green-600 uppercase mb-3">♻️ Zona de Recuperación</p>
 
-                        {!showArchiveConfirm ? (
-                            <button
-                                type="button"
-                                onClick={() => setShowArchiveConfirm(true)}
-                                className="w-full py-3 border-2 border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <Archive className="w-4 h-4" />
-                                Archivar Cliente
-                            </button>
+                                {!showArchiveConfirm ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowArchiveConfirm(true)}
+                                        className="w-full py-3 border-2 border-green-200 text-green-600 rounded-xl font-bold hover:bg-green-50 transition-colors flex items-center justify-center gap-2"
+                                    >
+                                        <RotateCcw className="w-4 h-4" />
+                                        Restaurar Cliente
+                                    </button>
+                                ) : (
+                                    <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                                        <p className="text-sm text-green-800 font-medium">
+                                            ¿Restaurar a <strong>{client.name}</strong>?
+                                        </p>
+                                        <p className="text-xs text-green-600">
+                                            El cliente volverá a aparecer en las búsquedas y lista de clientes activos.
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowArchiveConfirm(false)}
+                                                disabled={isArchiving}
+                                                className="flex-1 py-2 bg-white border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleRestore}
+                                                disabled={isArchiving}
+                                                className="flex-1 py-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {isArchiving ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Sí, Restaurar'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         ) : (
-                            <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-xl">
-                                <p className="text-sm text-red-800 font-medium">
-                                    ¿Estás seguro de archivar a <strong>{client.name}</strong>?
-                                </p>
-                                <p className="text-xs text-red-600">
-                                    El cliente se ocultará de las búsquedas, pero su historial de citas permanecerá intacto.
-                                </p>
-                                <div className="flex gap-2">
+                            /* ARCHIVE ZONE - For active clients */
+                            <>
+                                <p className="text-xs font-bold text-gray-400 uppercase mb-3">Zona de Peligro</p>
+
+                                {!showArchiveConfirm ? (
                                     <button
                                         type="button"
-                                        onClick={() => setShowArchiveConfirm(false)}
-                                        disabled={isArchiving}
-                                        className="flex-1 py-2 bg-white border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                        onClick={() => setShowArchiveConfirm(true)}
+                                        className="w-full py-3 border-2 border-red-200 text-red-600 rounded-xl font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
                                     >
-                                        Cancelar
+                                        <Archive className="w-4 h-4" />
+                                        Archivar Cliente
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleArchive}
-                                        disabled={isArchiving}
-                                        className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                    >
-                                        {isArchiving ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            'Sí, Archivar'
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
+                                ) : (
+                                    <div className="space-y-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+                                        <p className="text-sm text-red-800 font-medium">
+                                            ¿Estás seguro de archivar a <strong>{client.name}</strong>?
+                                        </p>
+                                        <p className="text-xs text-red-600">
+                                            El cliente se ocultará de las búsquedas, pero su historial de citas permanecerá intacto.
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowArchiveConfirm(false)}
+                                                disabled={isArchiving}
+                                                className="flex-1 py-2 bg-white border border-gray-300 text-gray-600 rounded-lg font-bold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleArchive}
+                                                disabled={isArchiving}
+                                                className="flex-1 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                            >
+                                                {isArchiving ? (
+                                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    'Sí, Archivar'
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

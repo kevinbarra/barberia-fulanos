@@ -25,9 +25,10 @@ export default async function ClientsPage() {
 
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
 
-    // Fetch both datasets in parallel
-    const [allClients, warningClients] = await Promise.all([
-        getAllClients(),
+    // Fetch all datasets in parallel
+    const [allClients, archivedClients, warningClients] = await Promise.all([
+        getAllClients('active'),
+        getAllClients('archived'),
         getClientsWithWarnings()
     ]);
 
@@ -35,6 +36,7 @@ export default async function ClientsPage() {
         <div className="p-6 max-w-7xl mx-auto">
             <ClientsPageTabs
                 allClients={allClients}
+                archivedClients={archivedClients}
                 warningClients={warningClients || []}
                 userRole={profile?.role || 'staff'}
             />

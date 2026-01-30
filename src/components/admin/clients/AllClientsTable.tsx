@@ -9,12 +9,13 @@ import type { ClientListItem } from '@/app/admin/clients/actions';
 
 interface AllClientsTableProps {
     clients: ClientListItem[];
+    isArchivedView?: boolean;
 }
 
-export default function AllClientsTable({ clients: initialClients }: AllClientsTableProps) {
+export default function AllClientsTable({ clients: initialClients, isArchivedView = false }: AllClientsTableProps) {
     const [clients, setClients] = useState(initialClients);
     const [searchQuery, setSearchQuery] = useState('');
-    const [editingClient, setEditingClient] = useState<{ id: string; name: string; phone?: string } | null>(null);
+    const [editingClient, setEditingClient] = useState<{ id: string; name: string; phone?: string; isArchived?: boolean } | null>(null);
 
     // Filter clients locally
     const filteredClients = clients.filter(client => {
@@ -150,7 +151,8 @@ export default function AllClientsTable({ clients: initialClients }: AllClientsT
                                         onClick={() => setEditingClient({
                                             id: client.id,
                                             name: client.full_name,
-                                            phone: client.phone || undefined
+                                            phone: client.phone || undefined,
+                                            isArchived: isArchivedView
                                         })}
                                         className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                         title="Editar cliente"
@@ -171,6 +173,7 @@ export default function AllClientsTable({ clients: initialClients }: AllClientsT
                     onClose={() => setEditingClient(null)}
                     client={editingClient}
                     onSuccess={handleEditSuccess}
+                    isArchived={editingClient.isArchived}
                 />
             )}
         </div>

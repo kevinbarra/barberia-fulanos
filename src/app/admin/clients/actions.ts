@@ -179,9 +179,12 @@ export interface ClientListItem {
     loyalty_points: number;
     created_at: string;
     last_visit?: string | null;
+    deleted_at?: string | null;  // For archived clients view
 }
 
-export async function getAllClients(): Promise<ClientListItem[]> {
+export type ClientFilter = 'active' | 'archived';
+
+export async function getAllClients(filter: ClientFilter = 'active'): Promise<ClientListItem[]> {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -192,13 +195,21 @@ export async function getAllClients(): Promise<ClientListItem[]> {
 
     const adminClient = createAdminClient();
 
-    // Get all ACTIVE customers for this tenant (exclude archived)
-    const { data: clients, error } = await adminClient
+    // Build query based on filter
+    let query = adminClient
         .from('profiles')
-        .select('id, full_name, phone, loyalty_points, created_at')
+        .select('id, full_name, phone, loyalty_points, created_at, deleted_at')
         .eq('tenant_id', tenantId)
-        .eq('role', 'customer')
-        .is('deleted_at', null)  // Soft delete filter
+        .eq('role', 'customer');
+
+    // Apply soft delete filter
+    if (filter === 'active') {
+        query = query.is('deleted_at', null);
+    } else {
+        query = query.not('deleted_at', 'is', null);
+    }
+
+    const { data: clients, error } = await query
         .order('created_at', { ascending: false })
         .limit(200);
 
@@ -229,7 +240,8 @@ export async function getAllClients(): Promise<ClientListItem[]> {
         phone: c.phone,
         loyalty_points: c.loyalty_points || 0,
         created_at: c.created_at,
-        last_visit: lastVisitMap.get(c.id) || null
+        last_visit: lastVisitMap.get(c.id) || null,
+        deleted_at: c.deleted_at || null  // Include for archived view
     }));
 }
 
@@ -346,6 +358,61 @@ export async function archiveClient(clientId: string): Promise<ArchiveClientResp
     return {
         success: true,
         message: `Cliente "${existingClient.full_name}" archivado exitosamente. Su historial se mantiene intacto.`
+    };
+}
+
+// ==================== RESTORE CLIENT (Undo Soft Delete) ====================
+
+export async function restoreClient(clientId: string): Promise<ArchiveClientResponse> {
+    // 1. Validate staff/owner access
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return { success: false, message: 'No autorizado', error: 'Unauthorized' };
+    }
+
+    // 2. Get tenant context
+    const tenantId = await getTenantIdFromContext();
+    if (!tenantId) {
+        return { success: false, message: 'No se pudo determinar el negocio', error: 'Tenant not found' };
+    }
+
+    const adminClient = createAdminClient();
+
+    // 3. Verify client belongs to this tenant and is archived
+    const { data: existingClient, error: fetchError } = await adminClient
+        .from('profiles')
+        .select('id, full_name, role, tenant_id, deleted_at')
+        .eq('id', clientId)
+        .single();
+
+    if (fetchError || !existingClient) {
+        return { success: false, message: 'Cliente no encontrado', error: 'Client not found' };
+    }
+
+    if (existingClient.tenant_id !== tenantId) {
+        return { success: false, message: 'No tienes permiso para restaurar este cliente', error: 'Forbidden' };
+    }
+
+    if (!existingClient.deleted_at) {
+        return { success: false, message: 'Este cliente no está archivado', error: 'Not archived' };
+    }
+
+    // 4. Restore client (clear deleted_at)
+    const { error: updateError } = await adminClient
+        .from('profiles')
+        .update({ deleted_at: null })
+        .eq('id', clientId);
+
+    if (updateError) {
+        console.error('Error restoring client:', updateError);
+        return { success: false, message: 'Error al restaurar cliente', error: updateError.message };
+    }
+
+    return {
+        success: true,
+        message: `Cliente "${existingClient.full_name}" restaurado exitosamente.`
     };
 }
 
