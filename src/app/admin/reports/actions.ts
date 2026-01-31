@@ -107,6 +107,7 @@ async function requireAdminOrOwner() {
     throw new Error('Usuario sin negocio asignado. Contacta soporte.');
 }
 
+
 export async function getFinancialDashboard(
     startDate?: string,
     endDate?: string
@@ -114,14 +115,14 @@ export async function getFinancialDashboard(
     const supabase = await createClient();
     const profile = await requireAdminOrOwner();
 
-    const { data, error } = await supabase.rpc('get_financial_dashboard', {
+    const { data, error } = await supabase.rpc('get_financial_metrics', {
         p_tenant_id: profile.tenant_id,
         p_start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         p_end_date: endDate || new Date().toISOString().split('T')[0]
     });
 
     if (error) throw error;
-    return data;
+    return data; // Returns { total_revenue, total_transactions, avg_transaction_value, unique_clients... }
 }
 
 export async function getStaffRevenue(month?: string) {
@@ -180,9 +181,28 @@ export async function getRevenueByWeekday() {
     const supabase = await createClient();
     const profile = await requireAdminOrOwner();
 
+    // New RPC signature: p_tenant_id, p_months_back
     const { data, error } = await supabase.rpc('get_revenue_by_weekday', {
         p_tenant_id: profile.tenant_id,
         p_months_back: 3
+    });
+
+    if (error) throw error;
+    return data;
+}
+
+// New function for Daily Breakdown
+export async function getRevenueByDay(
+    startDate?: string,
+    endDate?: string
+) {
+    const supabase = await createClient();
+    const profile = await requireAdminOrOwner();
+
+    const { data, error } = await supabase.rpc('get_revenue_by_day', {
+        p_tenant_id: profile.tenant_id,
+        p_start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        p_end_date: endDate || new Date().toISOString().split('T')[0]
     });
 
     if (error) throw error;
