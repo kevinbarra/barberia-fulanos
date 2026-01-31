@@ -52,6 +52,8 @@ function generatePassword(phone: string): string {
 
 // ==================== MAIN ACTION ====================
 
+import { logActivity } from '@/lib/audit'
+
 export async function createManagedClient(
     name: string,
     phone: string,
@@ -172,6 +174,16 @@ export async function createManagedClient(
             };
         }
     }
+
+    // AUDIT LOG
+    await logActivity({
+        tenantId,
+        actorId: user.id,
+        action: 'CREATE',
+        entity: 'profiles',
+        entityId: newUser.user.id,
+        metadata: { name: trimmedName, phone: cleanPhone, method: 'staff_managed' }
+    });
 
     // 7. Return success with credentials & script
     return {

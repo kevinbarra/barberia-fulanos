@@ -243,9 +243,15 @@ export async function linkTransactionToUser(transactionId: string, scannedValue:
 }
 
 // --- FUNCIÓN 3: REGISTRO RÁPIDO WALK-IN (con Timezone Fix) ---
+import { logActivity } from '@/lib/audit'
+
+// ... (previous imports)
+
+// --- FUNCIÓN 3: REGISTRO RÁPIDO WALK-IN (con Timezone Fix) ---
 export async function createWalkIn(formData: FormData) {
     const supabase = await createClient()
 
+    // ... (existing code) ...
     const serviceId = formData.get('service_id') as string
     const staffId = formData.get('staff_id') as string
     const tenantId = formData.get('tenant_id') as string
@@ -269,6 +275,7 @@ export async function createWalkIn(formData: FormData) {
     // CUSTOMER LINKING: Buscar por email si se proporciona
     let customerId: string | null = null
     if (clientEmail) {
+        // ... (existing customer linking) ...
         const { data: existingProfile } = await supabase
             .from('profiles')
             .select('id')
@@ -281,7 +288,7 @@ export async function createWalkIn(formData: FormData) {
         }
     }
 
-    const { error } = await supabase.from('bookings').insert({
+    const { data: newBooking, error } = await supabase.from('bookings').insert({
         tenant_id: tenantId,
         service_id: serviceId,
         staff_id: staffId,
@@ -293,9 +300,10 @@ export async function createWalkIn(formData: FormData) {
         // PRICE SNAPSHOT (immutable for financial integrity)
         price_at_booking: service.price,
         service_name_at_booking: service.name
-    })
+    }).select('id').single()
 
     if (error) {
+        // ... (existing error handling) ...
         // Check if this is a double-booking constraint violation
         if (error.message?.includes('no_double_booking')) {
             return { error: 'Este horario ya está ocupado para este barbero. Selecciona otro horario.' }
@@ -304,6 +312,20 @@ export async function createWalkIn(formData: FormData) {
         return { error: 'No se pudo registrar.' }
     }
 
+    // AUDIT LOG
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user && newBooking && newBooking.id) {
+        await logActivity({
+            tenantId,
+            actorId: user.id,
+            action: 'CREATE',
+            entity: 'bookings',
+            entityId: newBooking.id, // Assuming select('id') works or we get it from variable
+            metadata: { type: 'WALK-IN', client: clientName }
+        })
+    }
+
+    // ... (existing broadcast logic) ...
     // Get staff name for broadcast (service name already available)
     const { data: staffData } = await supabase.from('profiles').select('full_name').eq('id', staffId).single()
 
@@ -332,10 +354,10 @@ export async function cancelBookingAdmin(bookingId: string, reason: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: 'No autorizado' }
 
-    // Get booking info for broadcast
+    // Get booking info for broadcast and audit
     const { data: bookingInfo } = await supabase
         .from('bookings')
-        .select('tenant_id')
+        .select('tenant_id, status')
         .eq('id', bookingId)
         .single()
 
@@ -351,6 +373,18 @@ export async function cancelBookingAdmin(bookingId: string, reason: string) {
     if (error) {
         console.error(error)
         return { error: 'Error al cancelar la cita.' }
+    }
+
+    // AUDIT LOG
+    if (bookingInfo?.tenant_id) {
+        await logActivity({
+            tenantId: bookingInfo.tenant_id,
+            actorId: user.id,
+            action: 'CANCEL',
+            entity: 'bookings',
+            entityId: bookingId,
+            metadata: { reason, previousStatus: bookingInfo.status }
+        })
     }
 
     // Broadcast for real-time update
@@ -400,6 +434,18 @@ export async function markNoShow(bookingId: string) {
     if (bookingError) {
         console.error(bookingError)
         return { error: 'Error al marcar no-show.' }
+    }
+
+    // AUDIT LOG
+    if (booking.tenant_id) {
+        await logActivity({
+            tenantId: booking.tenant_id,
+            actorId: user.id,
+            action: 'UPDATE',
+            entity: 'bookings',
+            entityId: bookingId,
+            metadata: { status: 'no_show', previousStatus: 'confirmed' }
+        })
     }
 
     // 3. Incrementar contador si hay cliente registrado

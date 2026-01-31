@@ -6,6 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
 import { isBefore } from 'date-fns'
 
+import { logActivity } from '@/lib/audit'
+// createClient is already imported from '@/utils/supabase/server' at line 3
+
 // --- ACCIÓN 1: CHECK-IN (Abrir Ticket / Bloquear Horario) ---
 export async function createTicket(data: {
     tenantId: string
@@ -18,9 +21,10 @@ export async function createTicket(data: {
 }) {
     // Usamos cliente admin para bypass RLS en operaciones del POS
     const supabase = createAdminClient()
+    const sessionClient = await createClient() // To get current user
+    const { data: { user } } = await sessionClient.auth.getUser()
 
-    // Auto-cleanup: Marcar como cancelled los tickets "seated" de más de 8 horas
-    // Esto previene que tickets olvidados bloqueen futuros servicios
+    // ... (existing auto-cleanup logic) ...
     const staleThreshold = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
     await supabase
         .from('bookings')
@@ -28,7 +32,7 @@ export async function createTicket(data: {
         .eq('status', 'seated')
         .lt('start_time', staleThreshold)
 
-    // Validación: 1 barbero = 1 cliente a la vez (solo tickets recientes)
+    // ... (existing validation logic) ...
     const recentThreshold = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString()
     const { count: activeTickets } = await supabase
         .from('bookings')
@@ -44,7 +48,7 @@ export async function createTicket(data: {
         }
     }
 
-    // PRICE SNAPSHOT: Fetch current service price and name for immutable record
+    // PRICE SNAPSHOT logic...
     let priceAtBooking: number | null = null;
     let serviceNameAtBooking: string | null = null;
 
@@ -61,12 +65,10 @@ export async function createTicket(data: {
         }
     }
 
-    // Calculamos la hora de fin basada en la duración seleccionada
+    // ... (existing calculations) ...
     const now = new Date()
     const endTime = new Date(now.getTime() + data.duration * 60000)
 
-    // Creamos la cita en estado 'seated' (En silla)
-    // Si viene customerId, lo guardamos para vincular puntos de lealtad
     const { data: booking, error } = await supabase
         .from('bookings')
         .insert({
@@ -86,7 +88,7 @@ export async function createTicket(data: {
         .single()
 
     if (error) {
-        // Check if this is a double-booking constraint violation
+        // ... (existing error handling) ...
         if (error.message?.includes('no_double_booking')) {
             return {
                 success: false,
@@ -98,6 +100,18 @@ export async function createTicket(data: {
             success: false,
             error: `No se pudo abrir el ticket: ${error.message}`
         }
+    }
+
+    // AUDIT LOG
+    if (user && booking) {
+        await logActivity({
+            tenantId: data.tenantId,
+            actorId: user.id,
+            action: 'CREATE',
+            entity: 'bookings',
+            entityId: booking.id,
+            metadata: { type: 'POS_TICKET', client: data.clientName, staffId: data.staffId }
+        })
     }
 
     revalidatePath('/admin/pos')
@@ -114,7 +128,7 @@ export async function finalizeTicket(input: {
     pointsRedeemed?: number;
     rewardId?: string | null;
 }) {
-    // Input validation
+    // ... (existing validation) ...
     if (!input.bookingId || !input.serviceId || !input.tenantId) {
         return { success: false, error: 'Datos incompletos.' };
     }
@@ -127,8 +141,10 @@ export async function finalizeTicket(input: {
 
     const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null } = input;
     const supabase = createAdminClient()
+    const sessionClient = await createClient() // To get current user
+    const { data: { user } } = await sessionClient.auth.getUser()
 
-    // 1. Obtener datos de la cita original (incluyendo start_time para back-dating)
+    // 1. Obtener datos de la cita original...
     const { data: booking } = await supabase
         .from('bookings')
         .select('staff_id, customer_id, start_time')
@@ -140,7 +156,7 @@ export async function finalizeTicket(input: {
     }
 
     try {
-        // Usar la función RPC que maneja puntos
+        // Usar la función RPC que maneja puntos...
         const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
             p_client_id: booking.customer_id,
             p_total: amount,
@@ -154,7 +170,7 @@ export async function finalizeTicket(input: {
 
         if (txError) throw txError;
 
-        // BACK-DATING: Si la cita es del pasado, actualizar fecha de la transacción
+        // ... (existing back-dating logic) ...
         const now = new Date();
         const bookingDate = new Date(booking.start_time);
         if (isBefore(bookingDate, now) && transactionId) {
@@ -164,7 +180,7 @@ export async function finalizeTicket(input: {
                 .eq('id', transactionId);
         }
 
-        // 6. Cerrar la Cita y actualizar el servicio realizado
+        // 6. Cerrar la Cita y actualizar el servicio realizado...
         const { error: updateError } = await supabase
             .from('bookings')
             .update({
@@ -175,10 +191,28 @@ export async function finalizeTicket(input: {
 
         if (updateError) {
             console.error('Update Booking Error:', updateError);
-            throw updateError; // Importante: lanzar error para que no se complete la transacción
+            throw updateError;
         }
 
-        // Revalidar rutas para actualizar datos
+        // AUDIT LOG
+        if (user && transactionId) {
+            await logActivity({
+                tenantId,
+                actorId: user.id,
+                action: 'CREATE',
+                entity: 'transactions',
+                entityId: transactionId,
+                metadata: {
+                    type: 'POS_SALE',
+                    amount,
+                    bookingId,
+                    paymentMethod,
+                    backDated: isBefore(bookingDate, now)
+                }
+            })
+        }
+
+        // Revalidar rutas...
         revalidatePath('/admin/pos');
         revalidatePath('/app');
         revalidatePath('/admin/schedule');
@@ -195,9 +229,13 @@ export async function finalizeTicket(input: {
 export async function voidTicket(bookingId: string) {
     // Usamos cliente admin para bypass RLS
     const supabase = createAdminClient()
+    const sessionClient = await createClient() // To get current user
+    const { data: { user } } = await sessionClient.auth.getUser()
+
+    // Fetch tenantId for audit
+    const { data: booking } = await supabase.from('bookings').select('tenant_id').eq('id', bookingId).single()
 
     // Cambiamos estado a 'cancelled' en lugar de borrar.
-    // Esto permite al dueño ver quién canceló citas en la base de datos.
     const { error } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
@@ -206,6 +244,18 @@ export async function voidTicket(bookingId: string) {
     if (error) {
         console.error('Void error:', error)
         return { success: false, error: 'Error al anular.' }
+    }
+
+    // AUDIT LOG
+    if (user && booking) {
+        await logActivity({
+            tenantId: booking.tenant_id,
+            actorId: user.id,
+            action: 'CANCEL',
+            entity: 'bookings',
+            entityId: bookingId,
+            metadata: { type: 'POS_VOID', reason: 'Anulado desde POS' }
+        })
     }
 
     revalidatePath('/admin/pos')

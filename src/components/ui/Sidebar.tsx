@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, RefreshCw, Receipt, Lock } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, Scissors, Clock, Settings, Users, BarChart3, RefreshCw, Receipt, Lock, History as HistoryIcon } from 'lucide-react'
 import { signOut } from '@/app/auth/actions'
 import { useKioskMode } from '@/components/admin/KioskModeProvider'
 import KioskExitButton from '@/components/admin/KioskExitButton'
@@ -80,7 +80,29 @@ export default function Sidebar({
         }
 
         // Owner, admin, super_admin: Full access (only when kiosk is OFF)
-        return FULL_ADMIN_MENU
+        // Clone the menu to avoid mutating the constant
+        const menu = [...FULL_ADMIN_MENU]
+
+        // Add Audit Logs for Owners and Super Admins
+        if (role === 'owner' || role === 'super_admin') {
+            // Find index of Settings to insert after it, or just push
+            const settingsIndex = menu.findIndex(item => item.href === '/admin/settings')
+            if (settingsIndex !== -1) {
+                menu.splice(settingsIndex + 1, 0, {
+                    name: 'Auditoría',
+                    href: '/admin/settings/logs',
+                    icon: HistoryIcon
+                })
+            } else {
+                menu.push({
+                    name: 'Auditoría',
+                    href: '/admin/settings/logs',
+                    icon: HistoryIcon
+                })
+            }
+        }
+
+        return menu
     }
 
     const menuToRender = getMenuToRender()
