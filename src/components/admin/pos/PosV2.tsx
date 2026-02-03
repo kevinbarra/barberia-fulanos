@@ -8,7 +8,7 @@ import Image from 'next/image'
 import {
     CheckCircle, Banknote, CreditCard, ArrowRightLeft,
     Plus, ChevronLeft, Trash2, Clock, User, QrCode, X,
-    AlertTriangle
+    AlertTriangle, ChevronRight
 } from 'lucide-react'
 import { createTicket, finalizeTicketV2, voidTicket, seatBooking } from '@/app/admin/pos/actions'
 import { linkTransactionToUser } from '@/app/admin/bookings/actions'
