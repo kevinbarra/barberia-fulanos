@@ -362,6 +362,9 @@ export default function PosV2({
                     customerId: booking.customerId
                 }
                 setTickets(prev => [newTicket, ...prev])
+
+                // UX UPGRADE: Auto-select the ticket immediately
+                handleSelectTicket(newTicket)
             }
             router.refresh()
         } else {
@@ -457,9 +460,11 @@ export default function PosV2({
                             <p className="text-xs text-gray-400">{format(new Date(), "EEEE d 'de' MMMM", { locale: es })}</p>
                         </div>
                     </div>
+                    {/* Botón "+" movido al Dashboard principal, pero mantenido aquí para acceso rápido */}
                     <button
                         onClick={handleNewTicket}
-                        className="w-10 h-10 bg-amber-500 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-amber-600 transition-colors"
+                        className="w-10 h-10 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-xl flex items-center justify-center transition-colors"
+                        title="Nuevo Walk-in"
                     >
                         <Plus className="w-6 h-6" />
                     </button>
@@ -473,7 +478,7 @@ export default function PosV2({
                             En Silla ({tickets.length})
                         </h3>
                         {tickets.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-xl">
+                            <div className="text-center py-4 text-gray-400 text-sm border-2 border-dashed border-gray-100 rounded-xl">
                                 Sin clientes activos
                             </div>
                         ) : (
@@ -493,7 +498,7 @@ export default function PosV2({
                                                 <p className="text-xs text-gray-500">{ticket.staffName}</p>
                                             </div>
                                             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">
-                                                En curso
+                                                Active
                                             </span>
                                         </div>
                                         <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
@@ -506,49 +511,39 @@ export default function PosV2({
                         )}
                     </div>
 
-                    {/* Bookings */}
+                    {/* Bookings (Sidebar view - reduced prominence in favor of Dashboard) */}
                     <div className="p-3 pt-0">
                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2 px-1">
-                            Reservas Hoy ({bookings.length})
+                            Por Llegar ({bookings.length})
                         </h3>
                         {bookings.length === 0 ? (
                             <div className="text-center py-6 text-gray-400 text-sm">
-                                Sin reservas pendientes
+                                No hay más reservas hoy
                             </div>
                         ) : (
                             <div className="space-y-2">
                                 {bookings.map(booking => (
                                     <div
                                         key={booking.id}
-                                        className="p-3 rounded-xl border border-gray-100 bg-white"
+                                        className="p-3 rounded-xl border border-gray-100 bg-white opacity-75 hover:opacity-100 transition-opacity"
                                     >
                                         <div className="flex justify-between items-start">
-                                            <button
+                                            <div
                                                 onClick={() => handleSelectBooking(booking)}
-                                                className="text-left flex-1"
+                                                className="flex-1 cursor-pointer"
                                             >
                                                 <span className="font-semibold text-gray-900">{booking.clientName}</span>
-                                                <p className="text-xs text-gray-500">{booking.serviceName} • {booking.staffName}</p>
-                                                <p className="text-xs text-blue-600 font-medium mt-1">
-                                                    {format(new Date(booking.startTime), 'HH:mm')}
-                                                </p>
-                                            </button>
-                                            <div className="flex gap-1">
-                                                <button
-                                                    onClick={() => handleSeatBooking(booking.id)}
-                                                    disabled={isSeatingBooking === booking.id}
-                                                    className="px-4 py-2 text-sm bg-green-100 text-green-700 rounded-lg font-bold disabled:opacity-50"
-                                                >
-                                                    {isSeatingBooking === booking.id ? '...' : 'Atender'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleMarkNoShow(booking.id)}
-                                                    className="p-1 text-red-500 hover:bg-red-50 rounded-lg"
-                                                    title="No-show"
-                                                >
-                                                    <AlertTriangle className="w-4 h-4" />
-                                                </button>
+                                                <p className="text-xs text-gray-500">{format(new Date(booking.startTime), 'HH:mm')} • {booking.serviceName}</p>
                                             </div>
+                                            {/* Minimal action button in sidebar */}
+                                            <button
+                                                onClick={() => handleSeatBooking(booking.id)}
+                                                disabled={isSeatingBooking === booking.id}
+                                                className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg disabled:opacity-50"
+                                                title="Sentar ahora"
+                                            >
+                                                <ArrowRightLeft className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -570,26 +565,96 @@ export default function PosV2({
                     </span>
                 </div>
 
-                {/* IDLE STATE */}
+                {/* IDLE STATE: SMART DASHBOARD */}
                 {mode === 'idle' && (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                        <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                            <User className="w-8 h-8" />
+                    <div className="flex-1 p-6 overflow-y-auto">
+                        <div className="max-w-4xl mx-auto space-y-8">
+
+                            {/* 1. Quick Action: Walk-in */}
+                            <button
+                                onClick={handleNewTicket}
+                                className="w-full bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-center gap-5 hover:border-amber-500 hover:shadow-md transition-all group"
+                            >
+                                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-500 transition-colors">
+                                    <Plus className="w-8 h-8 text-amber-600 group-hover:text-white" />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <h2 className="text-xl font-bold text-gray-900">Nuevo Walk-in</h2>
+                                    <p className="text-gray-500">Registrar cliente sin reserva previa</p>
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center group-hover:bg-amber-50">
+                                    <ChevronRight className="w-6 h-6 text-gray-400 group-hover:text-amber-500" />
+                                </div>
+                            </button>
+
+                            {/* 2. Upcoming Bookings Grid */}
+                            <div>
+                                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Clock className="w-5 h-5 text-gray-500" />
+                                    Próximas Citas
+                                </h2>
+
+                                {bookings.length === 0 ? (
+                                    <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                                        <p className="text-gray-400">Todo tranquilo. No hay citas pendientes por ahora.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {bookings.map(booking => (
+                                            <div
+                                                key={booking.id}
+                                                className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                                            >
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h3 className="font-bold text-lg text-gray-900">{booking.clientName}</h3>
+                                                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                                                            <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-700 font-medium">
+                                                                {format(new Date(booking.startTime), 'h:mm a')}
+                                                            </span>
+                                                            <span>•</span>
+                                                            <span>{booking.serviceName}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-3">
+                                                            <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden">
+                                                                <User className="w-4 h-4 text-gray-400" />
+                                                            </div>
+                                                            <span className="text-sm text-gray-600 font-medium">{booking.staffName}</span>
+                                                        </div>
+                                                    </div>
+                                                    {/* Price Tag */}
+                                                    <span className="font-bold text-gray-900 bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
+                                                        ${booking.servicePrice}
+                                                    </span>
+                                                </div>
+
+                                                {/* ACTION BUTTON */}
+                                                <button
+                                                    onClick={() => handleSeatBooking(booking.id)}
+                                                    disabled={isSeatingBooking === booking.id}
+                                                    className="w-full py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-70 disabled:scale-100"
+                                                >
+                                                    {isSeatingBooking === booking.id ? (
+                                                        <span className="animate-pulse">Procesando...</span>
+                                                    ) : (
+                                                        <>
+                                                            <ArrowRightLeft className="w-5 h-5" />
+                                                            SENTAR AHORA
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        <p className="text-lg font-medium mb-2">Sin ticket seleccionado</p>
-                        <p className="text-sm mb-6">Selecciona un ticket o crea uno nuevo</p>
-                        <button
-                            onClick={handleNewTicket}
-                            className="px-6 py-3 bg-amber-500 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-amber-600 transition-colors"
-                        >
-                            <Plus className="w-5 h-5" />
-                            Nuevo Walk-in
-                        </button>
                     </div>
                 )}
 
                 {/* CREATING / VIEWING / CHECKOUT STATE */}
                 {(mode === 'creating' || mode === 'viewing' || mode === 'checkout') && (
+
                     <div className="flex-1 flex flex-col overflow-hidden">
                         {/* Top Section: Staff & Client */}
                         <div className="p-4 bg-white border-b border-gray-200">
