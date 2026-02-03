@@ -4,7 +4,10 @@ import { createClient } from '@/utils/supabase/server';
 // import { redirect } from 'next/navigation'; // Not strictly used in the functions below, but good to have if needed for auth checks later. 
 // User provided code imports it, so I will include it.
 
+import { headers } from 'next/headers';
+
 // Helper para obtener y validar el tenant del usuario actual de forma segura
+// Soporta "Context Switching" dinámico para Super Admins basado en URL
 async function getMyTenantId() {
     const supabase = await createClient();
 
@@ -15,15 +18,55 @@ async function getMyTenantId() {
         throw new Error('Sesión expirada o inválida.');
     }
 
-    // 2. Obtener tenant_id del perfil (Autorización simple)
+    // 2. Obtener rol y tenant_id base del perfil
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('tenant_id')
+        .select('tenant_id, role')
         .eq('id', user.id)
         .single();
 
-    if (profileError || !profile?.tenant_id) {
-        console.error('[Reports] Profile Error: No tenant_id for user', user.id);
+    if (profileError) {
+        console.error('[Reports] Profile Error: User', user.id);
+        throw new Error('Error al cargar perfil de usuario.');
+    }
+
+    // 3. Lógica de "God Mode" / Context Switching
+    // Si es Super Admin/Owner, intentamos resolver el tenant desde la URL (Subdominio)
+    const isPrivileged = ['super_admin', 'dev', 'owner'].includes(profile.role || '');
+
+    if (isPrivileged) {
+        try {
+            const headersList = await headers();
+            const hostname = headersList.get('host') || '';
+            // Extraer subdominio (ej: "fulanos" de "fulanos.agendabarber.pro")
+            // Ignoramos 'www', 'localhost', etc.
+            const parts = hostname.replace(':3000', '').replace(':443', '').replace(':80', '').split('.');
+
+            if (parts.length >= 3 || (hostname.includes('localhost') && parts.length > 0)) {
+                const subdomain = parts[0];
+                const reserved = ['www', 'api', 'app', 'admin', 'localhost'];
+
+                if (!reserved.includes(subdomain)) {
+                    // Buscar tenant por slug
+                    const { data: dynamicTenant } = await supabase
+                        .from('tenants')
+                        .select('id')
+                        .eq('slug', subdomain)
+                        .single();
+
+                    if (dynamicTenant?.id) {
+                        return dynamicTenant.id; // <--- Context Switch Exitoso
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[Reports] Failed to resolve dynamic tenant from URL', e);
+            // Fallback al tenant del perfil
+        }
+    }
+
+    // 4. Fallback: Retornar el tenant asignado en el perfil
+    if (!profile?.tenant_id) {
         throw new Error('No se pudo identificar el negocio asociado a tu cuenta.');
     }
 
