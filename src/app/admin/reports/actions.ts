@@ -1,233 +1,148 @@
 'use server'
 
-import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server';
-import { createAdminClient } from '@/utils/supabase/admin';
-import { headers } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
+// import { redirect } from 'next/navigation'; // Not strictly used in the functions below, but good to have if needed for auth checks later. 
+// User provided code imports it, so I will include it.
 
-// Helper para verificar rol y obtener tenant (soporta super admin)
-// Uses admin client to bypass RLS and guarantee profile resolution
-// Handles super_admin/owner accounts with NULL tenant_id via dynamic fallback
-async function requireAdminOrOwner() {
+// Helper para obtener y validar el tenant del usuario actual de forma segura
+async function getMyTenantId() {
     const supabase = await createClient();
-    const adminClient = createAdminClient();
 
+    // 1. Obtener sesión del usuario (Autenticación)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-        console.error('[requireAdminOrOwner] Auth error:', authError);
-        throw new Error('No autenticado - sesión inválida');
+        console.error('[Reports] Auth Error: No session found.');
+        throw new Error('Sesión expirada o inválida.');
     }
 
-    // Use ADMIN CLIENT to get profile (bypasses RLS completely)
-    const { data: profile, error: profileError } = await adminClient
+    // 2. Obtener tenant_id del perfil (Autorización simple)
+    const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('tenant_id, role')
+        .select('tenant_id')
         .eq('id', user.id)
         .single();
 
-    if (profileError) {
-        console.error(`[requireAdminOrOwner] Profile error for User ID: ${user.id}`, profileError);
-        throw new Error(`Perfil no encontrado para User ID: ${user.id}`);
+    if (profileError || !profile?.tenant_id) {
+        console.error('[Reports] Profile Error: No tenant_id for user', user.id);
+        throw new Error('No se pudo identificar el negocio asociado a tu cuenta.');
     }
 
-    const userRole = profile?.role || 'customer';
-    const isPrivilegedUser = userRole === 'super_admin' || userRole === 'owner' || userRole === 'admin';
-
-    // Verificación estricta: Staff no puede ver reportes
-    if (userRole === 'staff') {
-        throw new Error('Acceso denegado: Solo administradores pueden ver reportes.');
-    }
-
-    // 1. For privileged users on subdomain, resolve tenant from hostname FIRST
-    const headersList = await headers();
-    const hostname = headersList.get('host') || '';
-    const parts = hostname.replace(':443', '').replace(':80', '').split('.');
-    const reservedSubdomains = ['www', 'api', 'admin', 'app', 'localhost'];
-
-    if (parts.length >= 3 || hostname.includes('localhost')) {
-        const subdomain = parts[0];
-
-        if (!reservedSubdomains.includes(subdomain) && subdomain !== 'localhost') {
-            const { data: tenant } = await adminClient
-                .from('tenants')
-                .select('id')
-                .eq('slug', subdomain)
-                .single();
-
-            if (tenant?.id) {
-                console.log(`[requireAdminOrOwner] Resolved tenant from subdomain: ${subdomain}`);
-                return { ...profile, tenant_id: tenant.id };
-            }
-        }
-    }
-
-    // 2. If profile has tenant_id, use it
-    if (profile?.tenant_id) {
-        return { ...profile, tenant_id: profile.tenant_id };
-    }
-
-    // 3. FALLBACK for privileged users with NULL tenant_id: find their owned tenant
-    if (isPrivilegedUser && !profile?.tenant_id) {
-        console.log(`[requireAdminOrOwner] Privileged user ${user.id} has NULL tenant_id, searching for owned tenant...`);
-
-        // Try to find a tenant owned by this user
-        const { data: ownedTenant } = await adminClient
-            .from('tenants')
-            .select('id, slug')
-            .eq('owner_id', user.id)
-            .limit(1)
-            .single();
-
-        if (ownedTenant?.id) {
-            console.log(`[requireAdminOrOwner] Found owned tenant: ${ownedTenant.slug}`);
-            return { ...profile, tenant_id: ownedTenant.id };
-        }
-
-        // For super_admin without owned tenant, try first active tenant as fallback
-        if (userRole === 'super_admin') {
-            const { data: anyTenant } = await adminClient
-                .from('tenants')
-                .select('id, slug')
-                .eq('subscription_status', 'active')
-                .limit(1)
-                .single();
-
-            if (anyTenant?.id) {
-                console.log(`[requireAdminOrOwner] Super admin fallback to first active tenant: ${anyTenant.slug}`);
-                return { ...profile, tenant_id: anyTenant.id };
-            }
-        }
-
-        // If still no tenant found
-        console.error(`[requireAdminOrOwner] No tenant found for privileged user: ${user.id}`);
-        throw new Error('No se encontró ningún negocio asociado. Contacta soporte.');
-    }
-
-    // 4. For non-privileged users without tenant_id, this is an error
-    console.error(`[requireAdminOrOwner] No tenant_id for non-privileged User ID: ${user.id}`);
-    throw new Error('Usuario sin negocio asignado. Contacta soporte.');
+    return profile.tenant_id;
 }
 
+export async function getFinancialDashboard(startDate?: string, endDate?: string) {
+    try {
+        const supabase = await createClient();
+        const tenantId = await getMyTenantId();
 
-export async function getFinancialDashboard(
-    startDate?: string,
-    endDate?: string
-) {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
+        // Fechas por defecto: Últimos 30 días si no vienen en la URL
+        const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const end = endDate || new Date().toISOString().split('T')[0];
 
-    const { data, error } = await supabase.rpc('get_financial_metrics', {
-        p_tenant_id: profile.tenant_id,
-        p_start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        p_end_date: endDate || new Date().toISOString().split('T')[0]
-    });
+        // Llamada RPC (Funciona porque el SQL tiene SECURITY DEFINER y permisos GRANT)
+        const { data, error } = await supabase.rpc('get_financial_metrics', {
+            p_tenant_id: tenantId,
+            p_start_date: start,
+            p_end_date: end
+        });
 
-    if (error) throw error;
-    return data; // Returns { total_revenue, total_transactions, avg_transaction_value, unique_clients... }
-}
-
-export async function getStaffRevenue(month?: string) {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
-
-    const targetMonth = month || new Date().toISOString().slice(0, 7);
-
-    const { data, error } = await supabase
-        .from('staff_revenue_report')
-        .select('*')
-        .eq('tenant_id', profile.tenant_id)
-        .gte('month', `${targetMonth}-01`)
-        .lt('month', `${targetMonth}-31`)
-        .order('total_revenue', { ascending: false });
-
-    if (error) throw error;
-    return data;
-}
-
-export async function getTopServices(month?: string) {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
-
-    const targetMonth = month || new Date().toISOString().slice(0, 7);
-
-    const { data, error } = await supabase
-        .from('top_services_report')
-        .select('*')
-        .eq('tenant_id', profile.tenant_id)
-        .gte('month', `${targetMonth}-01`)
-        .lt('month', `${targetMonth}-31`)
-        .order('total_revenue', { ascending: false })
-        .limit(10);
-
-    if (error) throw error;
-    return data;
-}
-
-export async function getClientRetentionMetrics() {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
-
-    const { data, error } = await supabase
-        .from('client_retention_metrics')
-        .select('*')
-        .eq('tenant_id', profile.tenant_id)
-        .order('month', { ascending: false })
-        .limit(12);
-
-    if (error) throw error;
-    return data;
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('[Reports] Critical Error in Dashboard:', error);
+        // Retornamos null para que el Frontend maneje el estado vacío elegantemente
+        return null;
+    }
 }
 
 export async function getRevenueByWeekday() {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
+    try {
+        const supabase = await createClient();
+        const tenantId = await getMyTenantId();
 
-    // New RPC signature: p_tenant_id, p_months_back
-    const { data, error } = await supabase.rpc('get_revenue_by_weekday', {
-        p_tenant_id: profile.tenant_id,
-        p_months_back: 3
-    });
+        const { data, error } = await supabase.rpc('get_revenue_by_weekday', {
+            p_tenant_id: tenantId,
+            p_months_back: 3
+        });
 
-    if (error) throw error;
-    return data;
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('[Reports] Error fetching weekday revenue:', error);
+        return [];
+    }
 }
 
-// New function for Daily Breakdown
-export async function getRevenueByDay(
-    startDate?: string,
-    endDate?: string
-) {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
+export async function getRevenueByDay(startDate?: string, endDate?: string) {
+    try {
+        const supabase = await createClient();
+        const tenantId = await getMyTenantId();
 
-    const { data, error } = await supabase.rpc('get_revenue_by_day', {
-        p_tenant_id: profile.tenant_id,
-        p_start_date: startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        p_end_date: endDate || new Date().toISOString().split('T')[0]
-    });
+        const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const end = endDate || new Date().toISOString().split('T')[0];
 
-    if (error) throw error;
-    return data;
+        const { data, error } = await supabase.rpc('get_revenue_by_day', {
+            p_tenant_id: tenantId,
+            p_start_date: start,
+            p_end_date: end
+        });
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('[Reports] Error fetching daily revenue:', error);
+        return [];
+    }
 }
 
 export async function getHourlyRevenue() {
-    const supabase = await createClient();
-    const profile = await requireAdminOrOwner();
+    try {
+        const supabase = await createClient();
+        const tenantId = await getMyTenantId();
 
-    const { data, error } = await supabase.rpc('get_hourly_revenue_heatmap', {
-        p_tenant_id: profile.tenant_id,
-        p_months_back: 1
-    });
+        const { data, error } = await supabase.rpc('get_hourly_revenue_heatmap', {
+            p_tenant_id: tenantId,
+            p_months_back: 1
+        });
 
-    if (error) throw error;
-    return data;
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('[Reports] Error fetching hourly revenue:', error);
+        return [];
+    }
 }
 
-export async function refreshMetrics() {
-    const supabase = await createClient();
-    await requireAdminOrOwner(); // Check role
+export async function getClientRetentionMetrics() {
+    try {
+        const supabase = await createClient();
+        const tenantId = await getMyTenantId();
 
-    const { error } = await supabase.rpc('refresh_daily_metrics');
+        const { data, error } = await supabase
+            .from('client_retention_metrics')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .order('month', { ascending: false })
+            .limit(12);
 
-    if (error) throw error;
-    return { success: true };
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('[Reports] Error fetching retention:', error);
+        return [];
+    }
 }
+
+// Keep the other exports if needed, or remove them if not used by the new page.
+// The user instruction implies replacing EVERYTHING.
+// However, `getStaffRevenue` and `getTopServices` were in the previous file.
+// If I remove them, I might break other components?
+// The user provided code DOES NOT include `getStaffRevenue` or `getTopServices`.
+// But `AnalyticsDashboard` (Step 1805) uses `useAnalyticsData` which fetches them from `expenses/actions`.
+// Wait. `useAnalyticsData` imports from `@/app/admin/expenses/actions`.
+// So `getStaffRevenue` in `reports/actions.ts` might be UNUSED?
+// Let's check `src/app/admin/reports/actions.ts` exports.
+// `getStaffRevenue` and `getTopServices` were exported there.
+// BUT `useAnalyticsData` (Step 1817) imports them from `expenses/actions`.
+// So removing them from `reports/actions.ts` is likely safe IF they were duplicate or unused.
+// I will blindly follow the user instruction to "Reemplaza TODO el contenido".
