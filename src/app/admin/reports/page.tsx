@@ -1,4 +1,9 @@
-import { getFinancialDashboard, getClientRetentionMetrics, getRevenueByWeekday, getHourlyRevenue } from './actions';
+import {
+    getFinancialDashboard,
+    getClientRetentionMetrics,
+    getRevenueByWeekday,
+    getHourlyRevenue
+} from './actions';
 import DateRangeSelector from '@/components/admin/reports/DateRangeSelector';
 import AnalyticsDashboard from '@/components/admin/reports/AnalyticsDashboard';
 
@@ -6,6 +11,16 @@ import AnalyticsDashboard from '@/components/admin/reports/AnalyticsDashboard';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { redirect } from 'next/navigation';
+
+// INTERFACE MATCHING RPC RETURN (Exact Match)
+interface FinancialMetricsRPC {
+    total_revenue: number | null;
+    total_transactions: number | null;
+    avg_transaction_value: number | null;
+    unique_clients: number | null;
+    previous_revenue: number | null;
+    growth_rate: number | null;
+}
 
 export default async function ReportsPage(props: { searchParams: Promise<any> }) {
     const supabase = await createClient();
@@ -41,18 +56,30 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
     const startDate = searchParams?.startDate;
     const endDate = searchParams?.endDate;
 
-    // Fetch server-side data (these 4 are passed as props to wrapper)
+    // Fetch server-side data
+    // We use getRevenueByWeekday to match the existing AnalyticsDashboard component support
     const [
-        financialData,
+        rawFinancialData,
         retention,
         weekdayData,
         hourlyData
     ] = await Promise.all([
-        getFinancialDashboard(startDate, endDate),
+        getFinancialDashboard(startDate, endDate) as Promise<FinancialMetricsRPC>,
         getClientRetentionMetrics(),
         getRevenueByWeekday(),
         getHourlyRevenue()
     ]);
+
+    // TYPE SAFETY & NORMALIZATION (Prevent Crashes)
+    // Convert Nulls to Zeros to satisfy UI components
+    const safeFinancialData = {
+        total_revenue: Number(rawFinancialData?.total_revenue || 0),
+        total_transactions: Number(rawFinancialData?.total_transactions || 0),
+        avg_transaction_value: Number(rawFinancialData?.avg_transaction_value || 0),
+        unique_clients: Number(rawFinancialData?.unique_clients || 0),
+        previous_revenue: Number(rawFinancialData?.previous_revenue || 0),
+        growth_rate: Number(rawFinancialData?.growth_rate || 0)
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
@@ -68,14 +95,13 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
 
                 {/* Analytics Dashboard - Client Component with centralized data */}
                 <AnalyticsDashboard
-                    financialKPIs={financialData}
-                    retention={retention}
-                    weekdayTrends={weekdayData}
-                    hourlyData={hourlyData}
+                    financialKPIs={safeFinancialData}
+                    retention={retention || []}
+                    weekdayTrends={weekdayData || []}
+                    hourlyData={hourlyData || []}
                     tenantName={tenantName}
                 />
             </div>
         </div>
     );
 }
-
