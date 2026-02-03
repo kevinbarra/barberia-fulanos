@@ -108,6 +108,8 @@ export async function createBooking(data: {
     // Si no viene customer_id (Guest), buscamos si ya existe alguien con ese email.
     let finalCustomerId = data.customer_id;
 
+    /* REVISADO: Deshabilitado para forzar que los Guests sean siempre Guests (customer_id: null)
+       y evitar conflictos con reglas de negocio estrictas solicitadas.
     if (!finalCustomerId && data.client_email) {
         const { data: existingProfile } = await supabase
             .from('profiles')
@@ -119,6 +121,7 @@ export async function createBooking(data: {
             finalCustomerId = existingProfile.id;
         }
     }
+    */
 
     // 2. CORRECCIÓN DE TIMEZONE CRÍTICA
     // Interpretamos la fecha string como hora CDMX, no como UTC.
@@ -148,14 +151,14 @@ export async function createBooking(data: {
         return { success: false, error: 'Datos incompletos para la reserva.' }
     }
 
-    // 3. INSERTAR CON ESTADO TEMPORAL
+    // 3. INSERTAR CON ESTADO CONFIRMADO (Auto-Confirm Policy)
     const insertPayload: any = {
         tenant_id: data.tenant_id,
         service_id: data.service_id,
         staff_id: data.staff_id,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
-        status: 'pending',
+        status: 'confirmed', // CHANGE: Auto-confirm immediately
         notes: guestInfo, // Mantenemos redundancia en notes por compatibilidad
         // PRICE SNAPSHOT (immutable for financial integrity)
         price_at_booking: servicePrice,
@@ -221,11 +224,8 @@ export async function createBooking(data: {
         }
     }
 
-    // 5. CONFIRMAR LA RESERVA
-    await supabase
-        .from('bookings')
-        .update({ status: 'confirmed' })
-        .eq('id', newBooking.id)
+    // 5. CONFIRMACIÓN IMPLÍCITA (Ya insertamos como confirmed)
+    // No explicit update needed.
 
     // 6. Formatear fecha/hora para emails
     const dateStr = startDate.toLocaleDateString('es-MX', {
