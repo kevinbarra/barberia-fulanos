@@ -1,26 +1,5 @@
-"use client";
-
-import { useState, useEffect, useMemo } from "react";
-import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles } from "lucide-react";
-import Image from 'next/image';
-import { motion, AnimatePresence, Variants } from "framer-motion"; // FIX: Importamos el tipo 'Variants'
-import { addDays, format, isSameDay } from "date-fns";
-import { es } from "date-fns/locale";
-
-// --- TIPOS ---
-type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
-type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
-type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
-type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
-
-// --- UTILS UI ---
-// FIX: Tipado explícito ': Variants' para evitar error de inferencia en 'ease'
-const containerVariants: Variants = {
-    hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
-    exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
-};
+// FIX: Importar useSearchParams
+import { useSearchParams } from "next/navigation";
 
 export default function BookingWizard({
     services,
@@ -33,10 +12,17 @@ export default function BookingWizard({
     schedules: Schedule[];
     currentUser?: CurrentUser;
 }) {
+    // Hooks
+    const searchParams = useSearchParams();
+    const origin = searchParams.get('source') || 'web'; // Default 'web'
+
     const [step, setStep] = useState(1);
+    // ... (rest of state definitions same as before) ...
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [success, setSuccess] = useState(false);
+
+    // ... (state definitions kept implicitly, just showing relevant change in handleBooking)
 
     // Selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -57,6 +43,7 @@ export default function BookingWizard({
         email: currentUser?.email || ""
     });
 
+    // ... (useEffect hook for fetchSlots) ...
     // Cargar Slots cuando cambia Fecha o Staff
     useEffect(() => {
         let isMounted = true;
@@ -91,6 +78,7 @@ export default function BookingWizard({
         };
     }, [selectedDate, selectedStaff]);
 
+    // ... (groupedServices and slots logic) ...
     // Categorías de Servicios
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
@@ -158,7 +146,8 @@ export default function BookingWizard({
             client_name: clientData.name,
             client_phone: clientData.phone,
             client_email: clientData.email,
-            customer_id: currentUser?.id || null
+            customer_id: currentUser?.id || null,
+            origin: origin // Pasamos el origen real
         });
 
         setIsSubmitting(false);
@@ -166,6 +155,7 @@ export default function BookingWizard({
         else alert(result.error || "Error al reservar");
     };
 
+    // ... (rest of component render) ...
     // --- VISTA ÉXITO ---
     if (success) {
         return (

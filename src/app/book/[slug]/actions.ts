@@ -51,6 +51,7 @@ export async function createBooking(data: {
     client_email: string;
     duration_min: number;
     customer_id?: string | null;
+    origin?: string;
 }) {
     // Usar cliente normal para el booking (funciona con RLS para guests)
     const supabase = await createClient()
@@ -148,21 +149,35 @@ export async function createBooking(data: {
     }
 
     // 3. INSERTAR CON ESTADO TEMPORAL
+    const insertPayload: any = {
+        tenant_id: data.tenant_id,
+        service_id: data.service_id,
+        staff_id: data.staff_id,
+        start_time: startDate.toISOString(),
+        end_time: endDate.toISOString(),
+        status: 'pending',
+        notes: guestInfo, // Mantenemos redundancia en notes por compatibilidad
+        // PRICE SNAPSHOT (immutable for financial integrity)
+        price_at_booking: servicePrice,
+        service_name_at_booking: realServiceName,
+        // ORIGIN TRACKING
+        origin: data.origin || 'web'
+    };
+
+    // LOGICA GUEST VS REGISTERED
+    if (finalCustomerId) {
+        insertPayload.customer_id = finalCustomerId;
+    } else {
+        // Es un Guest (WhatsApp/Web) -> Usar columnas nativas
+        insertPayload.customer_id = null;
+        insertPayload.guest_name = data.client_name;
+        insertPayload.guest_phone = data.client_phone;
+        insertPayload.guest_email = data.client_email || null;
+    }
+
     const { data: newBooking, error: insertError } = await supabase
         .from('bookings')
-        .insert({
-            tenant_id: data.tenant_id,
-            service_id: data.service_id,
-            staff_id: data.staff_id,
-            customer_id: finalCustomerId || null,
-            start_time: startDate.toISOString(),
-            end_time: endDate.toISOString(),
-            status: 'pending',
-            notes: guestInfo,
-            // PRICE SNAPSHOT (immutable for financial integrity)
-            price_at_booking: servicePrice,
-            service_name_at_booking: realServiceName
-        })
+        .insert(insertPayload)
         .select('id')
         .single()
 

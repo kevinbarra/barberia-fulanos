@@ -13,27 +13,26 @@ export default async function BookingPage({
     const { slug } = await params;
     const supabase = await createClient();
 
-    // 1. Verificar autenticación - REQUERIDA para reservar
+    // 1. Verificar autenticación (OPCIONAL/GUEST MODE)
+    // Ya no redirigimos forzosamente. Permitimos acceso a invitados.
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user) {
-        // Redirigir a login con return URL
-        redirect(`/login?next=/book/${slug}`);
+    // 2. Obtener datos del perfil si existe usuario
+    let userData = null;
+    if (user) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email, phone')
+            .eq('id', user.id)
+            .single();
+
+        userData = {
+            id: user.id,
+            full_name: profile?.full_name || '',
+            email: profile?.email || user.email || '',
+            phone: profile?.phone || ''
+        };
     }
-
-    // 2. Obtener datos del perfil del usuario
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name, email, phone')
-        .eq('id', user.id)
-        .single();
-
-    const userData = {
-        id: user.id,
-        full_name: profile?.full_name || '',
-        email: profile?.email || user.email || '',
-        phone: profile?.phone || ''
-    };
 
     // 3. Datos del Negocio
     const { data: tenant } = await supabase.from("tenants").select("*").eq("slug", slug).single();
