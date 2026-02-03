@@ -1,5 +1,26 @@
-// FIX: Importar useSearchParams
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
+import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles } from "lucide-react";
+import Image from 'next/image';
+import { motion, AnimatePresence, Variants } from "framer-motion";
+import { addDays, format, isSameDay } from "date-fns";
+import { es } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
+
+// --- TIPOS ---
+type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
+type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
+type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
+
+// --- UTILS UI ---
+const containerVariants: Variants = {
+    hidden: { opacity: 0, x: 20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
+    exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
+};
 
 export default function BookingWizard({
     services,
