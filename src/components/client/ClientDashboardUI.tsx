@@ -17,7 +17,7 @@ interface ClientDashboardUIProps {
     user: { id: string; email?: string };
     profile: Record<string, unknown> | null;
     role: string;
-    nextBooking: Record<string, unknown> | null;
+    upcomingBookings: Record<string, unknown>[];
     pastBookings: Record<string, unknown>[];
     history: Record<string, unknown>[];
     loyaltyStatus: {
@@ -36,7 +36,7 @@ export default function ClientDashboardUI({
     user,
     profile,
     role,
-    nextBooking,
+    upcomingBookings,
     pastBookings,
     history,
     loyaltyStatus,
@@ -181,19 +181,29 @@ export default function ClientDashboardUI({
                     </motion.div>
                 )}
 
-                {/* SECCIÓN PRÓXIMA CITA */}
+                {/* SECCIÓN PRÓXIMAS CITAS (ALL UPCOMING) */}
                 <motion.div variants={item} className="mb-4">
                     <div className="flex justify-between items-baseline mb-3 pl-1">
-                        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Tu Próxima Cita</h2>
-                        {nextBooking && (
+                        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                            {upcomingBookings.length > 1 ? 'Tus Próximas Citas' : 'Tu Próxima Cita'}
+                        </h2>
+                        {upcomingBookings.length > 0 && (
                             <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-medium border border-green-500/20 shadow-[0_0_10px_rgba(74,222,128,0.1)]">
-                                Confirmada
+                                {upcomingBookings.length} confirmada{upcomingBookings.length > 1 ? 's' : ''}
                             </span>
                         )}
                     </div>
 
-                    {nextBooking ? (
-                        <NextAppointmentCard booking={nextBooking} />
+                    {upcomingBookings.length > 0 ? (
+                        <div className="space-y-3">
+                            {upcomingBookings.map((booking, index) => (
+                                <NextAppointmentCard
+                                    key={(booking.id as string) || index}
+                                    booking={booking}
+                                    userProfileName={(profile?.full_name as string) || ''}
+                                />
+                            ))}
+                        </div>
                     ) : (
                         <Link href={`/book/${tenantSlug}`} className="block group mb-8">
                             <motion.div

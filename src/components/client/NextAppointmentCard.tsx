@@ -25,12 +25,19 @@ interface BookingData {
     start_time: string;
     end_time: string;
     status: string;
+    guest_name?: string | null;
     services: Service | Service[] | null;
     profiles: Profile | Profile[] | null; // Staff
     customer?: Profile | null;
 }
 
-export default function NextAppointmentCard({ booking }: { booking: unknown }) {
+export default function NextAppointmentCard({
+    booking,
+    userProfileName = ''
+}: {
+    booking: unknown;
+    userProfileName?: string;
+}) {
     const [isCancelling, setIsCancelling] = useState(false)
     // Casteo seguro
     const safeBooking = booking as BookingData;
@@ -63,6 +70,12 @@ export default function NextAppointmentCard({ booking }: { booking: unknown }) {
     const service = getService();
     const staff = getStaff();
 
+    // Check if booking is for someone else ("booking for a friend")
+    const bookingForName = safeBooking.guest_name || '';
+    const isBookingForOther = bookingForName &&
+        userProfileName &&
+        bookingForName.toLowerCase().trim() !== userProfileName.toLowerCase().trim();
+
     // Formateo Local (MX)
     const dateObj = new Date(safeBooking.start_time)
     const timeStr = dateObj.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -81,6 +94,16 @@ export default function NextAppointmentCard({ booking }: { booking: unknown }) {
                     <div className="flex items-start justify-between mb-6 relative z-10">
                         <div className="flex-1 pr-4">
                             <h3 className="text-2xl font-bold text-white mb-2 leading-tight">{service.name}</h3>
+
+                            {/* IDENTITY CONTEXT: Show "Para: Name" if booking for someone else */}
+                            {isBookingForOther && (
+                                <div className="mb-3 flex items-center gap-2">
+                                    <span className="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                                        Para: {bookingForName}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="flex items-center gap-3 text-zinc-400 text-sm">
                                 <div className="relative w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 overflow-hidden flex-shrink-0">
                                     {staff.avatar_url ? (

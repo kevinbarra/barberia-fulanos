@@ -70,11 +70,12 @@ export default async function ClientAppPage() {
 
     // ========== STEP 3: TENANT-ISOLATED QUERIES ==========
 
-    // Consultar Próxima Cita Activa (ISOLATED)
+    // Consultar TODAS las Próximas Citas Activas (ISOLATED)
+    // Includes guest_name for "booking for friend" display
     let upcomingBookingsQuery = supabase
         .from("bookings")
         .select(`
-            id, start_time, status, tenant_id,
+            id, start_time, status, tenant_id, guest_name,
             services ( name, duration_min, price ),
             profiles:staff_id ( full_name, avatar_url )
         `)
@@ -83,21 +84,21 @@ export default async function ClientAppPage() {
         .neq("status", "cancelled")
         .neq("status", "completed")
         .neq("status", "no_show")
-        .order("start_time", { ascending: true })
-        .limit(1);
+        .order("start_time", { ascending: true });
+    // REMOVED .limit(1) - Show ALL upcoming bookings
 
     if (activeTenantId) {
         upcomingBookingsQuery = upcomingBookingsQuery.eq("tenant_id", activeTenantId);
     }
 
     const { data: upcomingBookings } = await upcomingBookingsQuery;
-    const nextBooking = upcomingBookings?.[0];
 
     // Consultar Citas Pasadas (historial) (ISOLATED)
+    // Includes guest_name for consistency
     let pastBookingsQuery = supabase
         .from("bookings")
         .select(`
-            id, start_time, status, tenant_id,
+            id, start_time, status, tenant_id, guest_name,
             services ( name, duration_min, price ),
             profiles:staff_id ( full_name, avatar_url )
         `)
@@ -153,7 +154,7 @@ export default async function ClientAppPage() {
             user={user}
             profile={profile}
             role={profile?.role || 'client'}
-            nextBooking={nextBooking ?? null}
+            upcomingBookings={upcomingBookings || []}
             pastBookings={pastBookings || []}
             history={history || []}
             loyaltyStatus={loyaltyStatus}
