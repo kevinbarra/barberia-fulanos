@@ -314,18 +314,18 @@ export default function BookingWizard({
 
                         {hasEmail ? (
                             <Link
-                                href={`/register?email=${encodeURIComponent(bookingData.guest_email || '')}&name=${encodeURIComponent(bookingData.guest_name)}`}
+                                href={`/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}`}
                                 className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                             >
-                                <Lock size={16} />
+                                <Mail size={16} />
                                 Crear Cuenta con mi Email
                             </Link>
                         ) : (
                             <Link
-                                href={`/register?name=${encodeURIComponent(bookingData.guest_name)}`}
+                                href="/login?mode=signup"
                                 className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
                             >
-                                <Lock size={16} />
+                                <Mail size={16} />
                                 Crear Cuenta Gratis
                             </Link>
                         )}

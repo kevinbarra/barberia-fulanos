@@ -10,9 +10,11 @@ export default function LoginForm() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const redirectTo = searchParams.get('next') || undefined
+    const prefillEmail = searchParams.get('email') || ''
+    const isSignupMode = searchParams.get('mode') === 'signup'
 
     const [step, setStep] = useState<'email' | 'code'>('email')
-    const [email, setEmail] = useState('')
+    const [email, setEmail] = useState(prefillEmail)
     const [code, setCode] = useState('')
     const [isLoading, setIsLoading] = useState(false)
 
@@ -60,8 +62,14 @@ export default function LoginForm() {
             {step === 'email' ? (
                 <form onSubmit={handleSendCode} className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
                     <div className="text-center mb-6">
-                        <h2 className="text-2xl font-bold text-white">Acceso Seguro</h2>
-                        <p className="text-zinc-400 text-sm">Ingresa tu correo para recibir un código.</p>
+                        <h2 className="text-2xl font-bold text-white">
+                            {isSignupMode ? 'Crea tu Cuenta' : 'Acceso Seguro'}
+                        </h2>
+                        <p className="text-zinc-400 text-sm">
+                            {isSignupMode
+                                ? 'Ingresa tu correo para crear tu cuenta.'
+                                : 'Ingresa tu correo para recibir un código.'}
+                        </p>
                     </div>
 
                     <div className="relative">
