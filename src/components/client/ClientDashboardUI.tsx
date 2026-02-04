@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from "next/link";
-import { Settings, User, Plus, LogOut, LayoutDashboard, History } from "lucide-react";
+import { Settings, User, Plus, LogOut, LayoutDashboard, History, Calendar, CalendarDays } from "lucide-react";
 import Image from "next/image";
 import LoyaltyRewards from '@/components/client/LoyaltyRewards';
 import QRPresentation from '@/components/client/QRPresentation';
@@ -72,6 +73,9 @@ export default function ClientDashboardUI({
 
     // Realtime bookings subscription - updates when staff changes booking status
     useRealtimeBookings({ customerId: user.id });
+
+    // LIFECYCLE TABS STATE
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
@@ -181,50 +185,77 @@ export default function ClientDashboardUI({
                     </motion.div>
                 )}
 
-                {/* SECCIÓN PRÓXIMAS CITAS (ALL UPCOMING) */}
-                <motion.div variants={item} className="mb-4">
-                    <div className="flex justify-between items-baseline mb-3 pl-1">
-                        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                            {upcomingBookings.length > 1 ? 'Tus Próximas Citas' : 'Tu Próxima Cita'}
-                        </h2>
-                        {upcomingBookings.length > 0 && (
-                            <span className="text-[10px] bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full font-medium border border-green-500/20 shadow-[0_0_10px_rgba(74,222,128,0.1)]">
-                                {upcomingBookings.length} confirmada{upcomingBookings.length > 1 ? 's' : ''}
-                            </span>
-                        )}
+                {/* LIFECYCLE TABS */}
+                <motion.div variants={item} className="mb-6">
+                    <div className="flex gap-2 p-1 bg-zinc-900/50 rounded-2xl border border-zinc-800/50 backdrop-blur-sm">
+                        <button
+                            onClick={() => setActiveTab('upcoming')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'upcoming'
+                                ? 'bg-white text-black shadow-lg'
+                                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                                }`}
+                        >
+                            <CalendarDays size={16} />
+                            Próximas
+                            {upcomingBookings.length > 0 && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${activeTab === 'upcoming' ? 'bg-green-500 text-white' : 'bg-zinc-700 text-zinc-300'
+                                    }`}>
+                                    {upcomingBookings.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all ${activeTab === 'history'
+                                ? 'bg-white text-black shadow-lg'
+                                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                                }`}
+                        >
+                            <History size={16} />
+                            Historial
+                        </button>
                     </div>
-
-                    {upcomingBookings.length > 0 ? (
-                        <div className="space-y-3">
-                            {upcomingBookings.map((booking, index) => (
-                                <NextAppointmentCard
-                                    key={(booking.id as string) || index}
-                                    booking={booking}
-                                    userProfileName={(profile?.full_name as string) || ''}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <Link href={`/book/${tenantSlug}`} className="block group mb-8">
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
-                                className="bg-zinc-900/50 border-2 border-dashed border-zinc-800 rounded-3xl p-8 flex flex-col items-center justify-center gap-4 hover:border-zinc-700 hover:bg-zinc-800/50 transition-all cursor-pointer backdrop-blur-sm"
-                            >
-                                <div className="w-14 h-14 bg-zinc-800/80 rounded-full flex items-center justify-center group-hover:bg-white group-hover:text-black transition-colors shadow-lg">
-                                    <Plus size={28} />
-                                </div>
-                                <div className="text-center">
-                                    <p className="font-bold text-zinc-300 text-lg">Agendar Cita</p>
-                                    <p className="text-xs text-zinc-500 mt-1">Reserva tu corte en segundos</p>
-                                </div>
-                            </motion.div>
-                        </Link>
-                    )}
                 </motion.div>
 
+                {/* TAB CONTENT */}
+                {activeTab === 'upcoming' ? (
+                    <motion.div variants={item} className="mb-6">
+                        {upcomingBookings.length > 0 ? (
+                            <div className="space-y-3">
+                                {upcomingBookings.map((booking, index) => (
+                                    <NextAppointmentCard
+                                        key={(booking.id as string) || index}
+                                        booking={booking}
+                                        userProfileName={(profile?.full_name as string) || ''}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            /* EMPTY STATE WITH CONVERSION CTA */
+                            <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-3xl p-8 text-center backdrop-blur-sm">
+                                <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Calendar size={28} className="text-zinc-500" />
+                                </div>
+                                <h3 className="text-lg font-bold text-white mb-2">No tienes citas activas</h3>
+                                <p className="text-sm text-zinc-500 mb-6">Reserva tu próxima visita en segundos</p>
+                                <Link
+                                    href={`/book/${tenantSlug}`}
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 transition-all active:scale-95"
+                                >
+                                    <Plus size={18} />
+                                    Reservar Ahora
+                                </Link>
+                            </div>
+                        )}
+                    </motion.div>
+                ) : (
+                    <motion.div variants={item} className="mb-6">
+                        <AppointmentHistory bookings={pastBookings} />
+                    </motion.div>
+                )}
+
                 {/* Sección de Lealtad */}
-                <motion.section variants={item} className="mb-8">
+                <motion.section variants={item} className="mb-6">
                     {loyaltyStatus.success && loyaltyStatus.data ? (
                         <LoyaltyRewards
                             currentPoints={loyaltyStatus.data.current_points}
@@ -239,7 +270,8 @@ export default function ClientDashboardUI({
                     )}
                 </motion.section>
 
-                <motion.div variants={item}>
+                {/* QR Code */}
+                <motion.div variants={item} className="mb-6">
                     <QRPresentation
                         qrValue={user.id}
                         clientName={profileName}
@@ -247,17 +279,8 @@ export default function ClientDashboardUI({
                     />
                 </motion.div>
 
-                {/* HISTORIAL DE CITAS */}
-                <motion.div variants={item} className="mt-8">
-                    <div className="flex items-center gap-2 mb-4 pl-1">
-                        <History size={14} className="text-zinc-500" />
-                        <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Historial de Citas</h3>
-                    </div>
-                    <AppointmentHistory bookings={pastBookings} />
-                </motion.div>
-
                 {/* HISTORIAL TRANSACCIONES */}
-                <motion.div variants={item} className="flex-1 mt-8">
+                <motion.div variants={item} className="flex-1">
                     <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-widest mb-4 pl-1">Puntos Ganados</h3>
                     <div className="space-y-3">
                         {!history || history.length === 0 ? (
