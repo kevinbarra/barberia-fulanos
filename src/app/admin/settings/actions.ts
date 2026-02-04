@@ -84,6 +84,75 @@ export async function updateTenant(formData: FormData) {
     return { success: true, message: 'Negocio actualizado correctamente.' }
 }
 
+// ==================== TENANT SETTINGS (JSONB) ====================
+
+export async function updateTenantSetting(key: string, value: boolean | string | number) {
+    const supabase = await createClient()
+
+    // Auth & Permissions
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+    if (profile?.role !== 'owner' && profile?.role !== 'super_admin') {
+        return { error: 'Solo el dueño puede cambiar esta configuración.' }
+    }
+
+    const tenantId = await getTenantIdForAdmin()
+    if (!tenantId) return { error: 'Error de configuración.' }
+
+    // Get current settings
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single()
+
+    const currentSettings = (tenant?.settings as Record<string, unknown>) || {}
+
+    // Merge new setting
+    const updatedSettings = {
+        ...currentSettings,
+        [key]: value
+    }
+
+    // Save back
+    const { error } = await supabase
+        .from('tenants')
+        .update({ settings: updatedSettings })
+        .eq('id', tenantId)
+
+    if (error) {
+        console.error('[updateTenantSetting] Error:', error)
+        return { error: 'Error al guardar configuración.' }
+    }
+
+    revalidatePath('/admin/settings')
+    revalidatePath('/book/[slug]', 'layout')
+
+    return { success: true, message: 'Configuración guardada.' }
+}
+
+export async function getTenantSettings() {
+    const supabase = await createClient()
+
+    const tenantId = await getTenantIdForAdmin()
+    if (!tenantId) return { error: 'No autorizado', settings: null }
+
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single()
+
+    return { settings: tenant?.settings || {} }
+}
+
 // ==================== KIOSK PIN ACTIONS ====================
 
 export async function saveKioskPin(pin: string) {

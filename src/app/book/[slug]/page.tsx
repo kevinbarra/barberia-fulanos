@@ -34,8 +34,12 @@ export default async function BookingPage({
         };
     }
 
-    // 3. Datos del Negocio
-    const { data: tenant } = await supabase.from("tenants").select("*").eq("slug", slug).single();
+    // 3. Datos del Negocio (include settings for guest checkout check)
+    const { data: tenant } = await supabase
+        .from("tenants")
+        .select("*, settings")
+        .eq("slug", slug)
+        .single();
     if (!tenant) return notFound();
 
     // 4. Verificar que el tenant esté activo
@@ -50,6 +54,17 @@ export default async function BookingPage({
         );
     }
 
+    // 4.1 CHECK: Guest Checkout Setting
+    // Default to true (enabled) if settings is null or key is missing
+    const tenantSettings = tenant.settings as { guest_checkout_enabled?: boolean } | null;
+    const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
+
+    // If guest checkout is DISABLED and user is NOT logged in, redirect to login
+    if (!isGuestCheckoutEnabled && !user) {
+        redirect(`/login?next=/book/${slug}`);
+    }
+
+    // 5. Fetch services, staff, and schedules for this tenant
     const { data: services } = await supabase.from("services").select("*").eq("tenant_id", tenant.id).eq("is_active", true).order("name");
     const { data: staff } = await supabase.from("profiles").select("*").eq("tenant_id", tenant.id).neq("role", "customer").eq("is_active_barber", true).eq("is_calendar_visible", true);
     const { data: schedules } = await supabase.from("staff_schedules").select("*").eq("tenant_id", tenant.id).eq("is_active", true);

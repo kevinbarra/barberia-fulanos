@@ -59,12 +59,25 @@ export async function createBooking(data: {
     // 1. Validaciones - Obtener info del servicio y tenant (públicas, no necesitan admin)
     const [serviceResult, tenantResult] = await Promise.all([
         supabase.from('services').select('name, price').eq('id', data.service_id).single(),
-        supabase.from('tenants').select('name').eq('id', data.tenant_id).single()
+        supabase.from('tenants').select('name, settings').eq('id', data.tenant_id).single()
     ]);
 
     const realServiceName = serviceResult.data?.name || "Servicio General";
     const servicePrice = serviceResult.data?.price; // Price snapshot
     const businessName = tenantResult.data?.name || "AgendaBarber";
+
+    // 1.0.1 CHECK: Guest Checkout Setting
+    // Default to true (enabled) if settings is null or key is missing
+    const tenantSettings = tenantResult.data?.settings as { guest_checkout_enabled?: boolean } | null;
+    const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
+
+    // If guest checkout is DISABLED and there's no customer_id (i.e., this is a guest booking), block it
+    if (!isGuestCheckoutEnabled && !data.customer_id) {
+        return {
+            success: false,
+            error: 'Este negocio requiere que inicies sesión para reservar.'
+        };
+    }
 
     // 1.1 Obtener datos del staff con admin client (bypass RLS para email)
     let staffEmail: string | undefined;
