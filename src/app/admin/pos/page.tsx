@@ -24,6 +24,9 @@ interface PosBookingData {
     notes: string | null;
     status: string;
     customer_id: string | null;
+    guest_name: string | null;
+    guest_phone: string | null;
+    guest_email: string | null;
     profiles: { id: string; full_name: string } | null;
     services: { id: string; name: string; price: number; duration_min: number } | null;
     customer: { full_name: string; phone: string | null; no_show_count: number } | null;
@@ -68,11 +71,12 @@ export default async function PosPage() {
         .lte("start_time", endISO)
         .order("start_time", { ascending: false });
 
-    // Fetch today's confirmed bookings
+    // Fetch today's confirmed bookings (includes guest fields for accurate name display)
     const { data: todayBookings } = await supabase
         .from("bookings")
         .select(`
             id, start_time, end_time, notes, status, customer_id,
+            guest_name, guest_phone, guest_email,
             profiles:staff_id ( id, full_name ),
             services:service_id ( id, name, price, duration_min ),
             customer:customer_id ( full_name, phone, no_show_count )
@@ -101,12 +105,14 @@ export default async function PosPage() {
     })) || [];
 
     // Format bookings for PosV2
+    // THE GOLDEN RULE: guest_name > customer.full_name (supports "booking for a friend")
     const formattedBookings = (todayBookings as unknown as PosBookingData[])?.map(b => ({
         id: b.id,
         startTime: b.start_time,
         endTime: b.end_time,
-        clientName: b.customer?.full_name || b.notes?.split('|')[0]?.replace('Cliente:', '').trim() || "Cliente",
-        clientPhone: b.customer?.phone || "",
+        clientName: b.guest_name || b.customer?.full_name || "Cliente",
+        clientPhone: b.guest_phone || b.customer?.phone || "",
+        clientEmail: b.guest_email || "",
         staffId: b.profiles?.id || "",
         staffName: b.profiles?.full_name || "Staff",
         serviceName: b.services?.name || "Servicio",

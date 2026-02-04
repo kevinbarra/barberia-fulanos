@@ -292,63 +292,77 @@ export default function BookingWizard({
                     <ExternalLink size={14} className="opacity-50" />
                 </motion.a>
 
-                {/* Conversion CTA - Only for Guests */}
-                {isGuest && (
+                {/* CONTEXT-AWARE FOOTER */}
+                {isGuest ? (
+                    // GUEST: Show conversion CTA
+                    <>
+                        <motion.div
+                            initial={{ y: 20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.4 }}
+                            className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 mb-4"
+                        >
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shrink-0">
+                                    <Gift size={20} className="text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-gray-900">Protege tu reserva</h3>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                        Crea una cuenta y acumula puntos para descuentos en futuras visitas.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {hasEmail ? (
+                                <Link
+                                    href={`/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}`}
+                                    className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                                >
+                                    <Mail size={16} />
+                                    Crear Cuenta con mi Email
+                                </Link>
+                            ) : (
+                                <Link
+                                    href="/login?mode=signup"
+                                    className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                                >
+                                    <Mail size={16} />
+                                    Crear Cuenta Gratis
+                                </Link>
+                            )}
+                        </motion.div>
+
+                        {/* Footer Links for Guests */}
+                        <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-2">
+                            <Link
+                                href="/login"
+                                className="text-center text-sm text-gray-400 hover:text-gray-600 py-2"
+                            >
+                                ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
+                            </Link>
+                        </div>
+                    </>
+                ) : (
+                    // LOGGED-IN USER: Show "My Appointments" button
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.4 }}
-                        className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 mb-4"
+                        className="mt-auto pt-4 flex flex-col gap-3"
                     >
-                        <div className="flex items-start gap-3 mb-4">
-                            <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shrink-0">
-                                <Gift size={20} className="text-white" />
-                            </div>
-                            <div>
-                                <h3 className="font-bold text-gray-900">Protege tu reserva</h3>
-                                <p className="text-xs text-gray-600 mt-1">
-                                    Crea una cuenta y acumula puntos para descuentos en futuras visitas.
-                                </p>
-                            </div>
-                        </div>
-
-                        {hasEmail ? (
-                            <Link
-                                href={`/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}`}
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
-                            >
-                                <Mail size={16} />
-                                Crear Cuenta con mi Email
-                            </Link>
-                        ) : (
-                            <Link
-                                href="/login?mode=signup"
-                                className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
-                            >
-                                <Mail size={16} />
-                                Crear Cuenta Gratis
-                            </Link>
-                        )}
+                        <Link
+                            href="/app"
+                            className="w-full py-4 bg-brand text-brand-foreground rounded-xl font-bold text-center hover:opacity-90 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <Calendar size={18} />
+                            Ver mis Citas
+                        </Link>
+                        <p className="text-center text-xs text-gray-400">
+                            Tu cita aparecerá en tu historial de reservas.
+                        </p>
                     </motion.div>
                 )}
-
-                {/* Footer Links */}
-                <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-2">
-                    <a
-                        href="/app"
-                        className="w-full py-3 bg-brand text-brand-foreground rounded-xl font-bold text-center hover:opacity-90 transition-all active:scale-95"
-                    >
-                        Ver mi Ticket
-                    </a>
-                    {isGuest && (
-                        <Link
-                            href="/login"
-                            className="text-center text-sm text-gray-400 hover:text-gray-600 py-2"
-                        >
-                            ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
-                        </Link>
-                    )}
-                </div>
             </motion.div>
         );
     }
