@@ -13,6 +13,7 @@ interface PosTicketData {
     notes: string | null;
     staff_id: string;
     customer_id: string | null;
+    guest_name: string | null;
     profiles: { id: string; full_name: string } | null;
     services: { id: string; name: string; price: number; duration_min: number } | null;
 }
@@ -57,11 +58,11 @@ export default async function PosPage() {
 
     const { startISO, endISO } = getTodayRange();
 
-    // Fetch active tickets (status = 'seated')
+    // Fetch active tickets (status = 'seated') - includes guest_name for Golden Rule
     const { data: activeTickets } = await supabase
         .from("bookings")
         .select(`
-            id, start_time, notes, staff_id, customer_id,
+            id, start_time, notes, staff_id, customer_id, guest_name,
             profiles:staff_id ( id, full_name ),
             services:service_id ( id, name, price, duration_min )
         `)
@@ -88,10 +89,11 @@ export default async function PosPage() {
         .order("start_time", { ascending: true });
 
     // Format tickets for PosV2
+    // THE GOLDEN RULE: guest_name > notes fallback > "Walk-in"
     const formattedTickets = (activeTickets as unknown as PosTicketData[])?.map(t => ({
         id: t.id,
         startTime: t.start_time,
-        clientName: t.notes?.replace("Walk-in: ", "") || "Walk-in",
+        clientName: t.guest_name || t.notes?.replace("Walk-in: ", "") || "Walk-in",
         staffName: t.profiles?.full_name || "Staff",
         staffId: t.profiles?.id || t.staff_id,
         services: t.services ? [{

@@ -181,14 +181,17 @@ export async function createBooking(data: {
     };
 
     // LOGICA GUEST VS REGISTERED
+    // ALWAYS save guest fields from input (supports "booking for a friend")
+    // The input name is the source of truth for THIS booking
+    insertPayload.guest_name = data.client_name;
+    insertPayload.guest_phone = data.client_phone;
+    insertPayload.guest_email = data.client_email || null;
+
+    // If logged in, also link to customer_id for loyalty points
     if (finalCustomerId) {
         insertPayload.customer_id = finalCustomerId;
     } else {
-        // Es un Guest (WhatsApp/Web) -> Usar columnas nativas
         insertPayload.customer_id = null;
-        insertPayload.guest_name = data.client_name;
-        insertPayload.guest_phone = data.client_phone;
-        insertPayload.guest_email = data.client_email || null;
     }
 
     const { data: newBooking, error: insertError } = await supabase
