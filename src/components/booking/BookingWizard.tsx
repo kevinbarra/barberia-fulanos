@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
@@ -15,12 +16,41 @@ type Staff = { id: string; full_name: string; role: string; avatar_url: string |
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
 
+type BookingResult = {
+    id: string;
+    guest_name: string;
+    guest_email: string | null;
+    service_name: string;
+    service_price: number;
+    start_time: string;
+    staff_name: string;
+    date_formatted: string;
+    time_formatted: string;
+};
+
 // --- UTILS UI ---
 const containerVariants: Variants = {
     hidden: { opacity: 0, x: 20 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
     exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
 };
+
+// Generate Google Calendar link
+function generateCalendarLink(booking: BookingResult, serviceDuration: number): string {
+    const startDate = new Date(booking.start_time);
+    const endDate = new Date(startDate.getTime() + serviceDuration * 60000);
+
+    const formatDate = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
+    const params = new URLSearchParams({
+        action: 'TEMPLATE',
+        text: `${booking.service_name} - Cita`,
+        dates: `${formatDate(startDate)}/${formatDate(endDate)}`,
+        details: `Tu cita con ${booking.staff_name}.\n\nServicio: ${booking.service_name}\nPrecio: $${booking.service_price}`,
+    });
+
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 export default function BookingWizard({
     services,
@@ -38,12 +68,10 @@ export default function BookingWizard({
     const origin = searchParams.get('source') || 'web'; // Default 'web'
 
     const [step, setStep] = useState(1);
-    // ... (rest of state definitions same as before) ...
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [success, setSuccess] = useState(false);
-
-    // ... (state definitions kept implicitly, just showing relevant change in handleBooking)
+    const [bookingData, setBookingData] = useState<BookingResult | null>(null);
 
     // Selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -64,7 +92,6 @@ export default function BookingWizard({
         email: currentUser?.email || ""
     });
 
-    // ... (useEffect hook for fetchSlots) ...
     // Cargar Slots cuando cambia Fecha o Staff
     useEffect(() => {
         let isMounted = true;
@@ -99,7 +126,6 @@ export default function BookingWizard({
         };
     }, [selectedDate, selectedStaff]);
 
-    // ... (groupedServices and slots logic) ...
     // Categorías de Servicios
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
@@ -116,7 +142,6 @@ export default function BookingWizard({
         if (!selectedDate || !selectedStaff) return [];
 
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
-        // Usamos en-US para obtener el nombre del día compatible con la BD (monday, tuesday...)
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
 
         const workSchedule = schedules.find((s) => s.staff_id === selectedStaff?.id && s.day === dayName && s.is_active === true);
@@ -126,24 +151,22 @@ export default function BookingWizard({
         const generatedSlots = [];
         const currentTime = new Date(`${dateStr}T${workSchedule.start_time}`);
         const endTime = new Date(`${dateStr}T${workSchedule.end_time}`);
-        const now = new Date(); // Para no mostrar horas pasadas hoy
+        const now = new Date();
 
         while (currentTime < endTime) {
             const slotStartMs = currentTime.getTime();
             const slotEndMs = slotStartMs + (selectedService?.duration_min || 30) * 60000;
 
-            // Filtro 1: ¿Ya pasó la hora? (Solo si es hoy)
             if (isSameDay(selectedDate, now) && currentTime < now) {
                 currentTime.setMinutes(currentTime.getMinutes() + 30);
                 continue;
             }
 
-            // Filtro 2: Colisiones
             const isTaken = takenRanges.some(range => (slotStartMs < range.end && slotEndMs > range.start));
 
             if (!isTaken) {
                 const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-                const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false }); // HH:MM:SS
+                const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
                 generatedSlots.push({ label: timeLabel, value: timeValue });
             }
             currentTime.setMinutes(currentTime.getMinutes() + 30);
@@ -168,29 +191,164 @@ export default function BookingWizard({
             client_phone: clientData.phone,
             client_email: clientData.email,
             customer_id: currentUser?.id || null,
-            origin: origin // Pasamos el origen real
+            origin: origin
         });
 
         setIsSubmitting(false);
-        if (result.success) setSuccess(true);
-        else alert(result.error || "Error al reservar");
+        if (result.success && result.booking) {
+            setBookingData(result.booking);
+            setSuccess(true);
+        } else {
+            alert(result.error || "Error al reservar");
+        }
     };
 
-    // ... (rest of component render) ...
-    // --- VISTA ÉXITO ---
-    if (success) {
+    // --- VISTA ÉXITO: CELEBRATION SCREEN ---
+    if (success && bookingData) {
+        const calendarUrl = generateCalendarLink(bookingData, selectedService?.duration_min || 30);
+        const isGuest = !currentUser;
+        const hasEmail = !!bookingData.guest_email;
+
         return (
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-12 px-6 h-full flex flex-col items-center justify-center">
-                <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6 shadow-2xl shadow-green-200">
-                    <Check size={48} strokeWidth={4} className="text-white" />
+            <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-6 h-full flex flex-col"
+            >
+                {/* Success Header */}
+                <div className="text-center mb-6">
+                    <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", delay: 0.1 }}
+                        className="w-20 h-20 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-green-200"
+                    >
+                        <Check size={40} strokeWidth={3} className="text-white" />
+                    </motion.div>
+                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Reserva Confirmada!</h2>
+                    <p className="text-gray-500 text-sm mt-1">Tu cita está lista, {bookingData.guest_name.split(' ')[0]}</p>
                 </div>
-                <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tighter">¡Listo!</h2>
-                <p className="text-gray-500 mb-8 max-w-[250px] mx-auto leading-relaxed">
-                    Tu cita quedó agendada.<br />Te esperamos.
-                </p>
-                <a href="/app" className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg hover:opacity-90 transition-all shadow-xl active:scale-95">
-                    Ver mi Ticket
-                </a>
+
+                {/* Digital Ticket Card */}
+                <motion.div
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-white rounded-3xl border-2 border-gray-100 shadow-xl overflow-hidden mb-6"
+                >
+                    <div className="bg-brand h-2" />
+                    <div className="p-5 space-y-4">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Servicio</span>
+                                <p className="font-black text-xl text-gray-900">{bookingData.service_name}</p>
+                            </div>
+                            <span className="font-black text-xl text-gray-900 bg-gray-50 px-4 py-2 rounded-xl">
+                                ${bookingData.service_price}
+                            </span>
+                        </div>
+
+                        <div className="flex gap-4">
+                            <div className="flex-1 bg-gray-50 p-3 rounded-xl">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Fecha</span>
+                                <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
+                                    <Calendar size={14} className="text-brand" />
+                                    {bookingData.date_formatted}
+                                </div>
+                            </div>
+                            <div className="flex-1 bg-gray-50 p-3 rounded-xl">
+                                <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Hora</span>
+                                <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
+                                    <Clock size={14} className="text-brand" />
+                                    {bookingData.time_formatted}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
+                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                                <User size={18} className="text-gray-500" />
+                            </div>
+                            <div>
+                                <span className="text-xs text-gray-400">Con</span>
+                                <p className="font-bold text-gray-900">{bookingData.staff_name}</p>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Add to Calendar */}
+                <motion.a
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    href={calendarUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-2xl font-bold text-sm transition-all mb-6"
+                >
+                    <CalendarPlus size={18} />
+                    Añadir a mi Calendario
+                    <ExternalLink size={14} className="opacity-50" />
+                </motion.a>
+
+                {/* Conversion CTA - Only for Guests */}
+                {isGuest && (
+                    <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.4 }}
+                        className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 mb-4"
+                    >
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center shrink-0">
+                                <Gift size={20} className="text-white" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-gray-900">Protege tu reserva</h3>
+                                <p className="text-xs text-gray-600 mt-1">
+                                    Crea una cuenta y acumula puntos para descuentos en futuras visitas.
+                                </p>
+                            </div>
+                        </div>
+
+                        {hasEmail ? (
+                            <Link
+                                href={`/register?email=${encodeURIComponent(bookingData.guest_email || '')}&name=${encodeURIComponent(bookingData.guest_name)}`}
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                            >
+                                <Lock size={16} />
+                                Crear Cuenta con mi Email
+                            </Link>
+                        ) : (
+                            <Link
+                                href={`/register?name=${encodeURIComponent(bookingData.guest_name)}`}
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                            >
+                                <Lock size={16} />
+                                Crear Cuenta Gratis
+                            </Link>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* Footer Links */}
+                <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-2">
+                    <a
+                        href="/app"
+                        className="w-full py-3 bg-brand text-brand-foreground rounded-xl font-bold text-center hover:opacity-90 transition-all active:scale-95"
+                    >
+                        Ver mi Ticket
+                    </a>
+                    {isGuest && (
+                        <Link
+                            href="/login"
+                            className="text-center text-sm text-gray-400 hover:text-gray-600 py-2"
+                        >
+                            ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
+                        </Link>
+                    )}
+                </div>
             </motion.div>
         );
     }

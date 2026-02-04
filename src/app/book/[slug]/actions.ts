@@ -330,5 +330,18 @@ export async function createBooking(data: {
     revalidatePath('/admin/schedule');
     revalidatePath('/app');
 
-    return { success: true }
+    return {
+        success: true,
+        booking: {
+            id: newBooking.id,
+            guest_name: data.client_name,
+            guest_email: data.client_email || null,
+            service_name: realServiceName,
+            service_price: servicePrice,
+            start_time: startDate.toISOString(),
+            staff_name: realStaffName,
+            date_formatted: dateStr,
+            time_formatted: timeStr
+        }
+    }
 }
