@@ -117,49 +117,111 @@ export default async function LoginPage({
         (!tenantSlug && hostname.includes('vercel.app'));
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="min-h-screen bg-zinc-950 text-white flex">
 
-            {/* Fondo Ambiental */}
-            <div className={`absolute top-[-20%] right-[-20%] w-[60%] h-[60%] ${isRootDomain ? 'bg-amber-600/10' : 'bg-blue-600/10'} blur-[100px] rounded-full pointer-events-none`}></div>
-            <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+            {/* LEFT SIDE - Brand Panel (Desktop Only) */}
+            <div className="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-zinc-900 via-zinc-950 to-black items-center justify-center p-12 overflow-hidden">
+                {/* Ambient Background */}
+                <div className="absolute top-[-30%] left-[-20%] w-[80%] h-[80%] bg-amber-500/10 blur-[120px] rounded-full pointer-events-none"></div>
+                <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-orange-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-            <div className="w-full max-w-sm z-10">
+                {/* Content */}
+                <div className="relative z-10 max-w-md text-center lg:text-left">
+                    {/* Logo */}
+                    <div className="flex items-center gap-3 mb-8 justify-center lg:justify-start">
+                        <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center shadow-xl shadow-amber-500/20">
+                            <Scissors className="w-7 h-7 text-white" />
+                        </div>
+                        <span className="font-black text-3xl tracking-tight">AgendaBarber</span>
+                    </div>
 
-                {/* Header con Navegación */}
-                <div className="text-center mb-8">
+                    {/* Tagline */}
+                    <h2 className="text-4xl font-black tracking-tight mb-4 leading-tight">
+                        Tu barbería,<br />
+                        <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+                            siempre lista.
+                        </span>
+                    </h2>
+                    <p className="text-zinc-400 text-lg leading-relaxed">
+                        Gestiona citas, clientes y reportes desde un solo lugar. Sin complicaciones.
+                    </p>
+
+                    {/* Trust Badges */}
+                    <div className="mt-12 flex items-center gap-6 justify-center lg:justify-start">
+                        <div className="flex items-center gap-2 text-zinc-500">
+                            <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <span className="text-sm">Sin contraseñas</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-zinc-500">
+                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                            </div>
+                            <span className="text-sm">100% Seguro</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* RIGHT SIDE - Form Panel */}
+            <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 lg:p-12 relative overflow-hidden">
+                {/* Mobile Ambient (Only visible on mobile) */}
+                <div className="lg:hidden absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+                <div className="lg:hidden absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+                <div className="w-full max-w-sm z-10">
+                    {/* Mobile Logo (Only visible on mobile) */}
+                    <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl flex items-center justify-center">
+                            <Scissors className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="font-black text-xl">AgendaBarber</span>
+                    </div>
+
+                    {/* Back Link */}
                     <Link
                         href="/"
-                        className="text-zinc-500 text-xs font-bold hover:text-white mb-6 inline-block transition-colors"
+                        className="text-zinc-500 text-xs font-bold hover:text-white mb-6 inline-flex items-center gap-1 transition-colors"
                     >
-                        ← Volver al inicio
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Volver al inicio
                     </Link>
 
-                    {isRootDomain ? (
-                        <>
-                            <div className="flex items-center justify-center gap-2 mb-4">
-                                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl flex items-center justify-center">
-                                    <Scissors className="w-5 h-5 text-white" />
-                                </div>
-                                <span className="font-black text-xl">AgendaBarber</span>
-                            </div>
-                            <h1 className="text-3xl font-black tracking-tight mb-2">Inicia Sesión</h1>
-                            <p className="text-zinc-400 text-sm">Accede a tu panel de administración.</p>
-                        </>
-                    ) : (
-                        <>
-                            <h1 className="text-3xl font-black tracking-tight mb-2">Bienvenido</h1>
-                            <p className="text-zinc-400 text-sm">Ingresa para gestionar tus citas.</p>
-                        </>
-                    )}
+                    {/* Header */}
+                    <div className="mb-8">
+                        {isRootDomain ? (
+                            <>
+                                <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-2">Inicia Sesión</h1>
+                                <p className="text-zinc-400">Accede a tu panel de administración.</p>
+                            </>
+                        ) : (
+                            <>
+                                <h1 className="text-3xl lg:text-4xl font-black tracking-tight mb-2">Bienvenido</h1>
+                                <p className="text-zinc-400">Ingresa para gestionar tus citas.</p>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Form */}
+                    <LoginForm />
+
+                    {/* Footer */}
+                    <div className="mt-8 text-center">
+                        <p className="text-zinc-600 text-xs flex items-center justify-center gap-2">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Código de un solo uso. Seguro y sin contraseñas.
+                        </p>
+                    </div>
                 </div>
-
-                {/* FORMULARIO CLIENTE (Interactivo) */}
-                <LoginForm />
-
-                <p className="text-center text-zinc-600 text-xs mt-8">
-                    Código de un solo uso. Seguro y sin contraseñas.
-                </p>
-
             </div>
         </div>
     )

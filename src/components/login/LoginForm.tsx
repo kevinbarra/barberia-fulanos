@@ -1,13 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { sendOtp, verifyOtp } from '@/app/login/actions'
 import { toast } from 'sonner'
-import { ArrowRight, Loader2, Mail, Lock } from 'lucide-react'
+import { ArrowRight, Loader2, Mail, Shield, Sparkles, CheckCircle2 } from 'lucide-react'
 
 export default function LoginForm() {
-    const router = useRouter()
     const searchParams = useSearchParams()
     const redirectTo = searchParams.get('next') || undefined
     const prefillEmail = searchParams.get('email') || ''
@@ -35,7 +34,7 @@ export default function LoginForm() {
         }
     }
 
-    // FASE 2: Verificar Código
+    // FASE 2: Verificar Código  
     const handleVerifyCode = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!code) return
@@ -44,10 +43,8 @@ export default function LoginForm() {
         const result = await verifyOtp(email, code, redirectTo)
 
         if (result.success && result.redirectUrl) {
-            toast.success('¡Bienvenido!')
-            // Give cookies time to propagate before redirect
+            toast.success(isSignupMode ? '¡Cuenta creada!' : '¡Bienvenido!')
             await new Promise(resolve => setTimeout(resolve, 500))
-            // Hard redirect to target URL
             window.location.href = result.redirectUrl
         } else {
             setIsLoading(false)
@@ -56,77 +53,120 @@ export default function LoginForm() {
     }
 
     return (
-        <div className="bg-white/5 backdrop-blur-lg border border-white/10 p-8 rounded-2xl shadow-2xl w-full">
+        <div className="bg-zinc-900/50 backdrop-blur-xl border border-zinc-800 p-8 rounded-3xl shadow-2xl w-full">
 
             {/* PASO 1: EMAIL */}
             {step === 'email' ? (
-                <form onSubmit={handleSendCode} className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
-                    <div className="text-center mb-6">
-                        <h2 className="text-2xl font-bold text-white">
-                            {isSignupMode ? 'Crea tu Cuenta' : 'Acceso Seguro'}
-                        </h2>
-                        <p className="text-zinc-400 text-sm">
-                            {isSignupMode
-                                ? 'Ingresa tu correo para crear tu cuenta.'
-                                : 'Ingresa tu correo para recibir un código.'}
-                        </p>
+                <form onSubmit={handleSendCode} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+                    {/* Header with Mode-specific styling */}
+                    <div className="text-center mb-8">
+                        {isSignupMode ? (
+                            <>
+                                <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20">
+                                    <Sparkles className="w-8 h-8 text-white" />
+                                </div>
+                                <h2 className="text-2xl font-black text-white mb-2">Crea tu Cuenta</h2>
+                                <p className="text-zinc-400 text-sm">
+                                    Ingresa tu correo para comenzar. Sin contraseñas.
+                                </p>
+                            </>
+                        ) : (
+                            <>
+                                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+                                    <Shield className="w-8 h-8 text-white" />
+                                </div>
+                                <h2 className="text-2xl font-black text-white mb-2">Acceso Seguro</h2>
+                                <p className="text-zinc-400 text-sm">
+                                    Te enviaremos un código de acceso único.
+                                </p>
+                            </>
+                        )}
                     </div>
 
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
+                    {/* Email Input */}
+                    <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5 transition-colors group-focus-within:text-amber-400" />
                         <input
                             type="email"
-                            placeholder="tucorreo@ejemplo.com"
+                            placeholder="tu@email.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-zinc-900/50 border border-zinc-700 text-white rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all placeholder:text-zinc-600"
+                            className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded-xl pl-12 pr-4 py-4 focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 outline-none transition-all placeholder:text-zinc-600 text-base"
                             required
                             autoFocus
                         />
                     </div>
 
+                    {/* CTA Button */}
                     <button
                         type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-white text-black font-bold py-3 rounded-xl hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                        disabled={isLoading || !email}
+                        className={`w-full font-bold py-4 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-base shadow-lg ${isSignupMode
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-500/25 hover:shadow-amber-500/40'
+                                : 'bg-white text-black hover:bg-zinc-100'
+                            }`}
                     >
-                        {isLoading ? <Loader2 className="animate-spin" /> : <>Enviar Código <ArrowRight size={18} /></>}
+                        {isLoading ? (
+                            <Loader2 className="animate-spin w-5 h-5" />
+                        ) : (
+                            <>
+                                {isSignupMode ? 'Crear Cuenta' : 'Enviar Código'}
+                                <ArrowRight size={18} />
+                            </>
+                        )}
                     </button>
                 </form>
             ) : (
                 /* PASO 2: CÓDIGO OTP */
-                <form onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="text-center mb-6">
-                        <h2 className="text-2xl font-bold text-white">Ingresa el Código</h2>
-                        <p className="text-zinc-400 text-sm">Enviado a <span className="text-white font-medium">{email}</span></p>
+                <form onSubmit={handleVerifyCode} className="space-y-5 animate-in fade-in slide-in-from-bottom-4 duration-300">
+
+                    {/* Success Header */}
+                    <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-green-500/20">
+                            <CheckCircle2 className="w-8 h-8 text-white" />
+                        </div>
+                        <h2 className="text-2xl font-black text-white mb-2">Código Enviado</h2>
+                        <p className="text-zinc-400 text-sm">
+                            Revisa <span className="text-white font-semibold">{email}</span>
+                        </p>
                         <button
                             type="button"
                             onClick={() => setStep('email')}
-                            className="text-blue-400 text-xs hover:underline mt-1"
+                            className="text-amber-400 text-xs hover:underline mt-2 inline-block"
                         >
-                            (Corregir correo)
+                            ← Cambiar correo
                         </button>
                     </div>
 
+                    {/* OTP Input */}
                     <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="123456"
+                            inputMode="numeric"
+                            placeholder="• • • • • •"
                             value={code}
-                            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} // Solo números, max 6
-                            className="w-full bg-zinc-900/50 border border-zinc-700 text-white rounded-xl pl-10 pr-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all placeholder:text-zinc-600 text-center tracking-[0.5em] font-mono text-lg"
+                            onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            className="w-full bg-zinc-800/50 border border-zinc-700 text-white rounded-xl px-4 py-4 focus:ring-2 focus:ring-green-500/50 focus:border-green-500 outline-none transition-all placeholder:text-zinc-600 text-center tracking-[0.4em] font-mono text-2xl"
                             required
                             autoFocus
                         />
                     </div>
 
+                    {/* Verify Button */}
                     <button
                         type="submit"
                         disabled={isLoading || code.length < 6}
-                        className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-500 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
+                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-xl hover:shadow-green-500/40 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 text-base shadow-lg shadow-green-500/25"
                     >
-                        {isLoading ? <Loader2 className="animate-spin" /> : "Entrar"}
+                        {isLoading ? (
+                            <Loader2 className="animate-spin w-5 h-5" />
+                        ) : (
+                            <>
+                                {isSignupMode ? 'Crear mi Cuenta' : 'Verificar y Entrar'}
+                                <ArrowRight size={18} />
+                            </>
+                        )}
                     </button>
                 </form>
             )}
