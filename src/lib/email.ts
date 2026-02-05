@@ -198,3 +198,150 @@ export async function sendStaffInvitation(data: {
     return { success: false, error: 'Fallo de conexión con servicio de correo.' };
   }
 }
+
+// 5. Post-Service Rating Request (Smart Reputation Funnel)
+export async function sendRatingRequestEmail(data: {
+  clientName: string;
+  clientEmail: string;
+  serviceName: string;
+  barberName: string;
+  bookingId: string;
+  businessName?: string;
+  tenantSlug?: string;
+}) {
+  if (!data.clientEmail) return { success: false };
+
+  const business = data.businessName || 'AgendaBarber';
+  const baseUrl = data.tenantSlug
+    ? `https://${data.tenantSlug}.${ROOT_DOMAIN}`
+    : `https://${ROOT_DOMAIN}`;
+  const ratingUrl = `${baseUrl}/rate/${data.bookingId}`;
+
+  // Generate large tappable star buttons
+  const generateStarButton = (rating: number) => {
+    const isGold = rating >= 4;
+    const color = isGold ? '#fbbf24' : '#71717a';
+    return `
+      <a href="${ratingUrl}?r=${rating}" style="text-decoration: none; display: inline-block; margin: 0 4px;">
+        <div style="width: 52px; height: 52px; display: flex; align-items: center; justify-content: center;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="${color}" stroke="${color}" stroke-width="1">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+      </a>
+    `;
+  };
+
+  try {
+    await resend.emails.send({
+      from: `${business} <${SENDER_EMAIL}>`,
+      to: [data.clientEmail],
+      subject: `⭐ ¿Cómo fue tu experiencia en ${business}?`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #000; font-size: 24px; margin: 0;">¡Hola, ${data.clientName}!</h1>
+            <p style="color: #666; font-size: 16px; margin-top: 8px;">
+              Gracias por visitarnos. Tu opinión nos importa mucho.
+            </p>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #18181b 0%, #27272a 100%); padding: 32px 24px; border-radius: 16px; text-align: center; margin-bottom: 24px;">
+            <p style="color: #a1a1aa; font-size: 14px; margin: 0 0 8px 0;">Tu visita</p>
+            <p style="color: #fff; font-size: 18px; font-weight: bold; margin: 0 0 4px 0;">${data.serviceName}</p>
+            <p style="color: #a1a1aa; font-size: 14px; margin: 0;">con ${data.barberName}</p>
+          </div>
+
+          <div style="text-align: center; margin-bottom: 24px;">
+            <p style="color: #333; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">
+              ¿Cómo calificarías tu experiencia?
+            </p>
+            
+            <div style="margin: 0 auto;">
+              ${generateStarButton(1)}
+              ${generateStarButton(2)}
+              ${generateStarButton(3)}
+              ${generateStarButton(4)}
+              ${generateStarButton(5)}
+            </div>
+            
+            <p style="color: #888; font-size: 12px; margin-top: 12px;">
+              Toca una estrella para calificar
+            </p>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+          
+          <p style="font-size: 12px; color: #888; text-align: center;">
+            Este correo fue enviado por ${business}. Si no reconoces esta visita, puedes ignorar este mensaje.
+          </p>
+        </div>
+      `,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[sendRatingRequestEmail] Error:', error);
+    return { success: false };
+  }
+}
+
+// 6. Win-Back Email (Retention Campaign)
+export async function sendWinBackEmail(data: {
+  clientName: string;
+  clientEmail: string;
+  daysSinceLastVisit: number;
+  businessName?: string;
+  bookingUrl?: string;
+}) {
+  if (!data.clientEmail) return { success: false };
+
+  const business = data.businessName || 'AgendaBarber';
+  const bookingUrl = data.bookingUrl || `https://${ROOT_DOMAIN}`;
+
+  try {
+    await resend.emails.send({
+      from: `${business} <${SENDER_EMAIL}>`,
+      to: [data.clientEmail],
+      subject: `¡Te extrañamos, ${data.clientName.split(' ')[0]}! 💈`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+          
+          <div style="text-align: center; margin-bottom: 30px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">💈</div>
+            <h1 style="color: #000; font-size: 24px; margin: 0;">¡Te extrañamos!</h1>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 16px; text-align: center; margin-bottom: 24px; border: 1px solid #fcd34d;">
+            <p style="color: #92400e; font-size: 16px; margin: 0;">
+              Han pasado <strong>${data.daysSinceLastVisit} días</strong> desde tu última visita.
+            </p>
+            <p style="color: #a16207; font-size: 14px; margin: 8px 0 0 0;">
+              ¡Es hora de un nuevo corte!
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-bottom: 30px;">
+            <a href="${bookingUrl}" style="display: inline-block; background: #000; color: #fff; padding: 16px 32px; border-radius: 100px; text-decoration: none; font-weight: bold; font-size: 16px;">
+              Reservar Ahora →
+            </a>
+          </div>
+
+          <p style="color: #666; text-align: center; font-size: 14px;">
+            Te esperamos en <strong>${business}</strong>.
+          </p>
+
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+          
+          <p style="font-size: 12px; color: #888; text-align: center;">
+            Si ya no deseas recibir estos correos, puedes ignorar este mensaje.
+          </p>
+        </div>
+      `,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[sendWinBackEmail] Error:', error);
+    return { success: false };
+  }
+}

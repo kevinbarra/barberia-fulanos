@@ -3,6 +3,7 @@ import TenantForm from "@/components/admin/TenantForm";
 import KioskPinForm from "@/components/admin/KioskPinForm";
 import KioskModeToggle from "@/components/admin/KioskModeToggle";
 import GuestCheckoutToggle from "@/components/admin/GuestCheckoutToggle";
+import GoogleReviewUrlInput from "@/components/admin/GoogleReviewUrlInput";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -61,8 +62,11 @@ export default async function SettingsPage() {
                     <TenantForm initialData={tenantData} />
                 )}
 
-                {/* Guest Checkout Toggle - NEW */}
+                {/* Guest Checkout Toggle */}
                 <GuestCheckoutToggle />
+
+                {/* Google Reviews URL - NEW */}
+                <GoogleReviewUrlInput />
 
                 {/* Modo Kiosko - Activar/Desactivar */}
                 <KioskModeToggle />
