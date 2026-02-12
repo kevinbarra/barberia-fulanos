@@ -47,6 +47,15 @@ export async function updateSession(request: NextRequest) {
         },
     })
 
+    // ⚡ PERF: Early return for public routes — skip Supabase auth round-trip entirely.
+    // This eliminates ~400-600ms TTFB overhead from getUser() on landing page, login, booking, etc.
+    if (isPublicRoute || pathname === '/') {
+        if (tenantSlug) {
+            response.headers.set('x-tenant-slug', tenantSlug)
+        }
+        return response
+    }
+
     // Cookie domain for cross-subdomain auth (uses constant from lib/constants.ts)
     const cookieDomain = hostname.includes(ROOT_DOMAIN) ? COOKIE_DOMAIN : undefined
     const isProduction = process.env.NODE_ENV === 'production'

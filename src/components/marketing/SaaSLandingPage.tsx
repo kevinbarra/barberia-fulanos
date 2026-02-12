@@ -1,86 +1,82 @@
-'use client'
-
-import { useState } from 'react'
 import Link from "next/link"
-import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Send, Mail, Building, Phone, MessageSquare } from "lucide-react"
-import { toast } from 'sonner'
+import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check } from "lucide-react"
+import ContactForm from "./ContactForm"
+
+const plans = [
+    {
+        name: "PRO",
+        price: "$1,299",
+        period: "/mes",
+        description: "Todo incluido para tu barbería.",
+        features: [
+            "Hasta 5 Barberos",
+            "Agenda y Citas Online",
+            "Punto de Venta (POS)",
+            "App Clientes + Kiosko iPad",
+            "Programa de Lealtad",
+            "Reportes Avanzados",
+            "Soporte WhatsApp Local",
+            "Instalación: $2,999 (Pago único)"
+        ],
+        cta: "Agendar Demo",
+        popular: true,
+        href: "#contact"
+    },
+    {
+        name: "Enterprise",
+        price: "Cotizar",
+        period: "",
+        description: "Para cadenas y franquicias.",
+        features: [
+            "Barberos Ilimitados",
+            "Multi-sucursal Centralizado",
+            "API Personalizada",
+            "Onboarding Presencial",
+            "Gerente de Cuenta Dedicado",
+            "SLA de Soporte 24/7",
+            "Whitelabel (Tu marca)",
+            "Instalación a la medida"
+        ],
+        cta: "Contactar Ventas",
+        popular: false,
+        href: "#contact"
+    }
+]
+
+const features = [
+    {
+        icon: Calendar,
+        title: "Reservas Online 24/7",
+        description: "Tus clientes reservan desde su celular. Sin llamadas, sin WhatsApp."
+    },
+    {
+        icon: CreditCard,
+        title: "Punto de Venta",
+        description: "Registra ventas, servicios múltiples y métodos de pago en segundos."
+    },
+    {
+        icon: Star,
+        title: "Programa de Lealtad",
+        description: "Puntos automáticos por visita. Tus clientes regresan más seguido."
+    },
+    {
+        icon: Users,
+        title: "Gestión de Equipo",
+        description: "Cada barbero con su agenda. Comisiones y permisos personalizados."
+    },
+    {
+        icon: BarChart3,
+        title: "Reportes en Tiempo Real",
+        description: "Ventas, servicios populares, horas pico. Datos para tomar decisiones."
+    },
+    {
+        icon: Smartphone,
+        title: "App para Clientes",
+        description: "Tu barbería con marca propia. QR para puntos y reservas rápidas."
+    }
+]
 
 export default function SaaSLandingPage() {
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [formData, setFormData] = useState({
-        businessName: '',
-        email: '',
-        phone: '',
-        message: ''
-    })
-
-    const handleContactSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsSubmitting(true)
-
-        try {
-            const response = await fetch('/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            })
-
-            const data = await response.json()
-
-            if (response.ok && data.success) {
-                toast.success('¡Mensaje enviado! Te contactaremos en menos de 24 horas.')
-                setFormData({ businessName: '', email: '', phone: '', message: '' })
-            } else {
-                toast.error(data.error || 'Error al enviar. Intenta de nuevo.')
-            }
-        } catch (error) {
-            toast.error('Error de conexión. Verifica tu internet.')
-        } finally {
-            setIsSubmitting(false)
-        }
-    }
-
-    const plans = [
-        {
-            name: "PRO",
-            price: "$1,299",
-            period: "/mes",
-            description: "Todo incluido para tu barbería.",
-            features: [
-                "Hasta 5 Barberos",
-                "Agenda y Citas Online",
-                "Punto de Venta (POS)",
-                "App Clientes + Kiosko iPad",
-                "Programa de Lealtad",
-                "Reportes Avanzados",
-                "Soporte WhatsApp Local",
-                "Instalación: $2,999 (Pago único)"
-            ],
-            cta: "Agendar Demo",
-            popular: true,
-            href: "#contact"
-        },
-        {
-            name: "Enterprise",
-            price: "Cotizar",
-            period: "",
-            description: "Para cadenas y franquicias.",
-            features: [
-                "Barberos Ilimitados",
-                "Multi-sucursal Centralizado",
-                "API Personalizada",
-                "Onboarding Presencial",
-                "Gerente de Cuenta Dedicado",
-                "SLA de Soporte 24/7",
-                "Whitelabel (Tu marca)",
-                "Instalación a la medida"
-            ],
-            cta: "Contactar Ventas",
-            popular: false,
-            href: "#contact"
-        }
-    ]
-
     return (
         <div className="min-h-screen bg-zinc-950 text-white overflow-hidden">
             {/* Background gradients */}
@@ -192,38 +188,7 @@ export default function SaaSLandingPage() {
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[
-                            {
-                                icon: Calendar,
-                                title: "Reservas Online 24/7",
-                                description: "Tus clientes reservan desde su celular. Sin llamadas, sin WhatsApp."
-                            },
-                            {
-                                icon: CreditCard,
-                                title: "Punto de Venta",
-                                description: "Registra ventas, servicios múltiples y métodos de pago en segundos."
-                            },
-                            {
-                                icon: Star,
-                                title: "Programa de Lealtad",
-                                description: "Puntos automáticos por visita. Tus clientes regresan más seguido."
-                            },
-                            {
-                                icon: Users,
-                                title: "Gestión de Equipo",
-                                description: "Cada barbero con su agenda. Comisiones y permisos personalizados."
-                            },
-                            {
-                                icon: BarChart3,
-                                title: "Reportes en Tiempo Real",
-                                description: "Ventas, servicios populares, horas pico. Datos para tomar decisiones."
-                            },
-                            {
-                                icon: Smartphone,
-                                title: "App para Clientes",
-                                description: "Tu barbería con marca propia. QR para puntos y reservas rápidas."
-                            }
-                        ].map((feature, i) => (
+                        {features.map((feature, i) => (
                             <div
                                 key={i}
                                 className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 hover:border-zinc-700 transition-all group"
@@ -318,82 +283,7 @@ export default function SaaSLandingPage() {
                         </p>
                     </div>
 
-                    <form onSubmit={handleContactSubmit} className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 md:p-10">
-                        <div className="grid md:grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-400 mb-2">
-                                    <Building className="inline w-4 h-4 mr-2" />
-                                    Nombre del negocio
-                                </label>
-                                <input
-                                    type="text"
-                                    value={formData.businessName}
-                                    onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                                    required
-                                    placeholder="Tu barbería"
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-zinc-400 mb-2">
-                                    <Mail className="inline w-4 h-4 mr-2" />
-                                    Email
-                                </label>
-                                <input
-                                    type="email"
-                                    value={formData.email}
-                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    required
-                                    placeholder="correo@ejemplo.com"
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">
-                                <Phone className="inline w-4 h-4 mr-2" />
-                                Teléfono (opcional)
-                            </label>
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                placeholder="+52 55 1234 5678"
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors"
-                            />
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-zinc-400 mb-2">
-                                <MessageSquare className="inline w-4 h-4 mr-2" />
-                                ¿En qué podemos ayudarte?
-                            </label>
-                            <textarea
-                                value={formData.message}
-                                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                                required
-                                rows={4}
-                                placeholder="Cuéntanos sobre tu barbería y qué necesitas..."
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:border-amber-500 focus:outline-none transition-colors resize-none"
-                            />
-                        </div>
-
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-black font-bold py-4 rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isSubmitting ? (
-                                <>Enviando...</>
-                            ) : (
-                                <>
-                                    Enviar Mensaje
-                                    <Send className="w-5 h-5" />
-                                </>
-                            )}
-                        </button>
-                    </form>
+                    <ContactForm />
                 </div>
             </section>
 
