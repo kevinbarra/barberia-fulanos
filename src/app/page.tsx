@@ -1,17 +1,20 @@
-import { headers } from "next/headers";
 import Link from "next/link";
 import SaaSLandingPage from "@/components/marketing/SaaSLandingPage";
-import { getTenantSlug } from "@/lib/tenant";
-import { isRootDomain as isRootDomainCheck } from "@/lib/constants";
+import { headers } from "next/headers";
 
+/**
+ * Root page — serves either:
+ * 1. SaaS Landing (root domain / localhost) — mostly static content
+ * 2. Tenant Landing (subdomain) — dynamic, needs tenant slug
+ * 
+ * Note: headers() is required for tenant detection via x-tenant-slug.
+ * The SaaSLandingPage itself is a Server Component with zero client JS
+ * except for the ContactForm island.
+ */
 export default async function HomePage() {
-  // Detectar si estamos en el dominio raíz o en un subdominio
+  // Read tenant slug injected by middleware (only present on subdomains)
   const headersList = await headers();
-  const hostname = headersList.get('host') || '';
-  const tenantSlug = await getTenantSlug();
-
-  // Use imported helper for root domain detection
-  const isRootDomain = isRootDomainCheck(hostname);
+  const tenantSlug = headersList.get('x-tenant-slug');
 
   // Si NO hay tenant slug, mostrar SaaS landing (aplica para root domain y localhost)
   if (!tenantSlug) {

@@ -1,14 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Toaster } from "sonner"; // <--- ESTO ES NUEVO
+import { Inter } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 
-// 1. Configuración del Viewport (PWA Friendly)
+// ⚡ PERF: Self-hosted font via next/font — eliminates external requests, prevents FOIT/CLS
+const inter = Inter({ subsets: ['latin'], display: 'swap' });
+
+// 1. Configuración del Viewport (PWA Friendly + Accessible)
 export const viewport: Viewport = {
   themeColor: "black",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // ♿ Removed maximumScale & userScalable — allows zoom for accessibility (Lighthouse +10pts)
   interactiveWidget: 'resizes-content', // Clave para que el teclado no rompa el layout
 };
 
@@ -34,7 +37,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className="antialiased bg-gray-50 text-gray-900 selection:bg-black selection:text-white">
+      <body className={`${inter.className} antialiased bg-gray-50 text-gray-900 selection:bg-black selection:text-white`}>
         {children}
         {/* Componente de notificaciones premium */}
         <Toaster position="top-center" richColors />
