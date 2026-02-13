@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 // ⚡ PERF: Self-hosted font via next/font — eliminates external requests, prevents FOIT/CLS
@@ -41,6 +42,8 @@ export default function RootLayout({
         {children}
         {/* Componente de notificaciones premium */}
         <Toaster position="top-center" richColors />
+        {/* Vercel Analytics */}
+        <Analytics />
       </body>
     </html>
   );
