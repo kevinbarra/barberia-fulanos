@@ -4,6 +4,34 @@ import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { Metadata } from "next";
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+    const { slug } = await params;
+    const supabase = await createClient();
+
+    const { data: tenant } = await supabase
+        .from("tenants")
+        .select("name, logo_url")
+        .eq("slug", slug)
+        .single();
+
+    if (!tenant) return { title: "Reservar Cita" };
+
+    return {
+        title: `${tenant.name} – Reservar Cita`,
+        description: `Agenda tu cita en ${tenant.name}. Rápido, fácil y sin esperas.`,
+        openGraph: {
+            title: `${tenant.name} – Reservar Cita`,
+            description: `Agenda tu cita en ${tenant.name}. Rápido, fácil y sin esperas.`,
+            images: tenant.logo_url ? [{ url: tenant.logo_url, width: 512, height: 512, alt: tenant.name }] : [],
+        },
+    };
+}
 
 export default async function BookingPage({
     params,
