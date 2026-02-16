@@ -412,15 +412,15 @@ export default function BookingWizard({
                                             <button
                                                 key={service.id}
                                                 onClick={() => { setSelectedService(service); setStep(2); }}
-                                                className="w-full bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black/5 active:scale-[0.98] transition-all text-left group"
+                                                className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black/5 active:scale-[0.98] transition-all text-left group"
                                             >
-                                                <div className="flex justify-between items-start">
-                                                    <div className="flex-1 min-w-0 mr-3">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex-1 min-w-0">
                                                         <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
                                                         {service.description && (
-                                                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{service.description}</p>
+                                                            <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{service.description}</p>
                                                         )}
-                                                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-1">
+                                                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-2">
                                                             <Clock size={12} /> {service.duration_min} min
                                                         </span>
                                                     </div>
