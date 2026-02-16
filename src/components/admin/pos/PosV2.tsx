@@ -39,6 +39,7 @@ interface Service {
     price: number
     duration_min: number
     category?: string
+    description?: string
 }
 
 interface Ticket {

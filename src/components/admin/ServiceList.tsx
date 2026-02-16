@@ -11,7 +11,8 @@ type Service = {
     price: number
     duration_min: number
     is_active: boolean
-    category?: string // <--- PROPIEDAD NUEVA
+    category?: string
+    description?: string
 }
 
 const CATEGORIES = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras'];
@@ -100,6 +101,9 @@ export default function ServiceList({ services, canManage }: { services: Service
                                     </span>
                                 </div>
                                 <h3 className="font-bold text-gray-900">{service.name}</h3>
+                                {service.description && (
+                                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{service.description}</p>
+                                )}
                                 <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
                                     <span className="flex items-center gap-1"><Clock size={14} /> {service.duration_min} min</span>
                                     <span className="flex items-center gap-1 font-medium text-green-700"><DollarSign size={14} /> {service.price}</span>

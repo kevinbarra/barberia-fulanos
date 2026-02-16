@@ -11,7 +11,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // --- TIPOS ---
-type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string };
+type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string };
 type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
@@ -414,14 +414,17 @@ export default function BookingWizard({
                                                 onClick={() => { setSelectedService(service); setStep(2); }}
                                                 className="w-full bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black/5 active:scale-[0.98] transition-all text-left group"
                                             >
-                                                <div className="flex justify-between items-center">
-                                                    <div>
+                                                <div className="flex justify-between items-start">
+                                                    <div className="flex-1 min-w-0 mr-3">
                                                         <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
+                                                        {service.description && (
+                                                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{service.description}</p>
+                                                        )}
                                                         <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-1">
                                                             <Clock size={12} /> {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-gray-900 text-base bg-gray-50 px-3 py-1.5 rounded-xl">
+                                                    <span className="font-black text-gray-900 text-base bg-gray-50 px-3 py-1.5 rounded-xl flex-shrink-0">
                                                         ${service.price}
                                                     </span>
                                                 </div>
