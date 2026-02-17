@@ -233,7 +233,7 @@ export default function BookingWizard({
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="p-6 h-full flex flex-col"
+                className="p-6 min-h-full flex flex-col overflow-y-auto"
             >
                 {/* Success Header */}
                 <div className="text-center mb-6">
