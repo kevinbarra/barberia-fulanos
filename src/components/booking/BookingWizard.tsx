@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
@@ -50,6 +50,26 @@ function generateCalendarLink(booking: BookingResult, serviceDuration: number): 
     });
 
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+// Generate WhatsApp confirmation link
+function generateWhatsAppConfirmation(booking: BookingResult): string {
+    const adminPhone = "522296103686";
+    const clientName = booking.guest_name || 'Cliente';
+    const serviceName = booking.service_name || 'Servicio';
+    const bookingDate = new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const bookingTime = new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+
+    const message = `¡Hola Manuel! 👋 Acabo de agendar por la App:
+
+👤 *Cliente:* ${clientName}
+✂️ *Servicio:* ${serviceName}
+📅 *Fecha:* ${bookingDate}
+⏰ *Hora:* ${bookingTime}
+
+¡Confírmame si todo bien! Gracias.`;
+
+    return `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
 }
 
 export default function BookingWizard({
@@ -290,6 +310,20 @@ export default function BookingWizard({
                     <CalendarPlus size={18} />
                     Añadir a mi Calendario
                     <ExternalLink size={14} className="opacity-50" />
+                </motion.a>
+
+                {/* Confirm via WhatsApp */}
+                <motion.a
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.35 }}
+                    href={generateWhatsAppConfirmation(bookingData)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-3 bg-[#25D366] hover:bg-[#1fba59] text-white rounded-2xl font-bold text-sm transition-all mb-6 shadow-lg shadow-green-200/50"
+                >
+                    <MessageCircle size={18} />
+                    Confirmar Cita por WhatsApp
                 </motion.a>
 
                 {/* CONTEXT-AWARE FOOTER */}
