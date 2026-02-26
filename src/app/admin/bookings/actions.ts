@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { broadcastBookingEvent } from '@/lib/broadcast'
-import { fromZonedTime } from 'date-fns-tz'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { isBefore } from 'date-fns'
 import { DEFAULT_TIMEZONE } from '@/lib/constants'
 
@@ -515,7 +515,10 @@ export async function rescheduleBooking(
     // 4.5 SCHEDULE VALIDATION — Backend security layer
     // Verify the new time falls within the staff's working hours for that day
     const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const dayName = dayNames[newStart.getDay()] // Convert JS getDay() to DB day string
+    // Convert UTC Date to CDMX local representation before extracting day/hours
+    const localStart = toZonedTime(newStart, TIMEZONE)
+    const localEnd = toZonedTime(newEnd, TIMEZONE)
+    const dayName = dayNames[localStart.getDay()] // Convert local getDay() to DB day string
     const { data: staffSchedule } = await supabase
         .from('staff_schedules')
         .select('start_time, end_time')
@@ -534,8 +537,8 @@ export async function rescheduleBooking(
     const schedStartMin = parseInt(schedStartParts[0]) * 60 + parseInt(schedStartParts[1] || '0')
     const schedEndMin = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1] || '0')
 
-    const bookingStartMin = newStart.getHours() * 60 + newStart.getMinutes()
-    const bookingEndMin = newEnd.getHours() * 60 + newEnd.getMinutes()
+    const bookingStartMin = localStart.getHours() * 60 + localStart.getMinutes()
+    const bookingEndMin = localEnd.getHours() * 60 + localEnd.getMinutes()
 
     if (bookingStartMin < schedStartMin || bookingEndMin > schedEndMin) {
         return { error: `Horario fuera de servicio. El barbero trabaja de ${staffSchedule.start_time.slice(0, 5)} a ${staffSchedule.end_time.slice(0, 5)}.` }
