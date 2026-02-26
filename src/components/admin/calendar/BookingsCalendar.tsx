@@ -45,6 +45,8 @@ interface BookingsCalendarProps {
     startHour?: number;
     endHour?: number;
     staffSchedules?: StaffSchedule[];
+    soloStaffId?: string | null;
+    onSoloStaffChange?: (id: string | null) => void;
 }
 
 // Resolve client info from a booking
@@ -86,15 +88,14 @@ export default function BookingsCalendar({
     startHour = 9,
     endHour = 21,
     staffSchedules = [],
+    soloStaffId = null,
+    onSoloStaffChange,
 }: BookingsCalendarProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<PosBookingData | null>(null);
     const [isSeating, setIsSeating] = useState(false);
-
-    // "Solo Yo" filter
-    const [soloStaffId, setSoloStaffId] = useState<string | null>(null);
 
     // Peek & Pop
     const [hoveredBooking, setHoveredBooking] = useState<PosBookingData | null>(null);
@@ -242,32 +243,6 @@ export default function BookingsCalendar({
                         <CalendarIcon className="text-gray-900" strokeWidth={2.5} size={20} />
                         Agenda
                     </h2>
-
-                    {/* Solo Yo Toggle */}
-                    <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1">
-                        <button
-                            onClick={() => setSoloStaffId(null)}
-                            className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                !soloStaffId ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
-                            )}
-                        >
-                            Todos
-                        </button>
-                        {staff.map(s => (
-                            <button
-                                key={s.id}
-                                onClick={() => setSoloStaffId(soloStaffId === s.id ? null : s.id)}
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-bold transition-all truncate max-w-[80px]",
-                                    soloStaffId === s.id ? "bg-black text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
-                                )}
-                                title={s.full_name}
-                            >
-                                {s.full_name.split(' ')[0]}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
                 {/* Date Nav */}

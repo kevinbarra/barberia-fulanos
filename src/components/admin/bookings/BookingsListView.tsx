@@ -49,6 +49,7 @@ interface BookingsListViewProps {
     services: Service[];
     tenantId: string;
     staffSchedules?: StaffSchedule[];
+    soloStaffId?: string | null;
 }
 
 const statusConfig = {
@@ -102,6 +103,7 @@ export default function BookingsListView({
     services,
     tenantId,
     staffSchedules = [],
+    soloStaffId = null,
 }: BookingsListViewProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -121,12 +123,13 @@ export default function BookingsListView({
         timeFormatted?: string;
     }>({ isOpen: false, variant: 'cancel', clientName: '', clientPhone: null });
 
-    // Filter bookings for current date
+    // Filter bookings for current date + staff filter
     const dailyBookings = bookings
         .filter(b => {
             const bookingDate = toZonedTime(b.start_time, TIMEZONE);
             return isSameDay(bookingDate, currentDate);
         })
+        .filter(b => !soloStaffId || b.staff_id === soloStaffId)
         .filter(b => statusFilter === 'all' || b.status === statusFilter)
         .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 

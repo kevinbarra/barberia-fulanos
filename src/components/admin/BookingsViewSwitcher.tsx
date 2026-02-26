@@ -48,25 +48,44 @@ export default function BookingsViewSwitcher({
     endHour = 21,
     staffSchedules = []
 }: BookingsViewSwitcherProps) {
-    const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+    // Default to LIST view
+    const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
+
+    // Shared staff filter — persists across view switches
+    const [soloStaffId, setSoloStaffId] = useState<string | null>(null);
 
     return (
         <div className="h-full flex flex-col">
-            {/* View Toggle - Fixed at top */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="bg-gray-100 p-1 rounded-xl flex gap-1">
+            {/* View Toggle + Staff Filter */}
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                {/* Staff Filter Pills */}
+                <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1 overflow-x-auto">
                     <button
-                        onClick={() => setViewMode('calendar')}
+                        onClick={() => setSoloStaffId(null)}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all",
-                            viewMode === 'calendar'
-                                ? "bg-white text-gray-900 shadow-sm"
-                                : "text-gray-500 hover:text-gray-700"
+                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                            !soloStaffId ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
                         )}
                     >
-                        <Calendar size={16} />
-                        <span className="hidden sm:inline">Calendario</span>
+                        Todos
                     </button>
+                    {staff.map(s => (
+                        <button
+                            key={s.id}
+                            onClick={() => setSoloStaffId(soloStaffId === s.id ? null : s.id)}
+                            className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all truncate max-w-[100px] whitespace-nowrap",
+                                soloStaffId === s.id ? "bg-black text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
+                            )}
+                            title={s.full_name}
+                        >
+                            {s.full_name.split(' ')[0]}
+                        </button>
+                    ))}
+                </div>
+
+                {/* View Toggle */}
+                <div className="bg-gray-100 p-1 rounded-xl flex gap-1 flex-shrink-0">
                     <button
                         onClick={() => setViewMode('list')}
                         className={cn(
@@ -78,6 +97,18 @@ export default function BookingsViewSwitcher({
                     >
                         <List size={16} />
                         <span className="hidden sm:inline">Lista</span>
+                    </button>
+                    <button
+                        onClick={() => setViewMode('calendar')}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all",
+                            viewMode === 'calendar'
+                                ? "bg-white text-gray-900 shadow-sm"
+                                : "text-gray-500 hover:text-gray-700"
+                        )}
+                    >
+                        <Calendar size={16} />
+                        <span className="hidden sm:inline">Calendario</span>
                     </button>
                 </div>
             </div>
@@ -94,6 +125,8 @@ export default function BookingsViewSwitcher({
                         startHour={startHour}
                         endHour={endHour}
                         staffSchedules={staffSchedules}
+                        soloStaffId={soloStaffId}
+                        onSoloStaffChange={setSoloStaffId}
                     />
                 ) : (
                     <BookingsListView
@@ -102,6 +135,7 @@ export default function BookingsViewSwitcher({
                         services={services}
                         tenantId={tenantId}
                         staffSchedules={staffSchedules}
+                        soloStaffId={soloStaffId}
                     />
                 )}
             </div>
