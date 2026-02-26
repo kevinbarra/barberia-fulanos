@@ -3,22 +3,34 @@
 import { useState, useRef } from 'react';
 import { createTenant } from '@/app/admin/platform/actions';
 import { toast } from 'sonner';
-import { Loader2, Building, User, Globe, Plus, Palette, CreditCard, Clock } from 'lucide-react';
+import { Loader2, Building, User, Globe, Plus, Palette, CreditCard, Clock, Sparkles, UserX, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function TenantProvisioningForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const formRef = useRef<HTMLFormElement>(null); // Referencia para resetear el form
+    const [demoMode, setDemoMode] = useState(false);
+    const [showcaseMode, setShowcaseMode] = useState(false);
+    const [showcaseBarbers, setShowcaseBarbers] = useState(2);
+    const formRef = useRef<HTMLFormElement>(null);
 
     const handleSubmit = async (formData: FormData) => {
         setIsSubmitting(true);
         try {
+            // Inject toggle states into formData
+            if (demoMode) formData.set('demo_mode', 'true');
+            if (showcaseMode) {
+                formData.set('showcase_mode', 'true');
+                formData.set('showcase_barbers', String(showcaseBarbers));
+            }
+
             const res = await createTenant(formData);
             if (res.error) {
                 toast.error(res.error);
             } else {
                 toast.success(res.message);
-                formRef.current?.reset(); // Limpia el formulario al terminar
+                formRef.current?.reset();
+                setDemoMode(false);
+                setShowcaseMode(false);
             }
         } catch (error) {
             toast.error('Error de conexión');
@@ -85,7 +97,7 @@ export default function TenantProvisioningForm() {
                     </div>
                 </div>
 
-                {/* SECCIÓN 2: CONFIGURACIÓN SAAS (NUEVO) */}
+                {/* SECCIÓN 2: CONFIGURACIÓN SAAS */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Configuración SaaS</label>
                     <div className="grid grid-cols-2 gap-4">
@@ -124,24 +136,105 @@ export default function TenantProvisioningForm() {
                 {/* SECCIÓN 3: DUEÑO */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dueño (Owner)</label>
-                    <div className="relative">
-                        <User className="absolute left-3 top-3 text-gray-400" size={18} />
-                        <input
-                            type="email"
-                            name="owner_email"
-                            required
-                            placeholder="Email del Dueño"
-                            className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all text-sm font-medium"
-                        />
-                    </div>
-                    <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100 flex gap-2">
-                        <span>ℹ️</span>
-                        <span>
-                            Si el usuario existe, se le asigna el negocio.
-                            <br />
-                            Si no existe, el sistema lo deja pendiente hasta que se registre.
-                        </span>
-                    </p>
+
+                    {/* Demo Mode Toggle */}
+                    <button
+                        type="button"
+                        onClick={() => setDemoMode(!demoMode)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all mb-3 ${demoMode
+                                ? 'border-amber-400 bg-amber-50 text-amber-800'
+                                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                            }`}
+                    >
+                        <UserX size={18} className={demoMode ? 'text-amber-600' : 'text-gray-400'} />
+                        <span className="text-sm font-semibold flex-1 text-left">Modo Demo (sin dueño real)</span>
+                        <div className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${demoMode ? 'bg-amber-400 justify-end' : 'bg-gray-300 justify-start'
+                            }`}>
+                            <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                        </div>
+                    </button>
+
+                    {demoMode ? (
+                        <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex gap-2">
+                            <span>⚡</span>
+                            <span>
+                                Se creará sin dueño vinculado. Podrás asignar el email real más adelante desde la plataforma.
+                            </span>
+                        </p>
+                    ) : (
+                        <>
+                            <div className="relative">
+                                <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <input
+                                    type="email"
+                                    name="owner_email"
+                                    required={!demoMode}
+                                    placeholder="Email del Dueño"
+                                    className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                                />
+                            </div>
+                            <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100 flex gap-2">
+                                <span>ℹ️</span>
+                                <span>
+                                    Si el usuario existe, se le asigna el negocio.
+                                    <br />
+                                    Si no existe, el sistema lo deja pendiente hasta que se registre.
+                                </span>
+                            </p>
+                        </>
+                    )}
+                </div>
+
+                {/* SECCIÓN 4: SHOWCASE MODE */}
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Datos de Muestra</label>
+
+                    <button
+                        type="button"
+                        onClick={() => setShowcaseMode(!showcaseMode)}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${showcaseMode
+                                ? 'border-violet-400 bg-violet-50 text-violet-800'
+                                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                            }`}
+                    >
+                        <Sparkles size={18} className={showcaseMode ? 'text-violet-600' : 'text-gray-400'} />
+                        <span className="text-sm font-semibold flex-1 text-left">Poblar con barberos demo</span>
+                        <div className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${showcaseMode ? 'bg-violet-500 justify-end' : 'bg-gray-300 justify-start'
+                            }`}>
+                            <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                        </div>
+                    </button>
+
+                    {showcaseMode && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="mt-3 space-y-3"
+                        >
+                            <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-200">
+                                <Users size={16} className="text-violet-600" />
+                                <span className="text-sm text-violet-700 font-medium">Barberos:</span>
+                                <div className="flex gap-2 ml-auto">
+                                    {[2, 3, 4].map(n => (
+                                        <button
+                                            key={n}
+                                            type="button"
+                                            onClick={() => setShowcaseBarbers(n)}
+                                            className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${showcaseBarbers === n
+                                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
+                                                    : 'bg-white text-violet-600 border border-violet-200 hover:bg-violet-100'
+                                                }`}
+                                        >
+                                            {n}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <p className="text-xs text-violet-600 bg-violet-50/50 p-2 rounded-lg border border-violet-100">
+                                ✨ Se crearán {showcaseBarbers} barberos con nombres genéricos, horarios L-S (10:00–20:00) y los 5 servicios estándar. Listo para demo en segundos.
+                            </p>
+                        </motion.div>
+                    )}
                 </div>
 
                 <motion.button
