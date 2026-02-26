@@ -56,14 +56,15 @@ export default function BookingsViewSwitcher({
 
     return (
         <div className="h-full flex flex-col">
-            {/* View Toggle + Staff Filter */}
-            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                {/* Staff Filter Pills */}
-                <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+            {/* Header: Staff Filter + View Toggle */}
+            {/* pr-14 on mobile/tablet clears the fixed notification bell (top-4 right-4) */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pr-14 lg:pr-0">
+                {/* Left: Staff Filter Pills — scrollable on mobile */}
+                <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1 overflow-x-auto min-w-0 scrollbar-hide">
                     <button
                         onClick={() => setSoloStaffId(null)}
                         className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap",
+                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex-shrink-0",
                             !soloStaffId ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"
                         )}
                     >
@@ -74,7 +75,7 @@ export default function BookingsViewSwitcher({
                             key={s.id}
                             onClick={() => setSoloStaffId(soloStaffId === s.id ? null : s.id)}
                             className={cn(
-                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all truncate max-w-[100px] whitespace-nowrap",
+                                "px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap flex-shrink-0",
                                 soloStaffId === s.id ? "bg-black text-white shadow-sm" : "text-gray-500 hover:text-gray-700"
                             )}
                             title={s.full_name}
@@ -84,8 +85,8 @@ export default function BookingsViewSwitcher({
                     ))}
                 </div>
 
-                {/* View Toggle */}
-                <div className="bg-gray-100 p-1 rounded-xl flex gap-1 flex-shrink-0">
+                {/* Right: View Toggle — fixed width, never wraps */}
+                <div className="bg-gray-100 p-1 rounded-xl flex gap-1 flex-shrink-0 self-start sm:self-auto">
                     <button
                         onClick={() => setViewMode('list')}
                         className={cn(
