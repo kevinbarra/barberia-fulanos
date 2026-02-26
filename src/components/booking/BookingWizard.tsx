@@ -53,13 +53,13 @@ function generateCalendarLink(booking: BookingResult, serviceDuration: number): 
 }
 
 // Generate WhatsApp confirmation link
-function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ownerName?: string | null): string {
+function generateWhatsAppConfirmation(booking: BookingResult, phone: string, tenantName?: string): string {
     const clientName = booking.guest_name || 'Cliente';
     const serviceName = booking.service_name || 'Servicio';
     const bookingDate = new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
     const bookingTime = new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-    const greeting = ownerName ? `¡Hola ${ownerName}! 👋` : '¡Hola! 👋';
+    const greeting = tenantName ? `¡Hola ${tenantName}! 👋` : '¡Hola! 👋';
     const message = `${greeting} Acabo de agendar por la App:
 
 👤 *Cliente:* ${clientName}
@@ -78,8 +78,7 @@ export default function BookingWizard({
     schedules,
     currentUser,
     whatsappPhone,
-    tenantName,
-    ownerName
+    tenantName
 }: {
     services: Service[];
     staff: Staff[];
@@ -87,7 +86,6 @@ export default function BookingWizard({
     currentUser?: CurrentUser;
     whatsappPhone?: string | null;
     tenantName?: string;
-    ownerName?: string | null;
 }) {
     // Hooks
     const searchParams = useSearchParams();
@@ -379,7 +377,7 @@ export default function BookingWizard({
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        href={generateWhatsAppConfirmation(bookingData, whatsappPhone, ownerName)}
+                        href={generateWhatsAppConfirmation(bookingData, whatsappPhone, tenantName)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={() => setWhatsappSent(true)}

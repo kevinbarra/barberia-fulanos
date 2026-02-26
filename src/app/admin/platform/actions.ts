@@ -124,6 +124,82 @@ export async function toggleTenantStatus(tenantId: string, newStatus: 'active' |
     return { success: true, message: `Tenant ${newStatus === 'active' ? 'activado' : 'suspendido'} exitosamente.` };
 }
 
+
+// Update tenant data (name, slug, whatsapp_phone) — Super Admin only
+export async function updateTenantAdmin(
+    tenantId: string,
+    data: { name?: string; slug?: string; whatsapp_phone?: string }
+) {
+    const supabase = await createClient();
+
+    // Validate Super Admin
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'No autorizado' };
+
+    const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (adminProfile?.role !== 'super_admin') {
+        return { error: 'Permisos insuficientes. Solo Super Admin.' };
+    }
+
+    // Build update payload
+    const updatePayload: Record<string, any> = {};
+    if (data.name?.trim()) updatePayload.name = data.name.trim();
+    if (data.slug?.trim()) {
+        const cleanSlug = data.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+        // Check slug uniqueness
+        const { data: existing } = await supabase
+            .from('tenants')
+            .select('id')
+            .eq('slug', cleanSlug)
+            .neq('id', tenantId)
+            .single();
+        if (existing) {
+            return { error: `El slug "${cleanSlug}" ya está en uso por otro negocio.` };
+        }
+        updatePayload.slug = cleanSlug;
+    }
+
+    if (Object.keys(updatePayload).length === 0 && !data.whatsapp_phone && data.whatsapp_phone !== '') {
+        return { error: 'No hay cambios para guardar.' };
+    }
+
+    // Update tenant record
+    if (Object.keys(updatePayload).length > 0) {
+        const { error } = await supabase
+            .from('tenants')
+            .update(updatePayload)
+            .eq('id', tenantId);
+        if (error) return { error: `Error al actualizar tenant: ${error.message}` };
+    }
+
+    // Update whatsapp_phone in settings JSONB
+    if (data.whatsapp_phone !== undefined) {
+        const phone = data.whatsapp_phone.replace(/\D/g, ''); // Clean non-digits
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('settings')
+            .eq('id', tenantId)
+            .single();
+
+        const currentSettings = (tenant?.settings as Record<string, any>) || {};
+        const newSettings = { ...currentSettings, whatsapp_phone: phone || null };
+
+        const { error } = await supabase
+            .from('tenants')
+            .update({ settings: newSettings })
+            .eq('id', tenantId);
+        if (error) return { error: `Error al actualizar WhatsApp: ${error.message}` };
+    }
+
+    revalidatePath('/admin/platform');
+    return { success: true, message: 'Negocio actualizado correctamente.' };
+}
+
 // Get platform-wide stats with trends
 export async function getPlatformStats() {
     const supabase = await createClient();

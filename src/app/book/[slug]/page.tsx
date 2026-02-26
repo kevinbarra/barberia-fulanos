@@ -84,10 +84,9 @@ export default async function BookingPage({
 
     // 4.1 CHECK: Guest Checkout Setting
     // Default to true (enabled) if settings is null or key is missing
-    const tenantSettings = tenant.settings as { guest_checkout_enabled?: boolean; whatsapp_phone?: string; owner_name?: string } | null;
+    const tenantSettings = tenant.settings as { guest_checkout_enabled?: boolean; whatsapp_phone?: string } | null;
     const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
     const whatsappPhone = tenantSettings?.whatsapp_phone || null;
-    const ownerName = tenantSettings?.owner_name || null;
 
     // If guest checkout is DISABLED and user is NOT logged in, redirect to login
     if (!isGuestCheckoutEnabled && !user) {
@@ -140,7 +139,6 @@ export default async function BookingPage({
                         currentUser={userData}
                         whatsappPhone={whatsappPhone}
                         tenantName={tenant.name}
-                        ownerName={ownerName}
                     />
                 </div>
             </div>
