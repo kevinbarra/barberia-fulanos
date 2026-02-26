@@ -93,6 +93,7 @@ export default function BookingsViewSwitcher({
                         currentUserRole={currentUserRole}
                         startHour={startHour}
                         endHour={endHour}
+                        staffSchedules={staffSchedules}
                     />
                 ) : (
                     <BookingsListView
