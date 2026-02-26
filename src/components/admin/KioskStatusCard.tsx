@@ -5,8 +5,9 @@ import { useKioskMode } from './KioskModeProvider'
 /**
  * KioskStatusCard - Client component that shows kiosk status
  * 
- * This component only renders for fulanosbarbermx@gmail.com
- * and only when kiosk mode is actually active.
+ * This component only renders for users with kiosk mode enabled
+ * (controlled via MASTER_ADMIN_EMAIL constant) and only when
+ * kiosk mode is actually active.
  */
 export default function KioskStatusCard() {
     const { isKioskMode, isLoading, isKioskEnabled } = useKioskMode()

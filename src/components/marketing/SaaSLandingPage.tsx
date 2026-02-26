@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check } from "lucide-react"
 import ContactForm from "./ContactForm"
+import { PLATFORM_WHATSAPP } from '@/lib/constants'
 
 const plans = [
     {
@@ -103,7 +104,7 @@ export default function SaaSLandingPage() {
                         Iniciar Sesión
                     </Link>
                     <a
-                        href="https://wa.me/522291589149?text=Hola%2C%20me%20interesa%20AgendaBarber%20para%20mi%20barber%C3%ADa"
+                        href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="bg-white hover:bg-zinc-100 text-zinc-900 font-bold px-5 py-2.5 rounded-xl text-sm transition-all hover:scale-105 flex items-center gap-2"
@@ -140,7 +141,7 @@ export default function SaaSLandingPage() {
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <a
-                        href="https://wa.me/522291589149?text=Hola%2C%20me%20interesa%20AgendaBarber%20para%20mi%20barber%C3%ADa"
+                        href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="group bg-white hover:bg-zinc-100 text-zinc-900 font-bold px-8 py-4 rounded-2xl text-lg transition-all hover:scale-105 shadow-[0_0_60px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3"

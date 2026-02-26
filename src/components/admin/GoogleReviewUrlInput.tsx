@@ -5,7 +5,7 @@ import { updateTenantSetting, getTenantSettings } from '@/app/admin/settings/act
 import { toast } from 'sonner'
 import { Star, ExternalLink, Loader2, Check, AlertCircle } from 'lucide-react'
 
-const DEFAULT_GOOGLE_REVIEW_URL = 'https://search.google.com/local/writereview?placeid=ChIJ8QjZHRhBw4URCV5izqznSZo'
+
 
 export default function GoogleReviewUrlInput() {
     const [url, setUrl] = useState('')
@@ -55,10 +55,7 @@ export default function GoogleReviewUrlInput() {
         setIsSaving(false)
     }
 
-    const handleUseDefault = () => {
-        setUrl(DEFAULT_GOOGLE_REVIEW_URL)
-        setHasChanges(DEFAULT_GOOGLE_REVIEW_URL !== savedUrl)
-    }
+
 
     const isValidUrl = url === '' || url.startsWith('http')
 
@@ -100,8 +97,8 @@ export default function GoogleReviewUrlInput() {
                             onChange={(e) => handleChange(e.target.value)}
                             placeholder="https://search.google.com/local/writereview?placeid=..."
                             className={`w-full px-4 py-3 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${!isValidUrl
-                                    ? 'border-red-300 focus:ring-red-500'
-                                    : 'border-gray-200 focus:ring-amber-500 focus:border-amber-500'
+                                ? 'border-red-300 focus:ring-red-500'
+                                : 'border-gray-200 focus:ring-amber-500 focus:border-amber-500'
                                 }`}
                         />
                         {!isValidUrl && (
@@ -144,14 +141,7 @@ export default function GoogleReviewUrlInput() {
                         </a>
                     )}
 
-                    {!url && (
-                        <button
-                            onClick={handleUseDefault}
-                            className="text-sm text-gray-500 hover:text-gray-700 underline"
-                        >
-                            Usar URL de Fulanos Barber (demo)
-                        </button>
-                    )}
+
                 </div>
             </div>
 

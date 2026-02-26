@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, Mail, Phone } from 'lucide-react';
-import { SUPPORT_EMAIL } from '@/lib/constants';
+import { SUPPORT_EMAIL, PLATFORM_WHATSAPP } from '@/lib/constants';
 
 interface TenantSuspendedScreenProps {
     tenantName: string;
@@ -48,7 +48,7 @@ export default function TenantSuspendedScreen({ tenantName }: TenantSuspendedScr
                             {SUPPORT_EMAIL}
                         </a>
                         <a
-                            href="https://wa.me/522291589149"
+                            href={`https://wa.me/${PLATFORM_WHATSAPP}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-3 text-zinc-300 hover:text-white transition-colors"

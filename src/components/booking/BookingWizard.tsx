@@ -53,14 +53,14 @@ function generateCalendarLink(booking: BookingResult, serviceDuration: number): 
 }
 
 // Generate WhatsApp confirmation link
-function generateWhatsAppConfirmation(booking: BookingResult): string {
-    const adminPhone = "522296103686";
+function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ownerName?: string | null): string {
     const clientName = booking.guest_name || 'Cliente';
     const serviceName = booking.service_name || 'Servicio';
     const bookingDate = new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
     const bookingTime = new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-    const message = `¡Hola Manuel! 👋 Acabo de agendar por la App:
+    const greeting = ownerName ? `¡Hola ${ownerName}! 👋` : '¡Hola! 👋';
+    const message = `${greeting} Acabo de agendar por la App:
 
 👤 *Cliente:* ${clientName}
 ✂️ *Servicio:* ${serviceName}
@@ -69,19 +69,25 @@ function generateWhatsAppConfirmation(booking: BookingResult): string {
 
 ¡Confírmame si todo bien! Gracias.`;
 
-    return `https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
 export default function BookingWizard({
     services,
     staff,
     schedules,
-    currentUser
+    currentUser,
+    whatsappPhone,
+    tenantName,
+    ownerName
 }: {
     services: Service[];
     staff: Staff[];
     schedules: Schedule[];
     currentUser?: CurrentUser;
+    whatsappPhone?: string | null;
+    tenantName?: string;
+    ownerName?: string | null;
 }) {
     // Hooks
     const searchParams = useSearchParams();
@@ -246,8 +252,8 @@ export default function BookingWizard({
         const calendarUrl = generateCalendarLink(bookingData, selectedService?.duration_min || 30);
         const isGuest = !currentUser;
         const hasEmail = !!bookingData.guest_email;
-        const isUrgent = countdown > 0 && !whatsappSent;
-        const isExpired = countdown <= 0 && !whatsappSent;
+        const isUrgent = countdown > 0 && !whatsappSent && !!whatsappPhone;
+        const isExpired = countdown <= 0 && !whatsappSent && !!whatsappPhone;
 
         return (
             <motion.div
@@ -262,8 +268,8 @@ export default function BookingWizard({
                         animate={{ scale: 1 }}
                         transition={{ type: "spring", delay: 0.1 }}
                         className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl ${whatsappSent
-                                ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-200'
-                                : 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-200'
+                            ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-200'
+                            : 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-200'
                             }`}
                     >
                         {whatsappSent ? (
@@ -278,27 +284,32 @@ export default function BookingWizard({
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Cita Asegurada! ✅</h2>
                             <p className="text-gray-500 text-sm mt-1">Tu barbero ya fue notificado, {bookingData.guest_name.split(' ')[0]}</p>
                         </>
-                    ) : (
+                    ) : whatsappPhone ? (
                         <>
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">⚠️ Paso final obligatorio</h2>
                             <p className="text-gray-600 text-sm mt-2 leading-relaxed px-2">
                                 Para asegurar tu lugar, confirma tu cita por WhatsApp ahora mismo.
                             </p>
                         </>
+                    ) : (
+                        <>
+                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Cita Reservada! ✅</h2>
+                            <p className="text-gray-500 text-sm mt-1">Tu cita ha sido registrada, {bookingData.guest_name.split(' ')[0]}</p>
+                        </>
                     )}
                 </div>
 
                 {/* COUNTDOWN TIMER - only show if not confirmed */}
-                {!whatsappSent && (
+                {!whatsappSent && whatsappPhone && (
                     <motion.div
                         initial={{ y: 10, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.15 }}
                         className={`rounded-2xl p-4 mb-5 text-center border ${isExpired
-                                ? 'bg-red-50 border-red-200'
-                                : countdown < 300
-                                    ? 'bg-amber-50 border-amber-200'
-                                    : 'bg-orange-50 border-orange-200'
+                            ? 'bg-red-50 border-red-200'
+                            : countdown < 300
+                                ? 'bg-amber-50 border-amber-200'
+                                : 'bg-orange-50 border-orange-200'
                             }`}
                     >
                         <div className={`text-3xl font-black font-mono tracking-wider ${isExpired ? 'text-red-600' : countdown < 300 ? 'text-amber-600' : 'text-orange-600'
@@ -362,23 +373,25 @@ export default function BookingWizard({
                     </div>
                 </motion.div>
 
-                {/* PRIMARY CTA: WhatsApp Confirmation */}
-                <motion.a
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                    href={generateWhatsAppConfirmation(bookingData)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setWhatsappSent(true)}
-                    className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-base uppercase tracking-wide transition-all active:scale-[0.97] mb-4 ${whatsappSent
+                {/* PRIMARY CTA: WhatsApp Confirmation (only if tenant has WhatsApp configured) */}
+                {whatsappPhone && (
+                    <motion.a
+                        initial={{ y: 10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        href={generateWhatsAppConfirmation(bookingData, whatsappPhone, ownerName)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setWhatsappSent(true)}
+                        className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-base uppercase tracking-wide transition-all active:scale-[0.97] mb-4 ${whatsappSent
                             ? 'bg-gray-100 text-gray-500'
                             : 'bg-[#25D366] hover:bg-[#1fba59] text-white shadow-xl shadow-green-300/40 animate-pulse hover:animate-none'
-                        }`}
-                >
-                    <MessageCircle size={22} />
-                    {whatsappSent ? '✓ WhatsApp Enviado' : 'CONFIRMAR POR WHATSAPP →'}
-                </motion.a>
+                            }`}
+                    >
+                        <MessageCircle size={22} />
+                        {whatsappSent ? '✓ WhatsApp Enviado' : 'CONFIRMAR POR WHATSAPP →'}
+                    </motion.a>
+                )}
 
                 {/* Secondary actions - minimal */}
                 <div className="flex flex-col items-center gap-2 mt-2">
@@ -394,42 +407,44 @@ export default function BookingWizard({
                 </div>
 
                 {/* CONTEXT-AWARE FOOTER - Minimal */}
-                {isGuest ? (
-                    <div className="mt-auto pt-6 flex flex-col gap-2">
-                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
-                            <div className="flex items-start gap-3">
-                                <Gift size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs text-gray-600">
-                                        <span className="font-bold text-gray-800">¿Quieres descuentos?</span> Crea una cuenta y acumula puntos.
-                                    </p>
-                                    <Link
-                                        href={hasEmail ? `/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}` : '/login?mode=signup'}
-                                        className="text-xs text-amber-600 font-bold hover:text-amber-700 mt-1 inline-block"
-                                    >
-                                        Crear cuenta gratis →
-                                    </Link>
+                {
+                    isGuest ? (
+                        <div className="mt-auto pt-6 flex flex-col gap-2">
+                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+                                <div className="flex items-start gap-3">
+                                    <Gift size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-xs text-gray-600">
+                                            <span className="font-bold text-gray-800">¿Quieres descuentos?</span> Crea una cuenta y acumula puntos.
+                                        </p>
+                                        <Link
+                                            href={hasEmail ? `/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}` : '/login?mode=signup'}
+                                            className="text-xs text-amber-600 font-bold hover:text-amber-700 mt-1 inline-block"
+                                        >
+                                            Crear cuenta gratis →
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
+                            <Link
+                                href="/login"
+                                className="text-center text-xs text-gray-400 hover:text-gray-600 py-1"
+                            >
+                                ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
+                            </Link>
                         </div>
-                        <Link
-                            href="/login"
-                            className="text-center text-xs text-gray-400 hover:text-gray-600 py-1"
-                        >
-                            ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
-                        </Link>
-                    </div>
-                ) : (
-                    <div className="mt-auto pt-4 text-center">
-                        <Link
-                            href="/app"
-                            className="text-xs text-gray-400 hover:text-gray-600 font-medium"
-                        >
-                            Ver mis citas →
-                        </Link>
-                    </div>
-                )}
-            </motion.div>
+                    ) : (
+                        <div className="mt-auto pt-4 text-center">
+                            <Link
+                                href="/app"
+                                className="text-xs text-gray-400 hover:text-gray-600 font-medium"
+                            >
+                                Ver mis citas →
+                            </Link>
+                        </div>
+                    )
+                }
+            </motion.div >
         );
     }
 

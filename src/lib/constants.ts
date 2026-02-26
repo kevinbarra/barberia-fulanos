@@ -33,7 +33,10 @@ export const SENDER_EMAIL = process.env.RESEND_FROM_EMAIL || `contacto@${ROOT_DO
 // TODO: Migrate this logic to role-based permissions in the profiles table
 // This email-based gate is temporary and should be replaced with a proper
 // feature flag system or super_admin role check.
-export const MASTER_ADMIN_EMAIL = process.env.MASTER_ADMIN_EMAIL || 'fulanosbarbermx@gmail.com';
+export const MASTER_ADMIN_EMAIL = process.env.MASTER_ADMIN_EMAIL || 'admin@agendabarber.pro';
+
+// Platform-level WhatsApp for sales/support (used in SaaS landing & suspended screen)
+export const PLATFORM_WHATSAPP = process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP || '522291589149';
 
 // ==================== HELPER FUNCTIONS ====================
 /**
