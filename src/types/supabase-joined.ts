@@ -28,6 +28,10 @@ export type PosBookingData = {
     notes: string | null;
     status: string;
     customer_id: string | null;
+    staff_id: string;
+    service_id: string;
+    guest_name: string | null;
+    guest_phone: string | null;
     profiles: JoinedProfile | null; // Staff
     services: JoinedService | null;
     customer: JoinedProfile | null; // Customer

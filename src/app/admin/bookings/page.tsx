@@ -33,7 +33,8 @@ export default async function BookingsPage() {
         .select(`
             *, 
             services ( name, price, duration_min ),
-            profiles:staff_id ( full_name, avatar_url )
+            profiles:staff_id ( full_name, avatar_url ),
+            customer:customer_id ( full_name, phone )
         `)
         .eq("tenant_id", tenantId)
         .gte("start_time", startDate)

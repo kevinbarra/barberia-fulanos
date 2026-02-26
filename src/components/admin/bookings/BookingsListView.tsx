@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { PosBookingData } from '@/types/supabase-joined';
 import { format, isSameDay, addDays, subDays } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -15,11 +16,17 @@ import {
     XCircle,
     AlertCircle,
     Calendar,
-    Plus
+    Plus,
+    Pencil,
+    MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/constants';
+import { cancelBookingAdmin } from '@/app/admin/bookings/actions';
+import { toast } from 'sonner';
 import NewBookingModal from '../NewBookingModal';
+import EditBookingModal from './EditBookingModal';
+import WhatsAppNotifyModal from './WhatsAppNotifyModal';
 
 const TIMEZONE = DEFAULT_TIMEZONE;
 
@@ -93,9 +100,23 @@ export default function BookingsListView({
     services,
     tenantId,
 }: BookingsListViewProps) {
+    const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
+
+    // Edit modal state
+    const [editBooking, setEditBooking] = useState<PosBookingData | null>(null);
+
+    // WhatsApp notification modal state
+    const [waModal, setWaModal] = useState<{
+        isOpen: boolean;
+        variant: 'reschedule' | 'cancel';
+        clientName: string;
+        clientPhone: string | null;
+        dateFormatted?: string;
+        timeFormatted?: string;
+    }>({ isOpen: false, variant: 'cancel', clientName: '', clientPhone: null });
 
     // Filter bookings for current date
     const dailyBookings = bookings
@@ -113,6 +134,85 @@ export default function BookingsListView({
         pending: dailyBookings.filter(b => ['pending', 'confirmed', 'seated'].includes(b.status)).length,
         cancelled: dailyBookings.filter(b => ['cancelled', 'no_show'].includes(b.status)).length,
     };
+
+    // Resolve client info from booking
+    const getClientInfo = (booking: PosBookingData) => {
+        let clientName = "Cliente";
+        let clientPhone: string | null = null;
+
+        if (booking.guest_name) {
+            clientName = booking.guest_name;
+        } else if (booking.customer?.full_name) {
+            clientName = booking.customer.full_name;
+        } else if (booking.notes) {
+            clientName = booking.notes
+                .replace('Walk-in: ', '')
+                .replace('WALK-IN | Cliente: ', '')
+                .split('|')[0]
+                .replace('Cliente:', '')
+                .trim();
+        }
+
+        // Phone: guest_phone first, then parse from notes, then customer.phone
+        if (booking.guest_phone) {
+            clientPhone = booking.guest_phone;
+        } else if (booking.notes?.includes('Tel:')) {
+            const telMatch = booking.notes.match(/Tel:\s*([^\s|]+)/);
+            if (telMatch) clientPhone = telMatch[1];
+        } else if (booking.customer?.phone) {
+            clientPhone = booking.customer.phone;
+        }
+
+        return { clientName, clientPhone };
+    };
+
+    // Handle cancel
+    const handleCancel = async (booking: PosBookingData) => {
+        const { clientName, clientPhone } = getClientInfo(booking);
+
+        if (!confirm(`¿Cancelar la cita de ${clientName}?`)) return;
+
+        const result = await cancelBookingAdmin(booking.id, 'Cancelado desde lista de citas');
+
+        if (result?.error) {
+            toast.error(result.error);
+            return;
+        }
+
+        toast.success('Cita cancelada');
+        router.refresh();
+
+        // Format date for WhatsApp message
+        const startDate = toZonedTime(booking.start_time, TIMEZONE);
+        const dateFormatted = format(startDate, "EEEE d 'de' MMMM", { locale: es });
+        const timeFormatted = format(startDate, 'h:mm a');
+
+        // Show WhatsApp notification modal
+        setWaModal({
+            isOpen: true,
+            variant: 'cancel',
+            clientName,
+            clientPhone,
+            dateFormatted,
+            timeFormatted,
+        });
+    };
+
+    // Handle edit success → show WhatsApp notification
+    const handleEditSuccess = (booking: PosBookingData, dateFormatted: string, timeFormatted: string) => {
+        const { clientName, clientPhone } = getClientInfo(booking);
+        router.refresh();
+        setWaModal({
+            isOpen: true,
+            variant: 'reschedule',
+            clientName,
+            clientPhone,
+            dateFormatted,
+            timeFormatted,
+        });
+    };
+
+    const isActionable = (status: string) => ['confirmed', 'pending'].includes(status);
 
     return (
         <div className="flex flex-col h-[calc(100dvh-100px)] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
@@ -219,25 +319,14 @@ export default function BookingsListView({
                         const startDate = toZonedTime(booking.start_time, TIMEZONE);
                         const timeStr = format(startDate, 'h:mm a');
 
-                        // Client name resolution
-                        let clientName = "Cliente";
-                        if (booking.customer?.full_name) {
-                            clientName = booking.customer.full_name;
-                        } else if (booking.notes) {
-                            clientName = booking.notes
-                                .replace('Walk-in: ', '')
-                                .replace('WALK-IN | Cliente: ', '')
-                                .split('|')[0]
-                                .replace('Cliente:', '')
-                                .trim();
-                        }
-
+                        const { clientName } = getClientInfo(booking);
                         const serviceName = booking.services?.name || "Servicio";
                         const staffName = booking.profiles?.full_name?.split(' ')[0] || "Staff";
                         const price = booking.services?.price || 0;
 
                         const status = statusConfig[booking.status as keyof typeof statusConfig] || statusConfig.pending;
                         const StatusIcon = status.icon;
+                        const canAct = isActionable(booking.status);
 
                         return (
                             <div
@@ -291,13 +380,33 @@ export default function BookingsListView({
                                         </span>
                                     </div>
                                 </div>
+
+                                {/* Action Buttons - only for actionable bookings */}
+                                {canAct && (
+                                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
+                                        <button
+                                            onClick={() => setEditBooking(booking)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-gray-600 hover:text-black bg-gray-50 hover:bg-gray-100 rounded-xl transition-all"
+                                        >
+                                            <Pencil size={12} />
+                                            Editar
+                                        </button>
+                                        <button
+                                            onClick={() => handleCancel(booking)}
+                                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-all"
+                                        >
+                                            <XCircle size={12} />
+                                            Cancelar
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         );
                     })
                 )}
             </div>
 
-            {/* MODAL */}
+            {/* MODALS */}
             {isNewBookingOpen && (
                 <NewBookingModal
                     tenantId={tenantId}
@@ -306,6 +415,33 @@ export default function BookingsListView({
                     onClose={() => setIsNewBookingOpen(false)}
                 />
             )}
+
+            {editBooking && (
+                <EditBookingModal
+                    isOpen={!!editBooking}
+                    onClose={() => setEditBooking(null)}
+                    bookingId={editBooking.id}
+                    currentDate={editBooking.start_time}
+                    currentStaffId={editBooking.staff_id}
+                    currentStaffName={editBooking.profiles?.full_name || 'Staff'}
+                    serviceName={editBooking.services?.name || 'Servicio'}
+                    clientName={getClientInfo(editBooking).clientName}
+                    staff={staff}
+                    onSuccess={(dateFormatted, timeFormatted) =>
+                        handleEditSuccess(editBooking, dateFormatted, timeFormatted)
+                    }
+                />
+            )}
+
+            <WhatsAppNotifyModal
+                isOpen={waModal.isOpen}
+                onClose={() => setWaModal(prev => ({ ...prev, isOpen: false }))}
+                clientName={waModal.clientName}
+                clientPhone={waModal.clientPhone}
+                variant={waModal.variant}
+                dateFormatted={waModal.dateFormatted}
+                timeFormatted={waModal.timeFormatted}
+            />
         </div>
     );
 }

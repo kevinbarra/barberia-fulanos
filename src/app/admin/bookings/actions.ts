@@ -473,3 +473,131 @@ export async function markNoShow(bookingId: string) {
 
     return { success: true, message: 'Marcado como No-Show.' }
 }
+
+// --- FUNCIÓN 6: REPROGRAMAR CITA (ADMIN) ---
+export async function rescheduleBooking(
+    bookingId: string,
+    newStartTime: string, // ISO string in CDMX timezone e.g. "2026-02-28T10:00"
+    newStaffId?: string
+) {
+    const TIMEZONE = DEFAULT_TIMEZONE
+    const supabase = await createClient()
+
+    // 1. Auth Check
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // 2. Get current booking
+    const { data: booking, error: fetchError } = await supabase
+        .from('bookings')
+        .select('*, services(duration_min, name)')
+        .eq('id', bookingId)
+        .single()
+
+    if (fetchError || !booking) return { error: 'Cita no encontrada.' }
+
+    // 3. Only allow rescheduling confirmed/pending bookings
+    if (!['confirmed', 'pending'].includes(booking.status)) {
+        return { error: 'Solo se pueden reprogramar citas confirmadas o pendientes.' }
+    }
+
+    // 4. Calculate new times
+    const durationMin = booking.services?.duration_min || 30
+    const staffId = newStaffId || booking.staff_id
+    const newStart = fromZonedTime(newStartTime, TIMEZONE)
+    const newEnd = new Date(newStart.getTime() + durationMin * 60000)
+
+    // Prevent scheduling in the past
+    if (isBefore(newStart, new Date())) {
+        return { error: 'No se puede agendar en el pasado.' }
+    }
+
+    // 5. Collision check (bookings)
+    const { count: conflictCount } = await supabase
+        .from('bookings')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', staffId)
+        .in('status', ['confirmed', 'seated', 'pending'])
+        .neq('id', bookingId)
+        .lt('start_time', newEnd.toISOString())
+        .gt('end_time', newStart.toISOString())
+
+    if (conflictCount && conflictCount > 0) {
+        return { error: 'El barbero ya tiene una cita en ese horario. Elige otro.' }
+    }
+
+    // 6. Collision check (time blocks)
+    const { count: blockCount } = await supabase
+        .from('time_blocks')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', staffId)
+        .lt('start_time', newEnd.toISOString())
+        .gt('end_time', newStart.toISOString())
+
+    if (blockCount && blockCount > 0) {
+        return { error: 'El barbero tiene un bloqueo de tiempo en ese horario.' }
+    }
+
+    // 7. Save old values for audit
+    const oldStartTime = booking.start_time
+    const oldStaffId = booking.staff_id
+
+    // 8. Update booking
+    const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+            start_time: newStart.toISOString(),
+            end_time: newEnd.toISOString(),
+            staff_id: staffId,
+        })
+        .eq('id', bookingId)
+
+    if (updateError) {
+        console.error('[RESCHEDULE] Error:', updateError)
+        return { error: 'Error al reprogramar la cita.' }
+    }
+
+    // 9. Audit log
+    await logActivity({
+        tenantId: booking.tenant_id,
+        actorId: user.id,
+        action: 'UPDATE',
+        entity: 'bookings',
+        entityId: bookingId,
+        metadata: {
+            type: 'reschedule',
+            oldStartTime,
+            newStartTime: newStart.toISOString(),
+            oldStaffId,
+            newStaffId: staffId,
+        }
+    })
+
+    // 10. Broadcast
+    await broadcastBookingEvent(booking.tenant_id, 'booking-updated', {
+        id: bookingId,
+        start_time: newStart.toISOString(),
+        end_time: newEnd.toISOString(),
+    })
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/admin/pos')
+    revalidatePath('/app')
+
+    // Format for WhatsApp message
+    const dateFormatted = newStart.toLocaleDateString('es-MX', {
+        timeZone: TIMEZONE,
+        weekday: 'long', day: 'numeric', month: 'long'
+    })
+    const timeFormatted = newStart.toLocaleTimeString('es-MX', {
+        timeZone: TIMEZONE,
+        hour: '2-digit', minute: '2-digit'
+    })
+
+    return {
+        success: true,
+        message: 'Cita reprogramada.',
+        dateFormatted,
+        timeFormatted,
+    }
+}
