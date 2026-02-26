@@ -163,7 +163,7 @@ export default function NextAppointmentCard({
                         </div>
                         <div className="flex items-center gap-2">
                             <MapPin size={14} className="text-purple-500" />
-                            <span className="font-medium">Sucursal Centro</span>
+                            <span className="font-medium">Sucursal Lázaro Cárdenas</span>
                         </div>
                     </div>
 
