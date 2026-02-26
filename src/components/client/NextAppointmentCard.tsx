@@ -53,10 +53,12 @@ const CANCELLATION_BUFFER_MS = 2 * 60 * 60 * 1000;
 
 export default function NextAppointmentCard({
     booking,
-    userProfileName = ''
+    userProfileName = '',
+    tenantAddress
 }: {
     booking: unknown;
     userProfileName?: string;
+    tenantAddress?: string | null;
 }) {
     const [isCancelling, setIsCancelling] = useState(false)
     const safeBooking = booking as BookingData;
@@ -161,10 +163,12 @@ export default function NextAppointmentCard({
                             <Calendar size={14} className="text-blue-500" />
                             <span className="capitalize font-medium">{dateStr}</span>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <MapPin size={14} className="text-purple-500" />
-                            <span className="font-medium">Sucursal Lázaro Cárdenas</span>
-                        </div>
+                        {tenantAddress && (
+                            <div className="flex items-center gap-2">
+                                <MapPin size={14} className="text-purple-500" />
+                                <span className="font-medium">{tenantAddress}</span>
+                            </div>
+                        )}
                     </div>
 
                     {/* Time Until Appointment Badge */}

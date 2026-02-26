@@ -31,6 +31,7 @@ interface ClientDashboardUIProps {
     };
     showNoShowAlert: boolean;
     tenantSlug: string;
+    tenantAddress?: string | null;
 }
 
 export default function ClientDashboardUI({
@@ -42,7 +43,8 @@ export default function ClientDashboardUI({
     history,
     loyaltyStatus,
     showNoShowAlert,
-    tenantSlug
+    tenantSlug,
+    tenantAddress
 }: ClientDashboardUIProps) {
 
     const container = {
@@ -227,6 +229,7 @@ export default function ClientDashboardUI({
                                         key={(booking.id as string) || index}
                                         booking={booking}
                                         userProfileName={(profile?.full_name as string) || ''}
+                                        tenantAddress={tenantAddress}
                                     />
                                 ))}
                             </div>

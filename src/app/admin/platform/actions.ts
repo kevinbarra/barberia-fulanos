@@ -128,7 +128,7 @@ export async function toggleTenantStatus(tenantId: string, newStatus: 'active' |
 // Update tenant data (name, slug, whatsapp_phone) — Super Admin only
 export async function updateTenantAdmin(
     tenantId: string,
-    data: { name?: string; slug?: string; whatsapp_phone?: string }
+    data: { name?: string; slug?: string; whatsapp_phone?: string; address?: string }
 ) {
     const supabase = await createClient();
 
@@ -177,9 +177,8 @@ export async function updateTenantAdmin(
         if (error) return { error: `Error al actualizar tenant: ${error.message}` };
     }
 
-    // Update whatsapp_phone in settings JSONB
-    if (data.whatsapp_phone !== undefined) {
-        const phone = data.whatsapp_phone.replace(/\D/g, ''); // Clean non-digits
+    // Update settings JSONB (whatsapp_phone + address)
+    if (data.whatsapp_phone !== undefined || data.address !== undefined) {
         const { data: tenant } = await supabase
             .from('tenants')
             .select('settings')
@@ -187,13 +186,21 @@ export async function updateTenantAdmin(
             .single();
 
         const currentSettings = (tenant?.settings as Record<string, any>) || {};
-        const newSettings = { ...currentSettings, whatsapp_phone: phone || null };
+        const newSettings = { ...currentSettings };
+
+        if (data.whatsapp_phone !== undefined) {
+            const phone = data.whatsapp_phone.replace(/\D/g, '');
+            newSettings.whatsapp_phone = phone || null;
+        }
+        if (data.address !== undefined) {
+            newSettings.address = data.address.trim() || null;
+        }
 
         const { error } = await supabase
             .from('tenants')
             .update({ settings: newSettings })
             .eq('id', tenantId);
-        if (error) return { error: `Error al actualizar WhatsApp: ${error.message}` };
+        if (error) return { error: `Error al actualizar configuración: ${error.message}` };
     }
 
     revalidatePath('/admin/platform');

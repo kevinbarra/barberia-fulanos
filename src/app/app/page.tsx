@@ -45,18 +45,21 @@ export default async function ClientAppPage() {
     let activeTenantId: string | null = null;
     let activeTenantName = "";
     let targetSlug = currentSlug;
+    let tenantAddress: string | null = null;
 
     // Priority 1: Resolve from subdomain
     if (currentSlug) {
         const { data: tenant } = await supabase
             .from('tenants')
-            .select('id, name')
+            .select('id, name, settings')
             .eq('slug', currentSlug)
             .single();
 
         if (tenant) {
             activeTenantId = tenant.id;
             activeTenantName = tenant.name;
+            const s = tenant.settings as Record<string, any> | null;
+            tenantAddress = s?.address || null;
         }
     }
 
@@ -65,12 +68,14 @@ export default async function ClientAppPage() {
         activeTenantId = profile.tenant_id as string;
         const { data: fallbackTenant } = await supabase
             .from('tenants')
-            .select('slug, name')
+            .select('slug, name, settings')
             .eq('id', activeTenantId)
             .single();
         if (fallbackTenant) {
             targetSlug = fallbackTenant.slug;
             activeTenantName = fallbackTenant.name;
+            const s = fallbackTenant.settings as Record<string, any> | null;
+            tenantAddress = s?.address || null;
         }
     }
 
@@ -156,6 +161,7 @@ export default async function ClientAppPage() {
             loyaltyStatus={loyaltyStatus}
             showNoShowAlert={!!showNoShowAlert}
             tenantSlug={targetSlug || ''}
+            tenantAddress={tenantAddress}
         />
     );
 }

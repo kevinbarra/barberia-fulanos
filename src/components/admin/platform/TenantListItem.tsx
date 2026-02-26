@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toggleTenantStatus, updateTenantAdmin } from '@/app/admin/platform/actions';
 import { toast } from 'sonner';
-import { MoreVertical, Pause, Play, ExternalLink, Loader2, Users, Calendar, Pencil, X, Save, Phone, Building, Globe } from 'lucide-react';
+import { MoreVertical, Pause, Play, ExternalLink, Loader2, Users, Calendar, Pencil, X, Save, Phone, Building, Globe, MapPin } from 'lucide-react';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface Tenant {
@@ -28,6 +28,9 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
     const [editSlug, setEditSlug] = useState(tenant.slug);
     const [editWhatsApp, setEditWhatsApp] = useState(
         (tenant.settings as any)?.whatsapp_phone || ''
+    );
+    const [editAddress, setEditAddress] = useState(
+        (tenant.settings as any)?.address || ''
     );
 
     const isActive = currentStatus === 'active';
@@ -54,6 +57,7 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
             name: editName !== tenant.name ? editName : undefined,
             slug: editSlug !== tenant.slug ? editSlug : undefined,
             whatsapp_phone: editWhatsApp,
+            address: editAddress,
         });
 
         if (result.error) {
@@ -69,6 +73,7 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
         setEditName(tenant.name);
         setEditSlug(tenant.slug);
         setEditWhatsApp((tenant.settings as any)?.whatsapp_phone || '');
+        setEditAddress((tenant.settings as any)?.address || '');
         setIsEditing(false);
     };
 
@@ -233,6 +238,18 @@ export default function TenantListItem({ tenant }: { tenant: Tenant }) {
                             <span className="absolute right-3 top-2.5 text-[10px] text-gray-400 font-medium">
                                 Código País + Número
                             </span>
+                        </div>
+
+                        {/* Address */}
+                        <div className="relative">
+                            <MapPin size={16} className="absolute left-3 top-3 text-gray-400" />
+                            <input
+                                type="text"
+                                value={editAddress}
+                                onChange={(e) => setEditAddress(e.target.value)}
+                                placeholder="Dirección (ej. Av. Reforma 123, Col. Centro)"
+                                className="w-full pl-10 p-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm"
+                            />
                         </div>
 
                         <div className="flex gap-2 pt-1">
