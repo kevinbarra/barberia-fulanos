@@ -59,15 +59,24 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     const bookingDate = new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
     const bookingTime = new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-    const greeting = tenantName ? `¡Hola ${tenantName}! 👋` : '¡Hola! 👋';
-    const message = `${greeting} Acabo de agendar por la App:
+    // Use Unicode escapes so emojis survive any file encoding
+    const wave = '\u{1F44B}';      // 👋
+    const person = '\u{1F464}';    // 👤
+    const scissors = '\u{2702}\u{FE0F}'; // ✂️
+    const calendar = '\u{1F4C5}';  // 📅
+    const clock = '\u{23F0}';      // ⏰
 
-👤 *Cliente:* ${clientName}
-✂️ *Servicio:* ${serviceName}
-📅 *Fecha:* ${bookingDate}
-⏰ *Hora:* ${bookingTime}
-
-¡Confírmame si todo bien! Gracias.`;
+    const greeting = tenantName ? `\u{00A1}Hola ${tenantName}! ${wave}` : `\u{00A1}Hola! ${wave}`;
+    const message = [
+        `${greeting} Acabo de agendar por la App:`,
+        '',
+        `${person} *Cliente:* ${clientName}`,
+        `${scissors} *Servicio:* ${serviceName}`,
+        `${calendar} *Fecha:* ${bookingDate}`,
+        `${clock} *Hora:* ${bookingTime}`,
+        '',
+        `\u{00A1}Conf\u{00ED}rmame si todo bien! Gracias.`
+    ].join('\n');
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
