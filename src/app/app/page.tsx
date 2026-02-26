@@ -3,7 +3,6 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getMyLoyaltyStatus } from './loyalty-actions';
-import { getUserTenantSlug } from '@/lib/tenant';
 import ClientDashboardUI from "@/components/client/ClientDashboardUI";
 
 // Force dynamic to always show fresh data
@@ -38,23 +37,21 @@ export default async function ClientAppPage() {
         .eq("id", user.id)
         .single();
 
-    // ========== STEP 2: DETERMINE ACTIVE TENANT (Context Aware) ==========
+    // ========== STEP 2: DETERMINE ACTIVE TENANT (Hard Isolation) ==========
     const headerList = await headers();
     const hostname = headerList.get("host") || "";
     const currentSlug = extractSubdomain(hostname);
 
-    // Fallback to user's default tenant if no subdomain
-    const targetSlug = currentSlug || await getUserTenantSlug();
-
-    // Resolve tenant ID from slug
     let activeTenantId: string | null = null;
     let activeTenantName = "";
+    let targetSlug = currentSlug;
 
-    if (targetSlug) {
+    // Priority 1: Resolve from subdomain
+    if (currentSlug) {
         const { data: tenant } = await supabase
             .from('tenants')
             .select('id, name')
-            .eq('slug', targetSlug)
+            .eq('slug', currentSlug)
             .single();
 
         if (tenant) {
@@ -63,87 +60,86 @@ export default async function ClientAppPage() {
         }
     }
 
-    // Ultimate fallback: use profile's tenant_id
+    // Priority 2: Fall back to user's profile tenant (e.g. on www)
     if (!activeTenantId && profile?.tenant_id) {
         activeTenantId = profile.tenant_id as string;
+        const { data: fallbackTenant } = await supabase
+            .from('tenants')
+            .select('slug, name')
+            .eq('id', activeTenantId)
+            .single();
+        if (fallbackTenant) {
+            targetSlug = fallbackTenant.slug;
+            activeTenantName = fallbackTenant.name;
+        }
     }
 
-    // ========== STEP 3: TENANT-ISOLATED QUERIES ==========
+    // HARD ISOLATION: If no tenant resolved, show error — never query without filter
+    if (!activeTenantId) {
+        return (
+            <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-white mb-2">Sin contexto de barbería</h1>
+                    <p className="text-zinc-400">No pudimos determinar a qué barbería perteneces.</p>
+                </div>
+            </div>
+        );
+    }
 
-    // Consultar TODAS las Próximas Citas Activas (ISOLATED)
-    // Includes guest_name for "booking for friend" display
-    let upcomingBookingsQuery = supabase
+    // ========== STEP 3: TENANT-ISOLATED QUERIES (MANDATORY tenant_id) ==========
+
+    // Consultar TODAS las Próximas Citas Activas (HARD ISOLATED)
+    const { data: upcomingBookings } = await supabase
         .from("bookings")
         .select(`
             id, start_time, status, tenant_id, guest_name,
             services ( name, duration_min, price ),
             profiles:staff_id ( full_name, avatar_url )
         `)
+        .eq("tenant_id", activeTenantId)
         .eq("customer_id", user.id)
         .gte("start_time", new Date().toISOString())
         .neq("status", "cancelled")
         .neq("status", "completed")
         .neq("status", "no_show")
         .order("start_time", { ascending: true });
-    // REMOVED .limit(1) - Show ALL upcoming bookings
 
-    if (activeTenantId) {
-        upcomingBookingsQuery = upcomingBookingsQuery.eq("tenant_id", activeTenantId);
-    }
-
-    const { data: upcomingBookings } = await upcomingBookingsQuery;
-
-    // Consultar Citas Pasadas (historial) (ISOLATED)
-    // Includes guest_name for consistency
-    let pastBookingsQuery = supabase
+    // Consultar Citas Pasadas (historial) (HARD ISOLATED)
+    const { data: pastBookings } = await supabase
         .from("bookings")
         .select(`
             id, start_time, status, tenant_id, guest_name,
             services ( name, duration_min, price ),
             profiles:staff_id ( full_name, avatar_url )
         `)
+        .eq("tenant_id", activeTenantId)
         .eq("customer_id", user.id)
         .or('status.eq.completed,status.eq.cancelled,status.eq.no_show')
         .order("start_time", { ascending: false })
         .limit(10);
 
-    if (activeTenantId) {
-        pastBookingsQuery = pastBookingsQuery.eq("tenant_id", activeTenantId);
-    }
-
-    const { data: pastBookings } = await pastBookingsQuery;
-
-    // Consultar Transacciones (ISOLATED)
-    let historyQuery = supabase
+    // Consultar Transacciones (HARD ISOLATED)
+    const { data: history } = await supabase
         .from("transactions")
         .select("amount, created_at, points_earned, tenant_id, services(name)")
+        .eq("tenant_id", activeTenantId)
         .eq("client_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
 
-    if (activeTenantId) {
-        historyQuery = historyQuery.eq("tenant_id", activeTenantId);
-    }
+    // Cargar estado de lealtad (ISOLATED by tenant)
+    const loyaltyStatus = await getMyLoyaltyStatus(activeTenantId);
 
-    const { data: history } = await historyQuery;
-
-    // Cargar estado de lealtad
-    const loyaltyStatus = await getMyLoyaltyStatus();
-
-    // Ver si hubo un no-show reciente (ISOLATED)
-    let noShowQuery = supabase
+    // Ver si hubo un no-show reciente (HARD ISOLATED)
+    const { data: lastNoShow } = await supabase
         .from("bookings")
         .select("start_time, tenant_id, services(name)")
+        .eq("tenant_id", activeTenantId)
         .eq("customer_id", user.id)
         .eq("status", "no_show")
         .order("start_time", { ascending: false })
-        .limit(1);
-
-    if (activeTenantId) {
-        noShowQuery = noShowQuery.eq("tenant_id", activeTenantId);
-    }
-
-    const { data: lastNoShow } = await noShowQuery.maybeSingle();
+        .limit(1)
+        .maybeSingle();
 
     // Check si es reciente (últimas 48h)
     const showNoShowAlert = lastNoShow &&

@@ -2,7 +2,7 @@
 
 import { createClient } from '@/utils/supabase/server';
 
-export async function getMyLoyaltyStatus() {
+export async function getMyLoyaltyStatus(tenantId: string) {
     const supabase = await createClient();
 
     try {
@@ -25,9 +25,10 @@ export async function getMyLoyaltyStatus() {
             throw new Error('Perfil no encontrado');
         }
 
+        // Use the tenantId from subdomain context, not from profile
         const { data: rewards, error: rewardsError } = await supabase.rpc('get_available_rewards', {
             p_client_id: user.id,
-            p_tenant_id: profile.tenant_id
+            p_tenant_id: tenantId
         });
 
         if (rewardsError) {
