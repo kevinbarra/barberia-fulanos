@@ -22,7 +22,7 @@ type Service = {
 
 export type StaffSchedule = {
     staff_id: string;
-    day_of_week: number;
+    day: string; // 'monday', 'tuesday', etc.
     start_time: string;
     end_time: string;
 };

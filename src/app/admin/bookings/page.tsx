@@ -61,12 +61,12 @@ export default async function BookingsPage() {
 
     let startHour = 9;  // Default
     let endHour = 21;   // Default
-    let schedules: { staff_id: string; day_of_week: number; start_time: string; end_time: string }[] = [];
+    let schedules: { staff_id: string; day: string; start_time: string; end_time: string }[] = [];
 
     if (staffIds.length > 0) {
         const { data: fetchedSchedules } = await supabase
             .from("staff_schedules")
-            .select("staff_id, day_of_week, start_time, end_time")
+            .select("staff_id, day, start_time, end_time")
             .in("staff_id", staffIds)
             .eq("is_active", true);
 

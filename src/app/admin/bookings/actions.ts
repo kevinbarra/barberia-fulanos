@@ -514,12 +514,13 @@ export async function rescheduleBooking(
 
     // 4.5 SCHEDULE VALIDATION — Backend security layer
     // Verify the new time falls within the staff's working hours for that day
-    const dayOfWeek = newStart.getDay() // 0=Sun, 1=Mon...6=Sat
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const dayName = dayNames[newStart.getDay()] // Convert JS getDay() to DB day string
     const { data: staffSchedule } = await supabase
         .from('staff_schedules')
         .select('start_time, end_time')
         .eq('staff_id', staffId)
-        .eq('day_of_week', dayOfWeek)
+        .eq('day', dayName)
         .eq('is_active', true)
         .single()
 

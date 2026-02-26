@@ -5,12 +5,14 @@ import { X, Calendar, Clock, User, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { rescheduleBooking } from '@/app/admin/bookings/actions';
-import { format, addDays, getDay } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { format, addDays } from 'date-fns';
+
+// Map JS getDay() (0=Sun) to DB day names
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 type StaffSchedule = {
     staff_id: string;
-    day_of_week: number; // 0=Sunday, 1=Monday, ... 6=Saturday
+    day: string; // 'monday', 'tuesday', etc.
     start_time: string;  // "09:00" or "09:00:00"
     end_time: string;    // "20:00" or "20:00:00"
 };
@@ -61,25 +63,41 @@ export default function EditBookingModal({
     const [selectedTime, setSelectedTime] = useState(timeDefault);
     const [selectedStaffId, setSelectedStaffId] = useState(currentStaffId);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // Track if user has changed anything — don't show warnings on initial load
+    const [userHasChangedDate, setUserHasChangedDate] = useState(false);
 
-    // Get schedule for selected staff + selected day
-    const selectedDayOfWeek = useMemo(() => {
-        if (!selectedDate) return -1;
-        const d = new Date(selectedDate + 'T12:00:00'); // noon to avoid timezone issues
-        return getDay(d); // 0=Sun, 1=Mon, ...6=Sat
+    // Get day name for selected date (e.g. "monday")
+    const selectedDayName = useMemo(() => {
+        if (!selectedDate) return '';
+        const d = new Date(selectedDate + 'T12:00:00'); // noon to avoid TZ shift
+        return DAY_NAMES[d.getDay()];
     }, [selectedDate]);
 
+    // Find schedule for selected staff + day
     const activeSchedule = useMemo(() => {
         return staffSchedules.find(
-            s => s.staff_id === selectedStaffId && s.day_of_week === selectedDayOfWeek
+            s => s.staff_id === selectedStaffId && s.day === selectedDayName
         );
-    }, [staffSchedules, selectedStaffId, selectedDayOfWeek]);
+    }, [staffSchedules, selectedStaffId, selectedDayName]);
 
-    const isDayOff = !activeSchedule;
+    // Only show day-off if schedule data exists but no match for this day
+    const hasScheduleData = staffSchedules.some(s => s.staff_id === selectedStaffId);
+    const isDayOff = hasScheduleData && !activeSchedule;
 
     // Generate time slots filtered by staff schedule
     const timeSlots = useMemo(() => {
-        if (!activeSchedule) return [];
+        if (!activeSchedule) {
+            // If no schedule data at all, show default 8-21 range
+            if (!hasScheduleData) {
+                const slots: string[] = [];
+                for (let h = 8; h <= 21; h++) {
+                    slots.push(`${h.toString().padStart(2, '0')}:00`);
+                    if (h < 21) slots.push(`${h.toString().padStart(2, '0')}:30`);
+                }
+                return slots;
+            }
+            return []; // day off
+        }
 
         const startMinutes = parseTimeToMinutes(activeSchedule.start_time);
         const endMinutes = parseTimeToMinutes(activeSchedule.end_time);
@@ -92,10 +110,10 @@ export default function EditBookingModal({
         }
 
         return slots;
-    }, [activeSchedule]);
+    }, [activeSchedule, hasScheduleData]);
 
     // Reset time if current selection is outside new schedule range
-    const isTimeValid = timeSlots.includes(selectedTime);
+    const isTimeValid = selectedTime !== '' && timeSlots.includes(selectedTime);
 
     if (!isOpen) return null;
 
@@ -185,8 +203,8 @@ export default function EditBookingModal({
                                 value={selectedStaffId}
                                 onChange={e => {
                                     setSelectedStaffId(e.target.value);
-                                    // Reset time when staff changes
                                     setSelectedTime('');
+                                    setUserHasChangedDate(true);
                                 }}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all bg-white"
                             >
@@ -209,8 +227,8 @@ export default function EditBookingModal({
                                 value={selectedDate}
                                 onChange={e => {
                                     setSelectedDate(e.target.value);
-                                    // Reset time when date changes
                                     setSelectedTime('');
+                                    setUserHasChangedDate(true);
                                 }}
                                 min={minDate}
                                 max={maxDate}
@@ -218,8 +236,8 @@ export default function EditBookingModal({
                             />
                         </div>
 
-                        {/* Day Off Warning */}
-                        {selectedDate && isDayOff && (
+                        {/* Day Off Warning — only after user changes */}
+                        {userHasChangedDate && isDayOff && (
                             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
                                 <AlertTriangle size={16} className="text-red-500 shrink-0" />
                                 <p className="text-xs text-red-600 font-medium">
@@ -229,7 +247,7 @@ export default function EditBookingModal({
                         )}
 
                         {/* Time Picker — only show valid slots */}
-                        {!isDayOff && (
+                        {!(userHasChangedDate && isDayOff) && (
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
                                     <Clock size={12} className="inline mr-1" />
@@ -266,7 +284,7 @@ export default function EditBookingModal({
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !hasChanges || isDayOff || !isTimeValid}
+                            disabled={isSubmitting || !hasChanges || (userHasChangedDate && isDayOff) || !isTimeValid}
                             className="flex-1 py-3 text-sm font-bold text-white bg-black hover:bg-zinc-800 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? (
