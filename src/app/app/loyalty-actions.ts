@@ -11,21 +11,19 @@ export async function getMyLoyaltyStatus(tenantId: string) {
             throw new Error('No autenticado');
         }
 
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('tenant_id, loyalty_points')
-            .eq('id', user.id)
-            .single();
+        // Compute tenant-specific points from transactions (ISOLATED)
+        // This replaces profile.loyalty_points which is a global column
+        const { data: pointsData } = await supabase
+            .from('transactions')
+            .select('points_earned')
+            .eq('client_id', user.id)
+            .eq('tenant_id', tenantId);
 
-        if (profileError) {
-            throw profileError;
-        }
+        const tenantPoints = (pointsData || []).reduce(
+            (sum, tx) => sum + (tx.points_earned || 0), 0
+        );
 
-        if (!profile) {
-            throw new Error('Perfil no encontrado');
-        }
-
-        // Use the tenantId from subdomain context, not from profile
+        // Use the tenantId from subdomain context for rewards
         const { data: rewards, error: rewardsError } = await supabase.rpc('get_available_rewards', {
             p_client_id: user.id,
             p_tenant_id: tenantId
@@ -38,7 +36,7 @@ export async function getMyLoyaltyStatus(tenantId: string) {
         return {
             success: true,
             data: {
-                current_points: profile.loyalty_points || 0,
+                current_points: tenantPoints,
                 available_rewards: rewards || []
             }
         };
