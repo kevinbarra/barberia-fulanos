@@ -512,6 +512,34 @@ export async function rescheduleBooking(
         return { error: 'No se puede agendar en el pasado.' }
     }
 
+    // 4.5 SCHEDULE VALIDATION — Backend security layer
+    // Verify the new time falls within the staff's working hours for that day
+    const dayOfWeek = newStart.getDay() // 0=Sun, 1=Mon...6=Sat
+    const { data: staffSchedule } = await supabase
+        .from('staff_schedules')
+        .select('start_time, end_time')
+        .eq('staff_id', staffId)
+        .eq('day_of_week', dayOfWeek)
+        .eq('is_active', true)
+        .single()
+
+    if (!staffSchedule) {
+        return { error: 'El barbero no trabaja este día.' }
+    }
+
+    // Parse schedule times to minutes for comparison
+    const schedStartParts = staffSchedule.start_time.split(':')
+    const schedEndParts = staffSchedule.end_time.split(':')
+    const schedStartMin = parseInt(schedStartParts[0]) * 60 + parseInt(schedStartParts[1] || '0')
+    const schedEndMin = parseInt(schedEndParts[0]) * 60 + parseInt(schedEndParts[1] || '0')
+
+    const bookingStartMin = newStart.getHours() * 60 + newStart.getMinutes()
+    const bookingEndMin = newEnd.getHours() * 60 + newEnd.getMinutes()
+
+    if (bookingStartMin < schedStartMin || bookingEndMin > schedEndMin) {
+        return { error: `Horario fuera de servicio. El barbero trabaja de ${staffSchedule.start_time.slice(0, 5)} a ${staffSchedule.end_time.slice(0, 5)}.` }
+    }
+
     // 5. Collision check (bookings)
     const { count: conflictCount } = await supabase
         .from('bookings')

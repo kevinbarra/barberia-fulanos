@@ -61,15 +61,18 @@ export default async function BookingsPage() {
 
     let startHour = 9;  // Default
     let endHour = 21;   // Default
+    let schedules: { staff_id: string; day_of_week: number; start_time: string; end_time: string }[] = [];
 
     if (staffIds.length > 0) {
-        const { data: schedules } = await supabase
+        const { data: fetchedSchedules } = await supabase
             .from("staff_schedules")
-            .select("start_time, end_time")
+            .select("staff_id, day_of_week, start_time, end_time")
             .in("staff_id", staffIds)
             .eq("is_active", true);
 
-        if (schedules && schedules.length > 0) {
+        schedules = fetchedSchedules || [];
+
+        if (schedules.length > 0) {
             // Find earliest start and latest end
             let minStart = 24;
             let maxEnd = 0;
@@ -103,6 +106,7 @@ export default async function BookingsPage() {
                 currentUserRole={currentUserRole}
                 startHour={startHour}
                 endHour={endHour}
+                staffSchedules={schedules || []}
             />
         </div>
     );

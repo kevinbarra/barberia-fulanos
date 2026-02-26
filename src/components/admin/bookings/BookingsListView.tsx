@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import NewBookingModal from '../NewBookingModal';
 import EditBookingModal from './EditBookingModal';
 import WhatsAppNotifyModal from './WhatsAppNotifyModal';
+import type { StaffSchedule } from '../BookingsViewSwitcher';
 
 const TIMEZONE = DEFAULT_TIMEZONE;
 
@@ -47,6 +48,7 @@ interface BookingsListViewProps {
     staff: StaffMember[];
     services: Service[];
     tenantId: string;
+    staffSchedules?: StaffSchedule[];
 }
 
 const statusConfig = {
@@ -99,6 +101,7 @@ export default function BookingsListView({
     staff,
     services,
     tenantId,
+    staffSchedules = [],
 }: BookingsListViewProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -427,6 +430,7 @@ export default function BookingsListView({
                     serviceName={editBooking.services?.name || 'Servicio'}
                     clientName={getClientInfo(editBooking).clientName}
                     staff={staff}
+                    staffSchedules={staffSchedules}
                     onSuccess={(dateFormatted, timeFormatted) =>
                         handleEditSuccess(editBooking, dateFormatted, timeFormatted)
                     }

@@ -1,12 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Calendar, Clock, User, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Calendar, Clock, User, Loader2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { rescheduleBooking } from '@/app/admin/bookings/actions';
-import { format, addDays } from 'date-fns';
+import { format, addDays, getDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+type StaffSchedule = {
+    staff_id: string;
+    day_of_week: number; // 0=Sunday, 1=Monday, ... 6=Saturday
+    start_time: string;  // "09:00" or "09:00:00"
+    end_time: string;    // "20:00" or "20:00:00"
+};
 
 type StaffMember = {
     id: string;
@@ -23,8 +30,14 @@ type EditBookingModalProps = {
     serviceName: string;
     clientName: string;
     staff: StaffMember[];
+    staffSchedules?: StaffSchedule[];
     onSuccess: (dateFormatted: string, timeFormatted: string) => void;
 };
+
+function parseTimeToMinutes(timeStr: string): number {
+    const parts = timeStr.split(':');
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
+}
 
 export default function EditBookingModal({
     isOpen,
@@ -36,6 +49,7 @@ export default function EditBookingModal({
     serviceName,
     clientName,
     staff,
+    staffSchedules = [],
     onSuccess,
 }: EditBookingModalProps) {
     // Parse current booking date into local date/time inputs
@@ -48,14 +62,42 @@ export default function EditBookingModal({
     const [selectedStaffId, setSelectedStaffId] = useState(currentStaffId);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    if (!isOpen) return null;
+    // Get schedule for selected staff + selected day
+    const selectedDayOfWeek = useMemo(() => {
+        if (!selectedDate) return -1;
+        const d = new Date(selectedDate + 'T12:00:00'); // noon to avoid timezone issues
+        return getDay(d); // 0=Sun, 1=Mon, ...6=Sat
+    }, [selectedDate]);
 
-    // Generate time slots (8:00 - 21:00 every 30 min)
-    const timeSlots: string[] = [];
-    for (let h = 8; h <= 21; h++) {
-        timeSlots.push(`${h.toString().padStart(2, '0')}:00`);
-        if (h < 21) timeSlots.push(`${h.toString().padStart(2, '0')}:30`);
-    }
+    const activeSchedule = useMemo(() => {
+        return staffSchedules.find(
+            s => s.staff_id === selectedStaffId && s.day_of_week === selectedDayOfWeek
+        );
+    }, [staffSchedules, selectedStaffId, selectedDayOfWeek]);
+
+    const isDayOff = !activeSchedule;
+
+    // Generate time slots filtered by staff schedule
+    const timeSlots = useMemo(() => {
+        if (!activeSchedule) return [];
+
+        const startMinutes = parseTimeToMinutes(activeSchedule.start_time);
+        const endMinutes = parseTimeToMinutes(activeSchedule.end_time);
+        const slots: string[] = [];
+
+        for (let m = startMinutes; m < endMinutes; m += 30) {
+            const h = Math.floor(m / 60);
+            const min = m % 60;
+            slots.push(`${h.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`);
+        }
+
+        return slots;
+    }, [activeSchedule]);
+
+    // Reset time if current selection is outside new schedule range
+    const isTimeValid = timeSlots.includes(selectedTime);
+
+    if (!isOpen) return null;
 
     // Min date: today
     const minDate = format(new Date(), 'yyyy-MM-dd');
@@ -65,6 +107,16 @@ export default function EditBookingModal({
     const handleSubmit = async () => {
         if (!selectedDate || !selectedTime) {
             toast.error('Selecciona fecha y hora.');
+            return;
+        }
+
+        if (isDayOff) {
+            toast.error('El barbero no trabaja este día.');
+            return;
+        }
+
+        if (!isTimeValid) {
+            toast.error('Selecciona un horario válido dentro del turno del barbero.');
             return;
         }
 
@@ -123,42 +175,7 @@ export default function EditBookingModal({
 
                     {/* Form */}
                     <div className="p-5 space-y-4">
-                        {/* Date Picker */}
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-                                <Calendar size={12} className="inline mr-1" />
-                                Nueva Fecha
-                            </label>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={e => setSelectedDate(e.target.value)}
-                                min={minDate}
-                                max={maxDate}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all"
-                            />
-                        </div>
-
-                        {/* Time Picker */}
-                        <div>
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-                                <Clock size={12} className="inline mr-1" />
-                                Nueva Hora
-                            </label>
-                            <select
-                                value={selectedTime}
-                                onChange={e => setSelectedTime(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all bg-white"
-                            >
-                                {timeSlots.map(slot => (
-                                    <option key={slot} value={slot}>
-                                        {slot}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Staff Picker */}
+                        {/* Staff Picker — first, because it affects available days/times */}
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
                                 <User size={12} className="inline mr-1" />
@@ -166,7 +183,11 @@ export default function EditBookingModal({
                             </label>
                             <select
                                 value={selectedStaffId}
-                                onChange={e => setSelectedStaffId(e.target.value)}
+                                onChange={e => {
+                                    setSelectedStaffId(e.target.value);
+                                    // Reset time when staff changes
+                                    setSelectedTime('');
+                                }}
                                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all bg-white"
                             >
                                 {staff.map(s => (
@@ -176,6 +197,63 @@ export default function EditBookingModal({
                                 ))}
                             </select>
                         </div>
+
+                        {/* Date Picker */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                                <Calendar size={12} className="inline mr-1" />
+                                Nueva Fecha
+                            </label>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={e => {
+                                    setSelectedDate(e.target.value);
+                                    // Reset time when date changes
+                                    setSelectedTime('');
+                                }}
+                                min={minDate}
+                                max={maxDate}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all"
+                            />
+                        </div>
+
+                        {/* Day Off Warning */}
+                        {selectedDate && isDayOff && (
+                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
+                                <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                                <p className="text-xs text-red-600 font-medium">
+                                    El barbero no trabaja este día. Selecciona otra fecha.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Time Picker — only show valid slots */}
+                        {!isDayOff && (
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                                    <Clock size={12} className="inline mr-1" />
+                                    Nueva Hora
+                                    {activeSchedule && (
+                                        <span className="text-gray-400 font-normal ml-1">
+                                            ({activeSchedule.start_time.slice(0, 5)} - {activeSchedule.end_time.slice(0, 5)})
+                                        </span>
+                                    )}
+                                </label>
+                                <select
+                                    value={selectedTime}
+                                    onChange={e => setSelectedTime(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-black/10 focus:border-gray-300 transition-all bg-white"
+                                >
+                                    <option value="">Selecciona hora</option>
+                                    {timeSlots.map(slot => (
+                                        <option key={slot} value={slot}>
+                                            {slot}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {/* Actions */}
@@ -188,7 +266,7 @@ export default function EditBookingModal({
                         </button>
                         <button
                             onClick={handleSubmit}
-                            disabled={isSubmitting || !hasChanges}
+                            disabled={isSubmitting || !hasChanges || isDayOff || !isTimeValid}
                             className="flex-1 py-3 text-sm font-bold text-white bg-black hover:bg-zinc-800 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isSubmitting ? (

@@ -20,6 +20,13 @@ type Service = {
     price?: number;
 };
 
+export type StaffSchedule = {
+    staff_id: string;
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+};
+
 interface BookingsViewSwitcherProps {
     bookings: PosBookingData[];
     staff: StaffMember[];
@@ -28,6 +35,7 @@ interface BookingsViewSwitcherProps {
     currentUserRole: string;
     startHour?: number;
     endHour?: number;
+    staffSchedules?: StaffSchedule[];
 }
 
 export default function BookingsViewSwitcher({
@@ -37,7 +45,8 @@ export default function BookingsViewSwitcher({
     tenantId,
     currentUserRole,
     startHour = 9,
-    endHour = 21
+    endHour = 21,
+    staffSchedules = []
 }: BookingsViewSwitcherProps) {
     const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
 
@@ -91,6 +100,7 @@ export default function BookingsViewSwitcher({
                         staff={staff}
                         services={services}
                         tenantId={tenantId}
+                        staffSchedules={staffSchedules}
                     />
                 )}
             </div>
