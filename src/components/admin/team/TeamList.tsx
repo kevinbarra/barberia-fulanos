@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { inviteStaff, removeStaff, changeUserRole, toggleStaffStatus } from '@/app/admin/team/actions'
+import { inviteStaff, removeStaff, changeUserRole, toggleStaffStatus, updateStaffPhone } from '@/app/admin/team/actions'
 import { toast } from 'sonner'
-import { User, Mail, Trash2, Plus, ShieldCheck, Clock, ChevronDown, Tablet, Scissors, Crown, Calendar, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Trash2, Plus, ShieldCheck, Clock, ChevronDown, Tablet, Scissors, Crown, Calendar, Eye, EyeOff, Phone, Check, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 
 type StaffMember = {
@@ -12,6 +12,7 @@ type StaffMember = {
     email: string
     avatar_url: string | null
     role: string
+    phone: string | null
     status: 'active' | 'pending'
     is_active_barber: boolean
     is_calendar_visible: boolean
@@ -67,6 +68,14 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
     const [changingRoleId, setChangingRoleId] = useState<string | null>(null)
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
     const [togglingField, setTogglingField] = useState<string | null>(null) // "memberId-field"
+    const [phoneInputs, setPhoneInputs] = useState<Record<string, string>>({})
+    const [savingPhone, setSavingPhone] = useState<string | null>(null)
+
+    // Initialize phone inputs from props
+    const getPhoneValue = (member: StaffMember) => {
+        if (member.id in phoneInputs) return phoneInputs[member.id]
+        return member.phone || ''
+    }
 
     const handleInvite = async (formData: FormData) => {
         setIsInviting(true)
@@ -115,6 +124,18 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
         }
 
         setTogglingField(null)
+    }
+
+    const handlePhoneSave = async (memberId: string) => {
+        const phone = phoneInputs[memberId] ?? ''
+        setSavingPhone(memberId)
+        const res = await updateStaffPhone(memberId, phone)
+        if (res.success) {
+            toast.success(res.message)
+        } else {
+            toast.error(res.error)
+        }
+        setSavingPhone(null)
     }
 
     // Get available roles based on current user's role
@@ -320,6 +341,32 @@ export default function TeamList({ staff, currentUserRole }: { staff: StaffMembe
                                             onChange={() => handleToggle(member.id, 'is_calendar_visible', member.is_calendar_visible)}
                                             loading={togglingField === `${member.id}-is_calendar_visible`}
                                         />
+                                    </div>
+
+                                    {/* WhatsApp Phone */}
+                                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                                        <Phone size={16} className={getPhoneValue(member) ? 'text-green-500' : 'text-gray-300'} />
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-medium text-gray-700">WhatsApp</span>
+                                            <span className="text-xs text-gray-400">Citas llegan directo</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                                            <input
+                                                type="tel"
+                                                value={getPhoneValue(member)}
+                                                onChange={(e) => setPhoneInputs(prev => ({ ...prev, [member.id]: e.target.value }))}
+                                                placeholder="522291234567"
+                                                className="w-36 px-2.5 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-gray-50"
+                                            />
+                                            <button
+                                                onClick={() => handlePhoneSave(member.id)}
+                                                disabled={savingPhone === member.id}
+                                                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                                                title="Guardar WhatsApp"
+                                            >
+                                                {savingPhone === member.id ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             )}

@@ -11,6 +11,7 @@ type StaffMember = {
     email: string;
     avatar_url: string | null;
     role: string;
+    phone: string | null;
     status: 'active' | 'pending';
     is_active_barber: boolean;
     is_calendar_visible: boolean;
@@ -40,7 +41,7 @@ export default async function TeamPage() {
     // Get all profiles for this tenant (including new fields)
     const { data: activeStaff } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, role, is_active_barber, is_calendar_visible')
+        .select('id, full_name, email, avatar_url, role, phone, is_active_barber, is_calendar_visible')
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
 
@@ -70,6 +71,7 @@ export default async function TeamPage() {
             email: inv.email,
             avatar_url: null,
             role: 'staff',
+            phone: null,
             status: 'pending' as const,
             is_active_barber: false,
             is_calendar_visible: false

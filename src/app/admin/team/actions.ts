@@ -296,3 +296,51 @@ export async function toggleStaffStatus(
     const fieldLabel = field === 'is_active_barber' ? 'estado de barbero' : 'visibilidad en calendario'
     return { success: true, message: `${fieldLabel} actualizado` }
 }
+
+// --- UPDATE STAFF WHATSAPP PHONE ---
+export async function updateStaffPhone(targetId: string, phone: string) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester) return { error: 'No autorizado' }
+
+    const isManager = requester.role === 'owner' || requester.role === 'super_admin'
+    if (!isManager) return { error: 'No tienes permisos para modificar esto' }
+
+    // Verify target belongs to same tenant
+    const { data: targetUser } = await supabase
+        .from('profiles')
+        .select('tenant_id')
+        .eq('id', targetId)
+        .single()
+
+    if (!targetUser) return { error: 'Usuario no encontrado' }
+
+    if (requester.role === 'owner' && targetUser.tenant_id !== requester.tenant_id) {
+        return { error: 'No puedes modificar usuarios de otro negocio' }
+    }
+
+    // Clean phone: strip non-digits
+    const cleanPhone = phone.replace(/\D/g, '') || null
+
+    const { error } = await supabase
+        .from('profiles')
+        .update({ phone: cleanPhone })
+        .eq('id', targetId)
+
+    if (error) {
+        console.error('Error updating staff phone:', error)
+        return { error: 'Error al actualizar el teléfono' }
+    }
+
+    revalidatePath('/admin/team')
+    return { success: true, message: 'WhatsApp actualizado' }
+}
