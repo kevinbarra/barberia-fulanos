@@ -24,6 +24,16 @@ const CELL_HEIGHT = 120;
 const MIN_COLUMN_WIDTH = 220;
 const TIME_COLUMN_WIDTH = 64;
 
+// Color palette per barber — cycled by index
+const STAFF_COLORS = [
+    { bg: 'bg-blue-500', text: 'text-blue-700', light: 'bg-blue-50', border: 'border-l-blue-500', dot: 'bg-blue-500', ring: 'ring-blue-200' },
+    { bg: 'bg-emerald-500', text: 'text-emerald-700', light: 'bg-emerald-50', border: 'border-l-emerald-500', dot: 'bg-emerald-500', ring: 'ring-emerald-200' },
+    { bg: 'bg-violet-500', text: 'text-violet-700', light: 'bg-violet-50', border: 'border-l-violet-500', dot: 'bg-violet-500', ring: 'ring-violet-200' },
+    { bg: 'bg-amber-500', text: 'text-amber-700', light: 'bg-amber-50', border: 'border-l-amber-500', dot: 'bg-amber-500', ring: 'ring-amber-200' },
+    { bg: 'bg-rose-500', text: 'text-rose-700', light: 'bg-rose-50', border: 'border-l-rose-500', dot: 'bg-rose-500', ring: 'ring-rose-200' },
+    { bg: 'bg-cyan-500', text: 'text-cyan-700', light: 'bg-cyan-50', border: 'border-l-cyan-500', dot: 'bg-cyan-500', ring: 'ring-cyan-200' },
+];
+
 type StaffMember = {
     id: string;
     full_name: string;
@@ -319,6 +329,7 @@ export default function BookingsCalendar({
                                         )}
                                     </div>
                                     <span className="font-bold text-gray-700 text-xs truncate">{member.full_name}</span>
+                                    <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", STAFF_COLORS[staff.indexOf(member) % STAFF_COLORS.length].dot)} />
                                 </div>
 
                                 {/* Bookings Column */}
@@ -334,6 +345,8 @@ export default function BookingsCalendar({
                                             const isNext = booking.id === nextBookingId;
                                             const isCancelled = booking.status === 'cancelled';
                                             const statusColor = statusStyles[booking.status as keyof typeof statusStyles] || 'bg-gray-50/80 border-l-gray-400 text-gray-700';
+                                            const staffColorIndex = staff.findIndex(s => s.id === member.id);
+                                            const staffColor = STAFF_COLORS[staffColorIndex >= 0 ? staffColorIndex % STAFF_COLORS.length : 0];
 
                                             return (
                                                 <motion.div
@@ -344,11 +357,12 @@ export default function BookingsCalendar({
                                                     onPointerEnter={(e) => handlePointerEnter(booking, e)}
                                                     onPointerLeave={handlePointerLeave}
                                                     className={cn(
-                                                        "absolute left-2 right-2 rounded-xl border border-l-4 shadow-sm cursor-pointer transition-all duration-150",
+                                                        "absolute left-2 right-2 rounded-xl border shadow-sm cursor-pointer transition-all duration-150",
                                                         "hover:shadow-lg hover:scale-[1.02] hover:z-20",
-                                                        statusColor,
-                                                        isNext && "ring-2 ring-blue-400 ring-offset-1 shadow-blue-100 shadow-md",
-                                                        isCancelled && "line-through decoration-red-300"
+                                                        `border-l-4 ${staffColor.border}`,
+                                                        statusColor.replace(/border-l-\S+/g, ''),
+                                                        isNext && `ring-2 ${staffColor.ring} ring-offset-1 shadow-md`,
+                                                        isCancelled && "line-through decoration-red-300 opacity-50"
                                                     )}
                                                     style={{ top, height, minHeight: '36px' }}
                                                 >

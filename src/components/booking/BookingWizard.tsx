@@ -12,7 +12,7 @@ import Link from "next/link";
 
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string };
-type Staff = { id: string; full_name: string; role: string; avatar_url: string | null };
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
 
@@ -390,25 +390,36 @@ export default function BookingWizard({
                     </div>
                 </motion.div>
 
-                {/* PRIMARY CTA: WhatsApp Confirmation (only if tenant has WhatsApp configured) */}
-                {whatsappPhone && (
-                    <motion.a
-                        initial={{ y: 10, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                        href={generateWhatsAppConfirmation(bookingData, whatsappPhone, tenantName)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setWhatsappSent(true)}
-                        className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-base uppercase tracking-wide transition-all active:scale-[0.97] mb-4 ${whatsappSent
-                            ? 'bg-gray-100 text-gray-500'
-                            : 'bg-[#25D366] hover:bg-[#1fba59] text-white shadow-xl shadow-green-300/40 animate-pulse hover:animate-none'
-                            }`}
-                    >
-                        <MessageCircle size={22} />
-                        {whatsappSent ? '✓ WhatsApp Enviado' : 'CONFIRMAR POR WHATSAPP →'}
-                    </motion.a>
-                )}
+                {/* PRIMARY CTA: WhatsApp Confirmation — routes to staff if phone exists, else business */}
+                {(() => {
+                    const staffPhone = selectedStaff?.phone?.replace(/\D/g, '');
+                    const targetPhone = staffPhone || whatsappPhone;
+                    const targetName = staffPhone ? selectedStaff?.full_name : tenantName;
+                    if (!targetPhone) return null;
+                    return (
+                        <motion.a
+                            initial={{ y: 10, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.3 }}
+                            href={generateWhatsAppConfirmation(bookingData, targetPhone, targetName || undefined)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setWhatsappSent(true)}
+                            className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-base uppercase tracking-wide transition-all active:scale-[0.97] mb-4 ${whatsappSent
+                                ? 'bg-gray-100 text-gray-500'
+                                : 'bg-[#25D366] hover:bg-[#1fba59] text-white shadow-xl shadow-green-300/40 animate-pulse hover:animate-none'
+                                }`}
+                        >
+                            <MessageCircle size={22} />
+                            {whatsappSent
+                                ? '✓ WhatsApp Enviado'
+                                : staffPhone
+                                    ? `CONFIRMAR CON ${selectedStaff?.full_name?.split(' ')[0]?.toUpperCase()} →`
+                                    : 'CONFIRMAR POR WHATSAPP →'
+                            }
+                        </motion.a>
+                    );
+                })()}
 
                 {/* Secondary actions - minimal */}
                 <div className="flex flex-col items-center gap-2 mt-2">
