@@ -20,6 +20,7 @@ type BookingResult = {
     id: string;
     guest_name: string;
     guest_email: string | null;
+    guest_phone?: string | null;
     service_name: string;
     service_price: number;
     start_time: string;
@@ -55,27 +56,36 @@ function generateCalendarLink(booking: BookingResult, serviceDuration: number): 
 // Generate WhatsApp confirmation link
 function generateWhatsAppConfirmation(booking: BookingResult, phone: string, tenantName?: string): string {
     const clientName = booking.guest_name || 'Cliente';
+    const clientPhone = booking.guest_phone || '';
     const serviceName = booking.service_name || 'Servicio';
-    const bookingDate = new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-    const bookingTime = new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    const barberName = booking.staff_name || 'Staff';
+    const bookingDate = booking.date_formatted || new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    const bookingTime = booking.time_formatted || new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
     // Use Unicode escapes so emojis survive any file encoding
     const wave = '\u{1F44B}';      // 👋
     const person = '\u{1F464}';    // 👤
     const scissors = '\u{2702}\u{FE0F}'; // ✂️
+    const barberPole = '\u{1F488}'; // 💈
     const calendar = '\u{1F4C5}';  // 📅
     const clock = '\u{23F0}';      // ⏰
+    const checkmark = '\u{2705}';  // ✅
 
     const greeting = tenantName ? `\u{00A1}Hola ${tenantName}! ${wave}` : `\u{00A1}Hola! ${wave}`;
+    const clientLine = clientPhone
+        ? `${person} *Cliente:* ${clientName} (${clientPhone})`
+        : `${person} *Cliente:* ${clientName}`;
+
     const message = [
         `${greeting} Acabo de agendar por la App:`,
         '',
-        `${person} *Cliente:* ${clientName}`,
+        clientLine,
         `${scissors} *Servicio:* ${serviceName}`,
+        `${barberPole} *Barbero:* ${barberName}`,
         `${calendar} *Fecha:* ${bookingDate}`,
         `${clock} *Hora:* ${bookingTime}`,
         '',
-        `\u{00A1}Conf\u{00ED}rmame si todo bien! Gracias.`
+        `${checkmark} \u{00A1}Conf\u{00ED}rmame si todo bien! Gracias.`
     ].join('\n');
 
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;

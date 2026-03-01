@@ -339,6 +339,7 @@ export async function createBooking(data: {
             id: newBooking.id,
             guest_name: data.client_name,
             guest_email: data.client_email || null,
+            guest_phone: data.client_phone || null,
             service_name: realServiceName,
             service_price: servicePrice,
             start_time: startDate.toISOString(),
