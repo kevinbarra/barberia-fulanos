@@ -63,12 +63,22 @@ export default async function BookingPage({
     }
 
     // 3. Datos del Negocio (include settings for guest checkout check)
-    const { data: tenant } = await supabase
+    console.log('[BOOKING PAGE] Checking slug:', slug);
+    const { data: tenant, error: tenantErr } = await supabase
         .from("tenants")
         .select("*, settings")
         .eq("slug", slug)
         .single();
-    if (!tenant) return notFound();
+
+    if (tenantErr) {
+        console.error('[BOOKING PAGE] Error fetching tenant:', tenantErr);
+    }
+
+    if (!tenant) {
+        console.warn(`[BOOKING PAGE] Tenant not found for slug: ${slug}`);
+        return notFound();
+    }
+    console.log('[BOOKING PAGE] Tenant found:', tenant.name);
 
     // 4. Verificar que el tenant esté activo
     if (tenant.subscription_status !== 'active') {
