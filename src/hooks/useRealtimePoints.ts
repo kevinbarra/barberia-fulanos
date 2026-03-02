@@ -6,49 +6,52 @@ import { useRouter } from 'next/navigation';
 
 /**
  * Hook that subscribes to realtime updates for client's loyalty points.
- * When staff scans QR and assigns points, client screen updates immediately.
+ * Listens to the `transactions` table for new records where client_id matches.
+ * When a POS transaction is created, the page refreshes and server-side
+ * recalculates tenant-specific points from getMyLoyaltyStatus.
  */
 export function useRealtimePoints(userId: string, initialPoints: number) {
     const [points, setPoints] = useState(initialPoints);
     const router = useRouter();
 
+    // Keep points in sync with server-driven initial value
     useEffect(() => {
-        // Create browser client for realtime subscriptions
+        setPoints(initialPoints);
+    }, [initialPoints]);
+
+    useEffect(() => {
         const supabase = createBrowserClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
         );
 
-        // Subscribe to changes on this user's profile
+        // Subscribe to new transactions for this client
+        // When staff finalizes a ticket or scans QR, points change
         const channel = supabase
-            .channel(`profile-points-${userId}`)
+            .channel(`client-transactions-${userId}`)
             .on(
                 'postgres_changes',
                 {
-                    event: 'UPDATE',
+                    event: 'INSERT',
                     schema: 'public',
-                    table: 'profiles',
-                    filter: `id=eq.${userId}`
+                    table: 'transactions',
+                    filter: `client_id=eq.${userId}`
                 },
                 (payload) => {
-                    console.log('[REALTIME] Profile updated:', payload);
-                    const newPoints = payload.new?.loyalty_points;
-                    if (typeof newPoints === 'number' && newPoints !== points) {
-                        setPoints(newPoints);
-                        // Force router refresh to update any server-fetched data too
-                        router.refresh();
-                    }
+                    console.log('[REALTIME] New transaction for client:', payload);
+                    // Force refresh — server component will recalculate tenant-specific points
+                    router.refresh();
                 }
             )
             .subscribe((status) => {
-                console.log('[REALTIME] Subscription status:', status);
+                console.log('[REALTIME] Points subscription:', status);
             });
 
-        // Cleanup on unmount
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId, points, router]);
+    }, [userId, router]);
 
     return points;
 }
+

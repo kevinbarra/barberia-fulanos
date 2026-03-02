@@ -1,7 +1,9 @@
 // Tenant Settings Type
 export interface TenantSettings {
     guest_checkout_enabled?: boolean;
-    // Add future settings here
+    whatsapp_phone?: string;
+    address?: string;
+    // Future settings (e.g., workflow_mode: 'agile' | 'legacy')
 }
 
 // Tenant Type

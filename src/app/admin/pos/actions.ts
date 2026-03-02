@@ -170,13 +170,17 @@ export async function finalizeTicket(input: {
 
         if (txError) throw txError;
 
-        // ... (existing back-dating logic) ...
+        // Back-dating + booking_id linkage
         const now = new Date();
         const bookingDate = new Date(booking.start_time);
-        if (isBefore(bookingDate, now) && transactionId) {
+        if (transactionId) {
+            const txUpdate: Record<string, any> = { booking_id: bookingId };
+            if (isBefore(bookingDate, now)) {
+                txUpdate.created_at = booking.start_time;
+            }
             await supabase
                 .from('transactions')
-                .update({ created_at: booking.start_time })
+                .update(txUpdate)
                 .eq('id', transactionId);
         }
 
@@ -312,13 +316,17 @@ export async function finalizeTicketV2(input: {
 
         if (txError) throw txError;
 
-        // BACK-DATING: Si la cita es del pasado, actualizar fecha de la transacción
+        // BACK-DATING + booking_id linkage
         const now = new Date();
         const bookingDate = new Date(booking.start_time);
-        if (isBefore(bookingDate, now) && transactionId) {
+        if (transactionId) {
+            const txUpdate: Record<string, any> = { booking_id: bookingId };
+            if (isBefore(bookingDate, now)) {
+                txUpdate.created_at = booking.start_time;
+            }
             await supabase
                 .from('transactions')
-                .update({ created_at: booking.start_time })
+                .update(txUpdate)
                 .eq('id', transactionId);
         }
 
@@ -448,21 +456,25 @@ export async function createTransactionWithPoints(formData: {
     }
 }
 
-// --- ACCIÓN 6: OBTENER PUNTOS DEL CLIENTE ---
-export async function getClientPoints(clientId: string) {
+// --- ACCIÓN 6: OBTENER PUNTOS DEL CLIENTE (TENANT-ISOLATED) ---
+export async function getClientPoints(clientId: string, tenantId: string) {
     const supabase = await createClient();
 
     try {
-        const { data, error } = await supabase.rpc('get_client_loyalty_points_v2', {
-            p_client_id: clientId
-        });
+        // Sum points_earned from transactions filtered by tenant_id
+        // This replaces the global RPC that read profile.loyalty_points
+        const { data, error } = await supabase
+            .from('transactions')
+            .select('points_earned')
+            .eq('client_id', clientId)
+            .eq('tenant_id', tenantId);
 
         if (error) {
-            console.error('Error fetching points (RPC):', error);
+            console.error('Error fetching tenant points:', error);
             return 0;
         }
 
-        return data || 0;
+        return (data || []).reduce((sum, tx) => sum + (tx.points_earned || 0), 0);
     } catch (error) {
         console.error('Exception fetching points:', error);
         return 0;
@@ -482,8 +494,8 @@ export async function getClientLoyaltyStatus(clientId: string, tenantId: string)
 
         if (error) throw error;
 
-        // Obtener puntos actuales usando la función segura
-        const points = await getClientPoints(clientId);
+        // Obtener puntos actuales (tenant-isolated)
+        const points = await getClientPoints(clientId, tenantId);
 
         return {
             success: true,
@@ -501,8 +513,8 @@ export async function getClientLoyaltyStatus(clientId: string, tenantId: string)
     }
 }
 
-// --- ACCIÓN 8: CANJEAR RECOMPENSA ---
-export async function redeemLoyaltyReward(rewardId: string, clientId: string) {
+// --- ACCIÓN 8: CANJEAR RECOMPENSA (TENANT-ISOLATED) ---
+export async function redeemLoyaltyReward(rewardId: string, clientId: string, tenantId: string) {
     const supabase = await createClient();
 
     try {
@@ -517,8 +529,8 @@ export async function redeemLoyaltyReward(rewardId: string, clientId: string) {
             throw new Error('Recompensa no encontrada');
         }
 
-        // Obtener puntos del usuario
-        const currentPoints = await getClientPoints(clientId);
+        // Obtener puntos del usuario (tenant-isolated)
+        const currentPoints = await getClientPoints(clientId, tenantId);
 
         if (currentPoints < reward.points_required) {
             throw new Error(`Puntos insuficientes. Necesitas ${reward.points_required} puntos.`);
