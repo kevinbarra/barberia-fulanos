@@ -73,7 +73,7 @@ export default async function AdminDashboard() {
     const { data: transactionsData, error } = await supabase
         .from("transactions")
         .select(`
-            id, amount, created_at, client_id, points_earned, 
+            id, amount, created_at, client_id, points_earned, notes,
             services(name)
         `)
         .eq("tenant_id", tenantId)
@@ -96,6 +96,10 @@ export default async function AdminDashboard() {
     const formatMoney = (amount: number) =>
         new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(amount);
 
+    const autoCompletedTransactions = transactionsData?.filter(t => t.notes?.includes('Auto-completado')) || [];
+    const autoCompletedCount = autoCompletedTransactions.length;
+    const autoCompletedIncome = autoCompletedTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">
 
@@ -107,6 +111,22 @@ export default async function AdminDashboard() {
                     </p>
                 </div>
             </div>
+
+            {userRole === 'owner' && autoCompletedCount > 0 && (
+                <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between shadow-sm animate-in slide-in-from-top-4 fade-in">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-amber-500 shadow-sm border border-amber-100">
+                            ⚡
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-amber-900 text-sm mb-0.5">Modo Ágil Activo</h3>
+                            <p className="text-amber-700 text-xs font-medium">
+                                Hoy el sistema procesó <strong className="font-black text-amber-900">{autoCompletedCount}</strong> {autoCompletedCount === 1 ? 'cita' : 'citas'} automáticamente (<span className="font-black text-amber-900">{formatMoney(autoCompletedIncome)}</span>)
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4 mb-8">
                 {/* Kiosk Status Card - only shows for tablet user when kiosk is active */}

@@ -4,14 +4,15 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { PosBookingData } from '@/types/supabase-joined';
 import { format, addDays, subDays, isSameDay, setHours, setMinutes, isBefore, isAfter, differenceInMinutes } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, User, Pencil, XCircle, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, User, Pencil, XCircle, Eye, Zap } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import NewBookingModal from '../NewBookingModal';
 import { cn } from '@/lib/utils';
 import CheckOutModal from '../CheckOutModal';
 import { seatBooking } from '@/app/admin/pos/actions';
-import { cancelBookingAdmin } from '@/app/admin/bookings/actions';
+import { cancelBookingAdmin, quickCheckout } from '@/app/admin/bookings/actions';
+import { useAutoComplete } from '@/hooks/useAutoComplete';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { DEFAULT_TIMEZONE } from '@/lib/constants';
@@ -57,6 +58,7 @@ interface BookingsCalendarProps {
     staffSchedules?: StaffSchedule[];
     soloStaffId?: string | null;
     onSoloStaffChange?: (id: string | null) => void;
+    workflowMode?: 'auto' | 'manual';
 }
 
 // Resolve client info from a booking
@@ -100,12 +102,21 @@ export default function BookingsCalendar({
     staffSchedules = [],
     soloStaffId = null,
     onSoloStaffChange,
+    workflowMode = 'manual',
 }: BookingsCalendarProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());
     const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
     const [selectedBooking, setSelectedBooking] = useState<PosBookingData | null>(null);
     const [isSeating, setIsSeating] = useState(false);
+    const [isQuickCheckingOut, setIsQuickCheckingOut] = useState(false);
+
+    // Cita Flash logic
+    const [newBookingStaffId, setNewBookingStaffId] = useState<string | null>(null);
+    const [newBookingTime, setNewBookingTime] = useState<string | null>(null);
+
+    // Auto-complete (Agile mode only)
+    useAutoComplete(tenantId, workflowMode);
 
     // Peek & Pop
     const [hoveredBooking, setHoveredBooking] = useState<PosBookingData | null>(null);
@@ -219,6 +230,28 @@ export default function BookingsCalendar({
         setSelectedBooking(null);
         router.refresh();
         setWaModal({ isOpen: true, variant: 'reschedule', clientName, clientPhone, dateFormatted, timeFormatted });
+    };
+
+    const handleEmptyCellClick = (e: React.MouseEvent, staffId: string) => {
+        if (e.target !== e.currentTarget) return; // Prevent triggering from booking cards overlay
+
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const totalHours = y / CELL_HEIGHT;
+        const clickedHour = Math.floor(totalHours) + effectiveStart;
+        const clickedMinutes = Math.floor((totalHours % 1) * 60);
+
+        const roundedMins = Math.round(clickedMinutes / 15) * 15;
+
+        const newDate = new Date(currentDate);
+        newDate.setHours(clickedHour, roundedMins, 0, 0);
+
+        const localDate = new Date(newDate.getTime() - newDate.getTimezoneOffset() * 60000);
+        const isoString = localDate.toISOString().slice(0, 16);
+
+        setNewBookingStaffId(staffId);
+        setNewBookingTime(isoString);
+        setIsNewBookingOpen(true);
     };
 
     // Cleanup
@@ -344,6 +377,8 @@ export default function BookingsCalendar({
                                             const price = booking.services?.price || 0;
                                             const isNext = booking.id === nextBookingId;
                                             const isCancelled = booking.status === 'cancelled';
+                                            const isAutoCompleted = booking.notes?.includes('Auto-completado');
+
                                             const statusColor = statusStyles[booking.status as keyof typeof statusStyles] || 'bg-gray-50/80 border-l-gray-400 text-gray-700';
                                             const staffColorIndex = staff.findIndex(s => s.id === member.id);
                                             const staffColor = STAFF_COLORS[staffColorIndex >= 0 ? staffColorIndex % STAFF_COLORS.length : 0];
@@ -362,7 +397,8 @@ export default function BookingsCalendar({
                                                         `border-l-4 ${staffColor.border}`,
                                                         statusColor.replace(/border-l-\S+/g, ''),
                                                         isNext && `ring-2 ${staffColor.ring} ring-offset-1 shadow-md`,
-                                                        isCancelled && "line-through decoration-red-300 opacity-50"
+                                                        isCancelled && "line-through decoration-red-300 opacity-50",
+                                                        isAutoCompleted && "opacity-70"
                                                     )}
                                                     style={{ top, height, minHeight: '36px' }}
                                                 >
@@ -370,10 +406,11 @@ export default function BookingsCalendar({
                                                         <div>
                                                             <div className="flex justify-between items-start gap-1">
                                                                 <span className={cn(
-                                                                    "font-black text-xs truncate leading-tight",
+                                                                    "font-black text-xs truncate leading-tight flex items-center gap-1",
                                                                     soloStaffId && "text-sm"
                                                                 )}>
-                                                                    {isNext && <span className="mr-1">▸</span>}
+                                                                    {isAutoCompleted && <Zap size={10} className="text-amber-500 fill-amber-500" strokeWidth={3} />}
+                                                                    {isNext && <span className="mr-0.5">▸</span>}
                                                                     {clientName}
                                                                 </span>
                                                                 <span className="text-[10px] opacity-60 font-mono font-medium whitespace-nowrap">
@@ -539,45 +576,72 @@ export default function BookingsCalendar({
                                 />
                             )}
 
-                            {['pending', 'confirmed'].includes(selectedBooking.status) && (
+                            {['pending', 'confirmed', 'seated'].includes(selectedBooking.status) && (
                                 <>
-                                    <button
-                                        onClick={async () => {
-                                            setIsSeating(true);
-                                            const res = await seatBooking(selectedBooking.id);
-                                            setIsSeating(false);
-                                            if (res.success) {
-                                                toast.success('🪑 Cliente en silla');
-                                                setSelectedBooking(null);
-                                                router.refresh();
-                                            } else {
-                                                toast.error(res.error || 'Error');
-                                            }
-                                        }}
-                                        disabled={isSeating}
-                                        className="w-full py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50"
-                                    >
-                                        {isSeating ? 'Procesando...' : '🪑 Atender (Sentar)'}
-                                    </button>
-                                    <div className="flex gap-2">
+                                    {/* QUICK CHECKOUT (LEGACY MODE) */}
+                                    {workflowMode === 'manual' && (
                                         <button
-                                            onClick={() => {
-                                                setEditBooking(selectedBooking);
-                                                setSelectedBooking(null);
+                                            onClick={async () => {
+                                                setIsQuickCheckingOut(true);
+                                                const res = await quickCheckout(selectedBooking.id, tenantId);
+                                                setIsQuickCheckingOut(false);
+                                                if (res.success) {
+                                                    toast.success(res.message);
+                                                    setSelectedBooking(null);
+                                                } else {
+                                                    toast.error(res.error || 'Error al cobrar');
+                                                }
                                             }}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-gray-600 hover:text-black bg-gray-50 hover:bg-gray-100 rounded-xl transition-all border border-gray-200"
+                                            disabled={isQuickCheckingOut}
+                                            className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-100 text-emerald-800 rounded-xl font-bold hover:bg-emerald-200 transition-colors disabled:opacity-50"
                                         >
-                                            <Pencil size={12} />
-                                            Editar
+                                            <Zap size={16} className={isQuickCheckingOut ? 'animate-pulse' : ''} />
+                                            {isQuickCheckingOut ? 'Procesando...' : '⚡ Cobro Rápido (Efectivo)'}
                                         </button>
-                                        <button
-                                            onClick={() => handleCancel(selectedBooking)}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-all border border-red-200"
-                                        >
-                                            <XCircle size={12} />
-                                            Cancelar
-                                        </button>
-                                    </div>
+                                    )}
+
+                                    {/* SEAT BOOKING */}
+                                    {['pending', 'confirmed'].includes(selectedBooking.status) && (
+                                        <>
+                                            <button
+                                                onClick={async () => {
+                                                    setIsSeating(true);
+                                                    const res = await seatBooking(selectedBooking.id);
+                                                    setIsSeating(false);
+                                                    if (res.success) {
+                                                        toast.success('🪑 Cliente en silla');
+                                                        setSelectedBooking(null);
+                                                        router.refresh();
+                                                    } else {
+                                                        toast.error(res.error || 'Error');
+                                                    }
+                                                }}
+                                                disabled={isSeating}
+                                                className="w-full py-3 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors disabled:opacity-50"
+                                            >
+                                                {isSeating ? 'Procesando...' : '🪑 Atender (Sentar)'}
+                                            </button>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditBooking(selectedBooking);
+                                                        setSelectedBooking(null);
+                                                    }}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-gray-600 hover:text-black bg-gray-50 hover:bg-gray-100 rounded-xl transition-all border border-gray-200"
+                                                >
+                                                    <Pencil size={12} />
+                                                    Editar
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCancel(selectedBooking)}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-xl transition-all border border-red-200"
+                                                >
+                                                    <XCircle size={12} />
+                                                    Cancelar
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </div>
@@ -591,7 +655,18 @@ export default function BookingsCalendar({
 
             {/* MODALS */}
             {isNewBookingOpen && (
-                <NewBookingModal tenantId={tenantId} services={services} staff={staff} onClose={() => setIsNewBookingOpen(false)} />
+                <NewBookingModal
+                    tenantId={tenantId}
+                    services={services}
+                    staff={staff}
+                    initialStaffId={newBookingStaffId || undefined}
+                    initialTime={newBookingTime || undefined}
+                    onClose={() => {
+                        setIsNewBookingOpen(false);
+                        setNewBookingStaffId(null);
+                        setNewBookingTime(null);
+                    }}
+                />
             )}
 
             {editBooking && (

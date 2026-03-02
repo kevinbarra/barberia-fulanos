@@ -36,6 +36,7 @@ interface BookingsViewSwitcherProps {
     startHour?: number;
     endHour?: number;
     staffSchedules?: StaffSchedule[];
+    workflowMode?: 'auto' | 'manual';
 }
 
 export default function BookingsViewSwitcher({
@@ -46,7 +47,8 @@ export default function BookingsViewSwitcher({
     currentUserRole,
     startHour = 9,
     endHour = 21,
-    staffSchedules = []
+    staffSchedules = [],
+    workflowMode = 'manual'
 }: BookingsViewSwitcherProps) {
     // Default to LIST view
     const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
@@ -128,6 +130,7 @@ export default function BookingsViewSwitcher({
                         staffSchedules={staffSchedules}
                         soloStaffId={soloStaffId}
                         onSoloStaffChange={setSoloStaffId}
+                        workflowMode={workflowMode}
                     />
                 ) : (
                     <BookingsListView
@@ -137,6 +140,7 @@ export default function BookingsViewSwitcher({
                         tenantId={tenantId}
                         staffSchedules={staffSchedules}
                         soloStaffId={soloStaffId}
+                        workflowMode={workflowMode}
                     />
                 )}
             </div>

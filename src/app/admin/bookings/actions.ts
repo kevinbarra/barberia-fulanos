@@ -633,3 +633,113 @@ export async function rescheduleBooking(
         timeFormatted,
     }
 }
+
+// --- FUNCIÓN 7: QUICK-CHECKOUT (1-click: Cash + price_at_booking) ---
+export async function quickCheckout(bookingId: string, tenantId: string) {
+    const supabase = createAdminClient();
+    const sessionClient = await createClient();
+    const { data: { user } } = await sessionClient.auth.getUser();
+
+    // 1. Fetch booking with all needed data
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('id, staff_id, customer_id, start_time, service_id, price_at_booking, service_name_at_booking, status')
+        .eq('id', bookingId)
+        .eq('tenant_id', tenantId)
+        .single();
+
+    if (!booking) {
+        return { success: false, error: 'Cita no encontrada.' };
+    }
+
+    if (booking.status === 'completed') {
+        return { success: false, error: 'Esta cita ya fue cobrada.' };
+    }
+
+    // DUPLICATE GUARD
+    const { count: existingTx } = await supabase
+        .from('transactions')
+        .select('*', { count: 'exact', head: true })
+        .eq('booking_id', bookingId);
+    if (existingTx && existingTx > 0) {
+        return { success: false, error: 'Esta cita ya tiene una transacción registrada.' };
+    }
+
+    const amount = booking.price_at_booking || 0;
+    const serviceId = booking.service_id;
+
+    if (!serviceId || amount <= 0) {
+        return { success: false, error: 'Sin servicio o precio registrado. Usa el POS completo.' };
+    }
+
+    try {
+        // 2. Create atomic transaction via RPC
+        const { data: transactionId, error: txError } = await supabase.rpc('agile_checkout_atomic', {
+            p_booking_id: bookingId,
+            p_client_id: booking.customer_id,
+            p_total: amount,
+            p_services: [{ id: serviceId, price: amount }],
+            p_products: [],
+            p_payment_method: 'cash',
+            p_barber_id: booking.staff_id,
+            p_points_redeemed: 0,
+            p_reward_id: null
+        });
+
+        if (txError) throw txError;
+
+        // 3. Link booking_id + back-date
+        if (transactionId) {
+            const txUpdate: Record<string, any> = { booking_id: bookingId };
+            const bookingDate = new Date(booking.start_time);
+            if (isBefore(bookingDate, new Date())) {
+                txUpdate.created_at = booking.start_time;
+            }
+            await supabase.from('transactions').update(txUpdate).eq('id', transactionId);
+        }
+
+        // 4. Mark booking completed
+        await supabase
+            .from('bookings')
+            .update({ status: 'completed' })
+            .eq('id', bookingId);
+
+        // 5. Audit log
+        if (user && transactionId) {
+            await logActivity({
+                tenantId,
+                actorId: user.id,
+                action: 'CREATE',
+                entity: 'transactions',
+                entityId: transactionId,
+                metadata: {
+                    type: 'QUICK_CHECKOUT',
+                    amount,
+                    bookingId,
+                    paymentMethod: 'cash'
+                }
+            });
+        }
+
+        // 6. Broadcast + revalidate
+        await broadcastBookingEvent(tenantId, 'booking-completed', {
+            id: bookingId,
+            status: 'completed'
+        });
+
+        revalidatePath('/admin/bookings');
+        revalidatePath('/admin/pos');
+        revalidatePath('/app');
+
+        return {
+            success: true,
+            message: `Cobrado $${amount} — Efectivo`,
+            transactionId,
+            amount
+        };
+    } catch (error: unknown) {
+        const msg = error instanceof Error ? error.message : 'Error al cobrar.';
+        console.error('Quick checkout error:', msg);
+        return { success: false, error: msg };
+    }
+}

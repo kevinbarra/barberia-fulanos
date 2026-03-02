@@ -3,6 +3,7 @@ import TenantForm from "@/components/admin/TenantForm";
 import KioskPinForm from "@/components/admin/KioskPinForm";
 import KioskModeToggle from "@/components/admin/KioskModeToggle";
 import GuestCheckoutToggle from "@/components/admin/GuestCheckoutToggle";
+import WorkflowModeToggle from "@/components/admin/WorkflowModeToggle";
 import GoogleReviewUrlInput from "@/components/admin/GoogleReviewUrlInput";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
@@ -57,6 +58,9 @@ export default async function SettingsPage() {
             </div>
 
             <div className="space-y-8">
+                {/* Modo de Operación — TOP PRIORITY */}
+                <WorkflowModeToggle />
+
                 {/* Formulario del Negocio */}
                 {tenantData && (
                     <TenantForm initialData={tenantData} />

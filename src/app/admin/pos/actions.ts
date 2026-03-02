@@ -156,8 +156,9 @@ export async function finalizeTicket(input: {
     }
 
     try {
-        // Usar la función RPC que maneja puntos...
-        const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
+        // Usar la función RPC atómica para proteger de cobros duales concurrentes
+        const { data: transactionId, error: txError } = await supabase.rpc('agile_checkout_atomic', {
+            p_booking_id: bookingId,
             p_client_id: booking.customer_id,
             p_total: amount,
             p_services: [{ id: serviceId, price: amount }],
@@ -302,8 +303,9 @@ export async function finalizeTicketV2(input: {
     }
 
     try {
-        // Crear transacción con múltiples servicios
-        const { data: transactionId, error: txError } = await supabase.rpc('create_transaction_with_points', {
+        // Crear transacción atómica protegida contra carrera
+        const { data: transactionId, error: txError } = await supabase.rpc('agile_checkout_atomic', {
+            p_booking_id: bookingId,
             p_client_id: booking.customer_id,
             p_total: totalAmount,
             p_services: services,
@@ -431,14 +433,16 @@ export async function createTransactionWithPoints(formData: {
     const supabase = await createClient();
 
     try {
-        const { data, error } = await supabase.rpc('create_transaction_with_points', {
+        const { data, error } = await supabase.rpc('agile_checkout_atomic', {
+            p_booking_id: null,
             p_client_id: formData.clientId,
             p_total: formData.total,
             p_services: formData.services,
             p_products: formData.products,
             p_payment_method: formData.paymentMethod,
             p_barber_id: formData.barberId,
-            p_points_redeemed: formData.pointsRedeemed || 0
+            p_points_redeemed: formData.pointsRedeemed || 0,
+            p_reward_id: null
         });
 
         if (error) throw error;

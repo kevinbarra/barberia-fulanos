@@ -28,6 +28,15 @@ export default async function BookingsPage() {
     const startDate = subDays(today, 7).toISOString();
     const endDate = addDays(today, 14).toISOString();
 
+    const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single();
+
+    const tenantSettings = tenantData?.settings as { workflow_mode?: 'auto' | 'manual' } | null;
+    const workflowMode = tenantSettings?.workflow_mode || 'manual';
+
     const { data: bookings } = await supabase
         .from("bookings")
         .select(`
@@ -107,6 +116,7 @@ export default async function BookingsPage() {
                 startHour={startHour}
                 endHour={endHour}
                 staffSchedules={schedules || []}
+                workflowMode={workflowMode}
             />
         </div>
     );

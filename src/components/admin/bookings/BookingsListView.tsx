@@ -50,6 +50,7 @@ interface BookingsListViewProps {
     tenantId: string;
     staffSchedules?: StaffSchedule[];
     soloStaffId?: string | null;
+    workflowMode?: 'auto' | 'manual';
 }
 
 const statusConfig = {
@@ -104,6 +105,7 @@ export default function BookingsListView({
     tenantId,
     staffSchedules = [],
     soloStaffId = null,
+    workflowMode = 'manual',
 }: BookingsListViewProps) {
     const router = useRouter();
     const [currentDate, setCurrentDate] = useState(new Date());

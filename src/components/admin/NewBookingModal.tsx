@@ -12,11 +12,15 @@ export default function NewBookingModal({
     services,
     staff,
     onClose,
+    initialStaffId,
+    initialTime,
 }: {
     tenantId: string;
     services: Service[];
     staff: Staff[];
     onClose: () => void;
+    initialStaffId?: string;
+    initialTime?: string;
 }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -24,7 +28,7 @@ export default function NewBookingModal({
     // Calcular la fecha/hora actual ajustada a la zona horaria local para el input
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    const defaultTime = now.toISOString().slice(0, 16);
+    const defaultTime = initialTime || now.toISOString().slice(0, 16);
 
     const handleSubmit = async (formData: FormData) => {
         if (!selectedServiceId) return;
@@ -107,7 +111,7 @@ export default function NewBookingModal({
                     {/* 2. SELECCIONAR BARBERO */}
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Barbero</label>
-                        <select name="staff_id" className="w-full p-3 bg-white border border-gray-300 rounded-xl focus:ring-black focus:border-black" required>
+                        <select name="staff_id" defaultValue={initialStaffId} className="w-full p-3 bg-white border border-gray-300 rounded-xl focus:ring-black focus:border-black" required>
                             {staff.map(s => (
                                 <option key={s.id} value={s.id}>{s.full_name}</option>
                             ))}
