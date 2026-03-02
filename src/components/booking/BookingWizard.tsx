@@ -690,14 +690,16 @@ export default function BookingWizard({
                             </div>
 
                             <div className="space-y-4 flex-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Tus Datos</label>
+                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">
+                                    Tus Datos <span className="text-red-500">*</span>
+                                </label>
                                 <div className="relative group">
                                     <User size={18} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-black transition-colors" />
                                     <input
                                         type="text"
                                         value={clientData.name}
                                         className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
-                                        placeholder="Tu nombre"
+                                        placeholder="Tu nombre *"
                                         onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
                                     />
                                 </div>
@@ -707,9 +709,15 @@ export default function BookingWizard({
                                         type="tel"
                                         value={clientData.phone}
                                         className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
-                                        placeholder="Teléfono"
-                                        onChange={(e) => setClientData({ ...clientData, phone: e.target.value })}
+                                        placeholder="WhatsApp (10 dígitos) *"
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            setClientData({ ...clientData, phone: val });
+                                        }}
                                     />
+                                    {clientData.phone.length > 0 && clientData.phone.length < 10 && (
+                                        <p className="text-[10px] text-amber-600 font-bold mt-1 ml-1">Debe tener 10 dígitos</p>
+                                    )}
                                 </div>
                                 {!currentUser && (
                                     <div className="relative group">
@@ -726,7 +734,11 @@ export default function BookingWizard({
 
                             {/* Sticky button for mobile */}
                             <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 -mx-6 -mb-6 mt-6 z-20">
-                                <button onClick={handleBooking} disabled={!clientData.name || !clientData.phone || isSubmitting} className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95">
+                                <button
+                                    onClick={handleBooking}
+                                    disabled={!clientData.name || clientData.phone.length !== 10 || isSubmitting}
+                                    className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95"
+                                >
                                     {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
                                 </button>
                             </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Calendar, Clock, User, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Calendar, Clock, User, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { rescheduleBooking } from '@/app/admin/bookings/actions';
@@ -31,6 +31,7 @@ type EditBookingModalProps = {
     currentStaffName: string;
     serviceName: string;
     clientName: string;
+    clientPhone?: string | null;
     staff: StaffMember[];
     staffSchedules?: StaffSchedule[];
     onSuccess: (dateFormatted: string, timeFormatted: string) => void;
@@ -39,6 +40,12 @@ type EditBookingModalProps = {
 function parseTimeToMinutes(timeStr: string): number {
     const parts = timeStr.split(':');
     return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
+}
+
+function cleanPhoneForWa(phone: string): string {
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 10) return `52${cleaned}`;
+    return cleaned;
 }
 
 export default function EditBookingModal({
@@ -50,6 +57,7 @@ export default function EditBookingModal({
     currentStaffName,
     serviceName,
     clientName,
+    clientPhone,
     staff,
     staffSchedules = [],
     onSuccess,
@@ -160,6 +168,8 @@ export default function EditBookingModal({
 
     const hasChanges = selectedDate !== dateDefault || selectedTime !== timeDefault || selectedStaffId !== currentStaffId;
 
+    const waLink = clientPhone ? `https://wa.me/${cleanPhoneForWa(clientPhone)}` : null;
+
     return (
         <AnimatePresence>
             <motion.div
@@ -178,17 +188,43 @@ export default function EditBookingModal({
                     onClick={e => e.stopPropagation()}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between p-5 border-b border-gray-100">
-                        <div>
-                            <h3 className="text-lg font-black text-gray-900">Reprogramar Cita</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">{clientName} — {serviceName}</p>
+                    <div className="p-5 border-b border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900">Reprogramar Cita</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">{serviceName}</p>
+                            </div>
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+                            >
+                                <X size={18} className="text-gray-400" />
+                            </button>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
-                        >
-                            <X size={18} className="text-gray-400" />
-                        </button>
+
+                        {/* Client Info & WhatsApp Button */}
+                        <div className="flex items-center justify-between bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center border border-gray-200 shadow-sm">
+                                    <User size={20} className="text-gray-400" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-gray-900">{clientName}</p>
+                                    <p className="text-[10px] text-gray-500 font-medium">{clientPhone || 'Sin teléfono'}</p>
+                                </div>
+                            </div>
+                            {waLink && (
+                                <a
+                                    href={waLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-[#25D366] text-white p-2.5 rounded-xl hover:bg-[#1fba59] transition-all shadow-md shadow-green-100 active:scale-95 flex items-center gap-2"
+                                >
+                                    <MessageCircle size={18} />
+                                    <span className="text-[10px] font-black uppercase tracking-wider">WhatsApp</span>
+                                </a>
+                            )}
+                        </div>
                     </div>
 
                     {/* Form */}

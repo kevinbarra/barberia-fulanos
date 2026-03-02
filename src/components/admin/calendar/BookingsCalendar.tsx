@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { PosBookingData } from '@/types/supabase-joined';
 import { format, addDays, subDays, isSameDay, setHours, setMinutes, isBefore, isAfter, differenceInMinutes } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, User, Pencil, XCircle, Eye, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Plus, User, Pencil, XCircle, Eye, Zap, MessageCircle } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import NewBookingModal from '../NewBookingModal';
@@ -528,9 +528,22 @@ export default function BookingsCalendar({
 
                         <div className="flex items-center gap-3 mb-5">
                             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-xl">👤</div>
-                            <div>
-                                <h3 className="font-black text-lg">{getClientInfo(selectedBooking).clientName}</h3>
-                                <p className="text-gray-500 text-sm">{selectedBooking.services?.name || "Servicio"}</p>
+                            <div className="flex-1">
+                                <h3 className="font-black text-lg truncate">{getClientInfo(selectedBooking).clientName}</h3>
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-gray-500 text-sm truncate">{selectedBooking.services?.name || "Servicio"}</p>
+                                    {getClientInfo(selectedBooking).clientPhone && (
+                                        <a
+                                            href={`https://wa.me/${getClientInfo(selectedBooking).clientPhone?.replace(/\D/g, '').startsWith('52') ? getClientInfo(selectedBooking).clientPhone?.replace(/\D/g, '') : '52' + getClientInfo(selectedBooking).clientPhone?.replace(/\D/g, '')}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1.5 bg-[#25D366] text-white rounded-lg hover:bg-[#1fba59] transition-all shadow-sm"
+                                            title="Contactar por WhatsApp"
+                                        >
+                                            <MessageCircle size={14} />
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -679,6 +692,7 @@ export default function BookingsCalendar({
                     currentStaffName={editBooking.profiles?.full_name || 'Staff'}
                     serviceName={editBooking.services?.name || 'Servicio'}
                     clientName={getClientInfo(editBooking).clientName}
+                    clientPhone={getClientInfo(editBooking).clientPhone}
                     staff={staff}
                     staffSchedules={staffSchedules}
                     onSuccess={(df, tf) => handleEditSuccess(editBooking, df, tf)}

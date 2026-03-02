@@ -9,16 +9,18 @@ import { es } from 'date-fns/locale';
 import {
     ChevronLeft,
     ChevronRight,
+    Calendar as CalendarIcon,
     Clock,
+    Plus,
     User,
+    Pencil,
+    XCircle,
+    MessageCircle,
     Scissors,
     CheckCircle2,
-    XCircle,
     AlertCircle,
-    Calendar,
-    Plus,
-    Pencil,
-    MessageCircle,
+    Eye,
+    Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_TIMEZONE } from '@/lib/constants';
@@ -230,7 +232,7 @@ export default function BookingsListView({
                 {/* Title Row */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        <Calendar className="text-gray-900" strokeWidth={2.5} size={20} />
+                        <CalendarIcon className="text-gray-900" strokeWidth={2.5} size={20} />
                         Lista de Citas
                     </h2>
                     <button
@@ -318,7 +320,7 @@ export default function BookingsListView({
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
                 {dailyBookings.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                        <Calendar size={48} strokeWidth={1} />
+                        <CalendarIcon size={48} strokeWidth={1} />
                         <p className="mt-4 font-medium">Sin citas para este día</p>
                         <p className="text-sm">Usa el botón + para agregar una</p>
                     </div>
@@ -362,6 +364,17 @@ export default function BookingsListView({
                                             )}>
                                                 {clientName}
                                             </h4>
+                                            {getClientInfo(booking).clientPhone && (
+                                                <a
+                                                    href={`https://wa.me/${getClientInfo(booking).clientPhone?.replace(/\D/g, '').startsWith('52') ? getClientInfo(booking).clientPhone?.replace(/\D/g, '') : '52' + getClientInfo(booking).clientPhone?.replace(/\D/g, '')}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1 mt-0.5 transition-colors"
+                                                >
+                                                    <MessageCircle size={10} />
+                                                    {getClientInfo(booking).clientPhone}
+                                                </a>
+                                            )}
                                             <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                                                 <span className="flex items-center gap-1">
                                                     <Scissors size={10} />
@@ -434,6 +447,7 @@ export default function BookingsListView({
                     currentStaffName={editBooking.profiles?.full_name || 'Staff'}
                     serviceName={editBooking.services?.name || 'Servicio'}
                     clientName={getClientInfo(editBooking).clientName}
+                    clientPhone={getClientInfo(editBooking).clientPhone}
                     staff={staff}
                     staffSchedules={staffSchedules}
                     onSuccess={(dateFormatted, timeFormatted) =>
