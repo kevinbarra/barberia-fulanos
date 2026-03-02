@@ -1,20 +1,3 @@
 {
-    "crons": [
-        {
-            "path": "/api/cron/reminders",
-            "schedule": "0 13 * * *"
-        },
-        {
-            "path": "/api/cron/rating-requests",
-            "schedule": "0 2 * * *"
-        },
-        {
-            "path": "/api/cron/winback",
-            "schedule": "0 14 * * 1"
-        },
-        {
-            "path": "/api/cron/auto-complete",
-            "schedule": "*/5 * * * *"
-        }
-    ]
+    "crons": []
 }
