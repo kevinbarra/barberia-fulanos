@@ -71,7 +71,14 @@ export default function BookingsViewSwitcher({
 
             {/* DESKTOP ONLY (>= 1024px) */}
             <div className="hidden lg:block h-full absolute inset-0">
-                <DesktopDashboard bookings={bookings} staff={staff} services={services} />
+                <DesktopDashboard
+                    bookings={bookings}
+                    staff={staff}
+                    services={services}
+                    tenantId={tenantId}
+                    staffSchedules={staffSchedules}
+                    workflowMode={workflowMode}
+                />
             </div>
         </div>
     );
