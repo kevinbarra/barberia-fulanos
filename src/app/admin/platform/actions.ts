@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
+import { seedTenantWithTemplate } from '../demo-generator/actions'
 
 interface ProvisionResult {
     success: boolean;
@@ -33,8 +34,7 @@ export async function createTenant(formData: FormData) {
     const name = formData.get('name') as string;
     const slug = formData.get('slug') as string;
     const demoMode = formData.get('demo_mode') === 'true';
-    const showcaseMode = formData.get('showcase_mode') === 'true';
-    const showcaseBarbers = parseInt(formData.get('showcase_barbers') as string) || 2;
+    const demoType = formData.get('demo_type') as string; // barbershop, salon, nails, skincare, none
 
     // DEMO MODE: Generate placeholder email if no real owner
     const ownerEmail = demoMode
@@ -76,11 +76,12 @@ export async function createTenant(formData: FormData) {
         return { error: result.message || 'Error desconocido.' };
     }
 
-    // 4. SHOWCASE MODE: Seed demo barbers with schedules
-    if (showcaseMode && result.tenant_id) {
-        const seedResult = await seedShowcaseData(result.tenant_id, slug, showcaseBarbers);
-        if (seedResult.error) {
-            console.error('[SHOWCASE] Seed error:', seedResult.error);
+    // 4. SHOWCASE MODE: Seed demo data using the Demo Factory templates
+    if (demoType && demoType !== 'none' && result.tenant_id) {
+        try {
+            await seedTenantWithTemplate(result.tenant_id, slug, demoType);
+        } catch (seedError) {
+            console.error('[SHOWCASE] Seed error:', seedError);
             // Don't fail the whole creation — tenant is already created
         }
     }
@@ -88,7 +89,7 @@ export async function createTenant(formData: FormData) {
     // 5. Éxito
     revalidatePath('/admin/platform');
     const modeLabel = demoMode ? ' (Modo Demo)' : '';
-    const showcaseLabel = showcaseMode ? ` + ${showcaseBarbers} barberos demo` : '';
+    const showcaseLabel = (demoType && demoType !== 'none') ? ` + Datos de ${demoType}` : '';
     return { success: true, message: (result.message || 'Tenant creado.') + modeLabel + showcaseLabel };
 }
 

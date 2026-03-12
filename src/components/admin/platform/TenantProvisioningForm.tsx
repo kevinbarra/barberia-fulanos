@@ -9,8 +9,7 @@ import { motion } from 'framer-motion';
 export default function TenantProvisioningForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [demoMode, setDemoMode] = useState(false);
-    const [showcaseMode, setShowcaseMode] = useState(false);
-    const [showcaseBarbers, setShowcaseBarbers] = useState(2);
+    const [demoType, setDemoType] = useState<string>('none');
     const formRef = useRef<HTMLFormElement>(null);
 
     const handleSubmit = async (formData: FormData) => {
@@ -18,9 +17,8 @@ export default function TenantProvisioningForm() {
         try {
             // Inject toggle states into formData
             if (demoMode) formData.set('demo_mode', 'true');
-            if (showcaseMode) {
-                formData.set('showcase_mode', 'true');
-                formData.set('showcase_barbers', String(showcaseBarbers));
+            if (demoType !== 'none') {
+                formData.set('demo_type', demoType);
             }
 
             const res = await createTenant(formData);
@@ -30,7 +28,7 @@ export default function TenantProvisioningForm() {
                 toast.success(res.message);
                 formRef.current?.reset();
                 setDemoMode(false);
-                setShowcaseMode(false);
+                setDemoType('none');
             }
         } catch (error) {
             toast.error('Error de conexión');
@@ -142,8 +140,8 @@ export default function TenantProvisioningForm() {
                         type="button"
                         onClick={() => setDemoMode(!demoMode)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all mb-3 ${demoMode
-                                ? 'border-amber-400 bg-amber-50 text-amber-800'
-                                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
+                            ? 'border-amber-400 bg-amber-50 text-amber-800'
+                            : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
                             }`}
                     >
                         <UserX size={18} className={demoMode ? 'text-amber-600' : 'text-gray-400'} />
@@ -185,55 +183,70 @@ export default function TenantProvisioningForm() {
                     )}
                 </div>
 
-                {/* SECCIÓN 4: SHOWCASE MODE */}
+                {/* SECCIÓN 4: GIRO Y DATOS DE PRUEBA */}
                 <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Datos de Muestra</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <Sparkles size={14} className="text-violet-500" />
+                        Giro y Semilla de Datos
+                    </label>
 
-                    <button
-                        type="button"
-                        onClick={() => setShowcaseMode(!showcaseMode)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${showcaseMode
-                                ? 'border-violet-400 bg-violet-50 text-violet-800'
-                                : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
-                            }`}
-                    >
-                        <Sparkles size={18} className={showcaseMode ? 'text-violet-600' : 'text-gray-400'} />
-                        <span className="text-sm font-semibold flex-1 text-left">Poblar con barberos demo</span>
-                        <div className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${showcaseMode ? 'bg-violet-500 justify-end' : 'bg-gray-300 justify-start'
-                            }`}>
-                            <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
-                        </div>
-                    </button>
-
-                    {showcaseMode && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="mt-3 space-y-3"
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                        <button
+                            type="button"
+                            onClick={() => setDemoType('none')}
+                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'none'
+                                    ? 'border-gray-900 bg-gray-900 text-white shadow-lg'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+                                }`}
                         >
-                            <div className="flex items-center gap-3 p-3 bg-violet-50 rounded-xl border border-violet-200">
-                                <Users size={16} className="text-violet-600" />
-                                <span className="text-sm text-violet-700 font-medium">Barberos:</span>
-                                <div className="flex gap-2 ml-auto">
-                                    {[2, 3, 4].map(n => (
-                                        <button
-                                            key={n}
-                                            type="button"
-                                            onClick={() => setShowcaseBarbers(n)}
-                                            className={`w-9 h-9 rounded-lg text-sm font-bold transition-all ${showcaseBarbers === n
-                                                    ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30'
-                                                    : 'bg-white text-violet-600 border border-violet-200 hover:bg-violet-100'
-                                                }`}
-                                        >
-                                            {n}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                            <p className="text-xs text-violet-600 bg-violet-50/50 p-2 rounded-lg border border-violet-100">
-                                ✨ Se crearán {showcaseBarbers} barberos con nombres genéricos, horarios L-S (10:00–20:00) y los 5 servicios estándar. Listo para demo en segundos.
-                            </p>
-                        </motion.div>
+                            <span>Vacío (En blanco)</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDemoType('barbershop')}
+                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'barbershop'
+                                    ? 'border-violet-600 bg-violet-50 text-violet-700 shadow-md shadow-violet-500/20'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-violet-200 hover:bg-violet-50/30'
+                                }`}
+                        >
+                            <span>💈 Barbería</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDemoType('salon')}
+                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'salon'
+                                    ? 'border-pink-500 bg-pink-50 text-pink-700 shadow-md shadow-pink-500/20'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-pink-200 hover:bg-pink-50/30'
+                                }`}
+                        >
+                            <span>💇‍♀️ Salón de Belleza</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDemoType('nails')}
+                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'nails'
+                                    ? 'border-fuchsia-500 bg-fuchsia-50 text-fuchsia-700 shadow-md shadow-fuchsia-500/20'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-fuchsia-200 hover:bg-fuchsia-50/30'
+                                }`}
+                        >
+                            <span>💅 Nails / Uñas</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDemoType('skincare')}
+                            className={`col-span-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'skincare'
+                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/20'
+                                    : 'border-gray-200 bg-white text-gray-500 hover:border-emerald-200 hover:bg-emerald-50/30'
+                                }`}
+                        >
+                            <span>✨ Skin Care / Spa</span>
+                        </button>
+                    </div>
+
+                    {demoType !== 'none' && (
+                        <p className="text-xs text-violet-600 bg-violet-50/50 p-2 rounded-lg border border-violet-100 mt-3 animate-in fade-in slide-in-from-top-2">
+                            ✨ Se inyectará un catálogo de servicios completo, categorías, equipo de staff y citas listos para operar.
+                        </p>
                     )}
                 </div>
 
