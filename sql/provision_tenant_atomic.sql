@@ -15,7 +15,8 @@ CREATE OR REPLACE FUNCTION provision_tenant_atomic(
     p_owner_email TEXT,
     p_brand_color TEXT DEFAULT '#8b5cf6',
     p_plan TEXT DEFAULT 'trial',
-    p_timezone TEXT DEFAULT 'America/Mexico_City'
+    p_timezone TEXT DEFAULT 'America/Mexico_City',
+    p_skip_default_seed BOOLEAN DEFAULT FALSE
 ) 
 RETURNS JSON 
 LANGUAGE plpgsql
@@ -79,13 +80,15 @@ BEGIN
     -- 3. SEED DEFAULT SERVICES
     -- ==================================================
     
-    INSERT INTO services (tenant_id, name, price, duration_min, category, is_active)
-    VALUES 
-        (v_tenant_id, 'Corte Clásico', 150.00, 30, 'Cortes', TRUE),
-        (v_tenant_id, 'Corte + Barba', 220.00, 45, 'Combos', TRUE),
-        (v_tenant_id, 'Barba', 100.00, 20, 'Barba', TRUE),
-        (v_tenant_id, 'Corte Fade', 180.00, 40, 'Cortes', TRUE),
-        (v_tenant_id, 'Cejas', 50.00, 10, 'Extras', TRUE);
+    IF NOT p_skip_default_seed THEN
+        INSERT INTO services (tenant_id, name, price, duration_min, category, is_active)
+        VALUES 
+            (v_tenant_id, 'Corte Clásico', 150.00, 30, 'Cortes', TRUE),
+            (v_tenant_id, 'Corte + Barba', 220.00, 45, 'Combos', TRUE),
+            (v_tenant_id, 'Barba', 100.00, 20, 'Barba', TRUE),
+            (v_tenant_id, 'Corte Fade', 180.00, 40, 'Cortes', TRUE),
+            (v_tenant_id, 'Cejas', 50.00, 10, 'Extras', TRUE);
+    END IF;
     
     -- ==================================================
     -- 4. ASSIGN OWNER (if email exists in profiles)
@@ -155,7 +158,7 @@ $$;
 
 -- Allow authenticated users to call this function
 -- (Security check is done inside the function via SECURITY DEFINER)
-GRANT EXECUTE ON FUNCTION provision_tenant_atomic(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION provision_tenant_atomic(TEXT, TEXT, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO authenticated;
 
 -- ==================================================
 -- TEST QUERY (uncomment to test)

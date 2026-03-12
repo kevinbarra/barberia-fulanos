@@ -60,7 +60,8 @@ export async function createTenant(formData: FormData) {
         p_owner_email: ownerEmail,
         p_brand_color: brandColor,
         p_plan: plan,
-        p_timezone: timezone
+        p_timezone: timezone,
+        p_skip_default_seed: (demoType && demoType !== 'none') ? true : false
     });
 
     if (error) {
