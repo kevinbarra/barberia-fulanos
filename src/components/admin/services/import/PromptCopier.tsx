@@ -5,24 +5,28 @@ import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
 const PROMPT_TEXT = `Analiza la imagen de este menú de servicios. Extrae los datos y entrégalos ÚNICAMENTE en formato JSON.
+Estructura la información en Capas (Base, Variantes, Add-ons).
+
 Reglas:
+- Si el precio dice "Desde $X", "A partir de $X" o similar, extrae solo el número.
+- Si no hay descripción explícita, déjala vacía.
+- Generar un 'slug' para el base_service (minúsculas, sin espacios, guiones).
 
-Si no hay descripción, dejar vacío.
-
-Si no hay duración, poner 30.
-
-Generar un 'slug' (minúsculas, sin espacios, solo guiones).
-
-Formato:
+Formato JSON esperado:
 [
-{
-"name": "Nombre",
-"price": 0.00,
-"category": "Categoría",
-"description": "...",
-"duration_min": 30,
-"slug": "nombre-del-servicio"
-}
+  {
+    "base_service": "Nombre del Servicio Principal (Ej. Uñas Acrílicas)",
+    "slug": "unas-acrilicas",
+    "category": "Categoría (Ej. Uñas)",
+    "variants": [
+      {"name": "Cortas", "price": 300, "duration_min": 60},
+      {"name": "Largas XL", "price": 450, "duration_min": 90}
+    ],
+    "suggested_addons": [
+      {"name": "Retiro", "price": 100, "duration_min": 20},
+      {"name": "Diseño Mano Alzada", "price": 150, "duration_min": 30}
+    ]
+  }
 ]`
 
 export default function PromptCopier() {

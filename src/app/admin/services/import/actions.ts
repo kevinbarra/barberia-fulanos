@@ -90,12 +90,14 @@ export async function matchAndCreateCategories(categoryNames: string[]) {
 
 export type DraftService = {
     name: string;
-    price: number;
+    price: number | null;
     category: string;
     description: string;
     duration_min: number;
     slug: string;
     category_id?: string | null;
+    status?: 'red' | 'yellow' | 'blue' | 'green';
+    metadata?: any;
 }
 
 export async function bulkCreateServices(services: DraftService[]) {
@@ -114,7 +116,8 @@ export async function bulkCreateServices(services: DraftService[]) {
         duration_min: Number(s.duration_min) || 30,
         slug: s.slug || null,
         category_id: s.category_id || null,
-        is_active: true
+        is_active: true,
+        metadata: s.metadata || {}
     }))
 
     const { error: insertError } = await supabase
