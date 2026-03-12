@@ -225,7 +225,7 @@ export default function BookingsListView({
     const isActionable = (status: string) => ['confirmed', 'pending'].includes(status);
 
     return (
-        <div className="flex flex-col h-[calc(100dvh-100px)] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex flex-col h-full bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
 
             {/* HEADER */}
             <div className="flex flex-col gap-4 p-4 md:p-6 border-b border-gray-100 bg-white">

@@ -108,22 +108,22 @@ export default function DesktopDashboard({ bookings, staff, services, tenantId, 
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-6 mb-6 flex-shrink-0">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Ingresos de Hoy (Est.)</p>
-                    <p className="text-4xl font-black text-gray-900">${todayRevenue}</p>
+            <div className="grid grid-cols-3 gap-3 md:gap-4 mb-4 flex-shrink-0">
+                <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Ingresos de Hoy (Est.)</p>
+                    <p className="text-2xl md:text-3xl font-black text-gray-900">${todayRevenue}</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Citas Hoy</p>
-                    <p className="text-4xl font-black text-gray-900">{todayBookings}</p>
+                <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Citas Hoy</p>
+                    <p className="text-2xl md:text-3xl font-black text-gray-900">{todayBookings}</p>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
-                    <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Próximas Citas (7 días)</p>
-                    <p className="text-4xl font-black text-[#854fff]">{upcomingCount}</p>
+                <div className="bg-white p-3 md:p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-center">
+                    <p className="text-gray-500 text-xs font-bold uppercase tracking-wider mb-1">Próximas (7 días)</p>
+                    <p className="text-2xl md:text-3xl font-black text-[#854fff]">{upcomingCount}</p>
                 </div>
             </div>
 
-            <div className="flex-1 rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+            <div className="flex-1 rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative min-h-0">
                 {viewMode === 'list' ? (
                     <BookingsListView
                         bookings={bookings}
