@@ -17,6 +17,7 @@ interface Props {
 export default function PocketAgenda({ bookings, staff, services }: Props) {
     const now = new Date();
     const [selectedDate, setSelectedDate] = useState(startOfDay(now));
+    const [showCancelled, setShowCancelled] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const isToday = isSameDay(selectedDate, now);
@@ -58,8 +59,9 @@ export default function PocketAgenda({ bookings, staff, services }: Props) {
         return bookings
             .filter(b => isSameDay(toZonedTime(b.start_time, DEFAULT_TIMEZONE), selectedDate))
             .filter(b => b.id !== current?.id && b.id !== next?.id)
+            .filter(b => showCancelled ? true : b.status !== 'cancelled')
             .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-    }, [bookings, selectedDate, current, next]);
+    }, [bookings, selectedDate, current, next, showCancelled]);
 
     const formatTime = (iso: string) => {
         return toZonedTime(iso, DEFAULT_TIMEZONE).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -180,26 +182,52 @@ export default function PocketAgenda({ bookings, staff, services }: Props) {
                 {/* Lista de citas del día seleccionado */}
                 <div className="pt-2">
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4 px-2 flex items-center justify-between">
-                        <span>{isToday ? 'Resto del Día' : 'Agenda del Día'}</span>
-                        <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{dailyBookings.length} citas</span>
+                        <div className="flex items-center gap-2">
+                            <span>{isToday ? 'Resto del Día' : 'Agenda del Día'}</span>
+                            <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{dailyBookings.length} {dailyBookings.length === 1 ? 'cita' : 'citas'}</span>
+                        </div>
+
+                        <button
+                            onClick={() => setShowCancelled(!showCancelled)}
+                            className={`px-3 py-1 rounded-full border transition-all active:scale-95 ${showCancelled
+                                    ? 'bg-red-50 border-red-200 text-red-600 font-bold'
+                                    : 'bg-white border-gray-200 text-gray-400 font-medium'
+                                }`}
+                        >
+                            {showCancelled ? 'Ocultar Canceladas' : 'Ver Canceladas'}
+                        </button>
                     </h3>
                     <div className="space-y-3">
                         {dailyBookings.length > 0 ? (
-                            dailyBookings.map(b => (
-                                <div key={b.id} className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer hover:scale-[0.98] active:scale-[0.95] hover:shadow-md group">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-1 h-8 rounded-full bg-gray-100 group-hover:bg-blue-200 transition-colors"></div>
-                                        <div>
-                                            <p className="font-black text-gray-900">{getClientName(b)}</p>
-                                            <p className="text-xs text-gray-500 font-medium">{b.services?.name}</p>
+                            dailyBookings.map(b => {
+                                const isCancelled = b.status === 'cancelled';
+                                return (
+                                    <div
+                                        key={b.id}
+                                        className={`bg-white p-4 rounded-3xl border shadow-sm flex items-center justify-between transition-all duration-200 cursor-pointer hover:scale-[0.98] active:scale-[0.95] hover:shadow-md group ${isCancelled
+                                                ? 'border-red-100 opacity-60 border-l-4 border-l-red-500'
+                                                : 'border-gray-100'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-1 h-8 rounded-full transition-colors ${isCancelled ? 'bg-red-200' : 'bg-gray-100 group-hover:bg-blue-200'}`}></div>
+                                            <div>
+                                                <p className={`font-black ${isCancelled ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{getClientName(b)}</p>
+                                                <p className="text-xs text-gray-500 font-medium">{b.services?.name}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`font-black text-lg ${isCancelled ? 'text-gray-400' : 'text-gray-900'}`}>{formatTime(b.start_time)}</p>
+                                            <div className="flex flex-col items-end">
+                                                {isCancelled && <span className="text-[9px] font-black text-red-500 uppercase tracking-tighter mb-0.5">CANCELADA</span>}
+                                                <p className={`text-[10px] font-bold uppercase ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-400'}`}>
+                                                    {b.profiles?.full_name?.split(' ')[0]}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-black text-gray-900 text-lg">{formatTime(b.start_time)}</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase">{b.profiles?.full_name?.split(' ')[0]}</p>
-                                    </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="bg-gray-100/50 border-2 border-dashed border-gray-200 rounded-3xl p-10 text-center">
                                 <CalendarIcon className="mx-auto text-gray-300 mb-4" size={32} />
