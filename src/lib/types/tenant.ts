@@ -4,6 +4,9 @@ export interface TenantSettings {
     whatsapp_phone?: string;
     address?: string;
     workflow_mode?: 'auto' | 'manual';
+    business_type?: 'barber' | 'salon' | 'nails' | 'default';
+    currency_symbol?: string;
+    tax_rate?: number;
     // Future settings
 }
 

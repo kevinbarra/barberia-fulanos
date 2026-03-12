@@ -125,6 +125,15 @@ export default async function PosPage() {
         noShowCount: b.customer?.no_show_count || 0,
     })) || [];
 
+    // Fetch tenant settings (includes tax_rate and business_type)
+    const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("settings")
+        .eq("id", tenantId)
+        .single();
+
+    const settings = (tenantData?.settings as any) || {};
+
     return (
         <PosV2
             staff={staff || []}
@@ -132,6 +141,7 @@ export default async function PosPage() {
             activeTickets={formattedTickets}
             todayBookings={formattedBookings}
             tenantId={tenantId}
+            settings={settings}
         />
     );
 }

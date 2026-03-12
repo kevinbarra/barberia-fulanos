@@ -63,22 +63,13 @@ export default async function BookingPage({
     }
 
     // 3. Datos del Negocio (include settings for guest checkout check)
-    console.log('[BOOKING PAGE] Checking slug:', slug);
-    const { data: tenant, error: tenantErr } = await supabase
+    const { data: tenant } = await supabase
         .from("tenants")
         .select("*, settings")
         .eq("slug", slug)
         .single();
 
-    if (tenantErr) {
-        console.error('[BOOKING PAGE] Error fetching tenant:', tenantErr);
-    }
-
-    if (!tenant) {
-        console.warn(`[BOOKING PAGE] Tenant not found for slug: ${slug}`);
-        return notFound();
-    }
-    console.log('[BOOKING PAGE] Tenant found:', tenant.name);
+    if (!tenant) return notFound();
 
     // 4. Verificar que el tenant esté activo
     if (tenant.subscription_status !== 'active') {
@@ -93,8 +84,7 @@ export default async function BookingPage({
     }
 
     // 4.1 CHECK: Guest Checkout Setting
-    // Default to true (enabled) if settings is null or key is missing
-    const tenantSettings = tenant.settings as { guest_checkout_enabled?: boolean; whatsapp_phone?: string } | null;
+    const tenantSettings = tenant.settings as any; // Using any or casting to TenantSettings
     const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
     const whatsappPhone = tenantSettings?.whatsapp_phone || null;
 
@@ -104,9 +94,39 @@ export default async function BookingPage({
     }
 
     // 5. Fetch services, staff, and schedules for this tenant
-    const { data: services } = await supabase.from("services").select("*").eq("tenant_id", tenant.id).eq("is_active", true).order("name");
-    const { data: staff } = await supabase.from("profiles").select("*").eq("tenant_id", tenant.id).neq("role", "customer").eq("is_active_barber", true).eq("is_calendar_visible", true);
-    const { data: schedules } = await supabase.from("staff_schedules").select("*").eq("tenant_id", tenant.id).eq("is_active", true);
+    // Fetch categories first to join with services (or select services with categories)
+    const { data: services } = await supabase
+        .from("services")
+        .select("*, service_categories(name)")
+        .eq("tenant_id", tenant.id)
+        .eq("is_active", true)
+        .order("name");
+
+    const { data: staff } = await supabase
+        .from("profiles")
+        .select("*, staff_services(service_id)")
+        .eq("tenant_id", tenant.id)
+        .neq("role", "customer")
+        .eq("is_active_barber", true)
+        .eq("is_calendar_visible", true);
+
+    const { data: schedules } = await supabase
+        .from("staff_schedules")
+        .select("*")
+        .eq("tenant_id", tenant.id)
+        .eq("is_active", true);
+
+    // Transform services to include the category name from the relationship
+    const transformedServices = services?.map(s => ({
+        ...s,
+        category: (s as any).service_categories?.name || s.category // Fallback to old string if needed
+    })) || [];
+
+    // Transform staff to include a flat array of service_ids
+    const transformedStaff = staff?.map(p => ({
+        ...p,
+        services: (p as any).staff_services?.map((ss: any) => ss.service_id) || []
+    })) || [];
 
     return (
         <div
@@ -143,12 +163,13 @@ export default async function BookingPage({
                 {/* WIZARD */}
                 <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                     <BookingWizard
-                        services={services || []}
-                        staff={staff || []}
+                        services={transformedServices}
+                        staff={transformedStaff}
                         schedules={schedules || []}
                         currentUser={userData}
                         whatsappPhone={whatsappPhone}
                         tenantName={tenant.name}
+                        businessType={tenantSettings?.business_type || 'barber'}
                     />
                 </div>
             </div>

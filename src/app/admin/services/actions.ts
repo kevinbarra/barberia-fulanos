@@ -46,7 +46,7 @@ export async function createService(formData: FormData) {
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
-    const category = formData.get('category') as string || 'General'
+    const categoryId = formData.get('category_id') as string // Cambio: usar category_id
     const formTenantId = formData.get('tenant_id') as string
 
     // Security: Use validated tenantId, not form input
@@ -54,7 +54,7 @@ export async function createService(formData: FormData) {
         name,
         price: parseFloat(price),
         duration_min: parseInt(duration),
-        category,
+        category_id: categoryId || null,
         tenant_id: formTenantId || tenantId, // Fallback to validated tenant
         is_active: true
     }).select('id').single()
@@ -70,7 +70,7 @@ export async function createService(formData: FormData) {
             action: 'CREATE',
             entity: 'services',
             entityId: newService.id,
-            metadata: { name, price, duration, category }
+            metadata: { name, price, duration, category_id: categoryId }
         })
     }
 
@@ -89,7 +89,7 @@ export async function updateService(formData: FormData) {
     const name = formData.get('name') as string
     const price = parseFloat(formData.get('price') as string)
     const duration = parseInt(formData.get('duration') as string)
-    const category = formData.get('category') as string
+    const categoryId = formData.get('category_id') as string
 
     // Fetch OLD values for audit (CRITICAL for price tracking)
     const { data: oldService } = await supabase
@@ -105,7 +105,7 @@ export async function updateService(formData: FormData) {
             name,
             price,
             duration_min: duration,
-            category
+            category_id: categoryId || null
         })
         .eq('id', id)
         .eq('tenant_id', tenantId)
@@ -135,9 +135,73 @@ export async function updateService(formData: FormData) {
     return { success: true, message: 'Servicio actualizado' }
 }
 
+// ==================== CATEGORY ACTIONS ====================
+
+export async function createCategory(name: string) {
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
+
+    const { data: newCategory, error: insertError } = await supabase
+        .from('service_categories')
+        .insert({ name, tenant_id: tenantId })
+        .select()
+        .single()
+
+    if (insertError) {
+        console.error('Error createCategory:', insertError)
+        return { error: 'Error al crear categoría' }
+    }
+
+    revalidatePath('/admin/services')
+    return { success: true, data: newCategory }
+}
+
+export async function updateCategory(id: string, name: string) {
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
+
+    const { error: updateError } = await supabase
+        .from('service_categories')
+        .update({ name })
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+
+    if (updateError) return { error: 'Error al actualizar categoría' }
+
+    revalidatePath('/admin/services')
+    return { success: true }
+}
+
+export async function deleteCategory(id: string) {
+    const { error, supabase, tenantId } = await validateAdminAccess()
+    if (error || !supabase) return { error }
+
+    // Check if category has services
+    const { count } = await supabase
+        .from('services')
+        .select('id', { count: 'exact', head: true })
+        .eq('category_id', id)
+
+    if (count && count > 0) {
+        return { error: 'No se puede eliminar una categoría que contiene servicios. Mueve los servicios primero.' }
+    }
+
+    const { error: deleteError } = await supabase
+        .from('service_categories')
+        .delete()
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+
+    if (deleteError) return { error: 'Error al eliminar categoría' }
+
+    revalidatePath('/admin/services')
+    return { success: true }
+}
+
 // --- CAMBIAR ESTADO (ACTIVAR/DESACTIVAR) ---
 export async function toggleServiceStatus(id: string, currentStatus: boolean) {
     const { error, supabase, tenantId } = await validateAdminAccess()
+    // ... rest of the file (toggleServiceStatus and deleteService) ...
     if (error || !supabase) return { error }
 
     // SECURITY: Filter by BOTH id AND tenant_id

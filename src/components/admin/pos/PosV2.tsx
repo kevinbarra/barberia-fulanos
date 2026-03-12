@@ -75,6 +75,12 @@ interface PosV2Props {
     activeTickets: Ticket[]
     todayBookings: Booking[]
     tenantId: string
+    settings?: {
+        tax_rate?: number;
+        currency_symbol?: string;
+        business_type?: string;
+        [key: string]: any;
+    }
 }
 
 // ==================== MAIN COMPONENT ====================
@@ -83,7 +89,8 @@ export default function PosV2({
     services,
     activeTickets: initialTickets,
     todayBookings,
-    tenantId
+    tenantId,
+    settings = {}
 }: PosV2Props) {
     const router = useRouter()
 
@@ -109,6 +116,15 @@ export default function PosV2({
     const [successTxId, setSuccessTxId] = useState<string | null>(null)
     const [showScanner, setShowScanner] = useState(false)
     const [isSeatingBooking, setIsSeatingBooking] = useState<string | null>(null)
+    const [extraCharges, setExtraCharges] = useState<number>(0)
+
+    const taxRate = settings.tax_rate || 0
+    const currency = settings.currency_symbol || '$'
+    const businessType = settings.business_type || 'barber'
+
+    // Terminology
+    const staffLabel = businessType === 'barber' ? 'Barbero' : 'Personal'
+    const staffLabelPlural = businessType === 'barber' ? 'Barberos' : 'Equipo'
 
     // Ref to prevent duplicate QR scan processing (sync check)
     const isLinkingRef = useRef(false)
@@ -136,9 +152,18 @@ export default function PosV2({
 
     const categories = Object.keys(groupedServices)
 
-    const total = useMemo(() => {
+    const subtotal = useMemo(() => {
         return selectedServices.reduce((sum, s) => sum + s.price, 0)
     }, [selectedServices])
+
+    const taxAmount = useMemo(() => {
+        const totalBase = subtotal + extraCharges
+        return Number((totalBase * (taxRate / 100)).toFixed(2))
+    }, [subtotal, extraCharges, taxRate])
+
+    const total = useMemo(() => {
+        return subtotal + extraCharges + taxAmount
+    }, [subtotal, extraCharges, taxAmount])
 
     const totalDuration = useMemo(() => {
         return selectedServices.reduce((sum, s) => sum + s.duration_min, 0)
@@ -245,9 +270,10 @@ export default function PosV2({
         const res = await finalizeTicketV2({
             bookingId: selectedTicket.id,
             services: selectedServices.map(s => ({ id: s.id, price: s.price })),
-            totalAmount: total,
+            totalAmount: subtotal, // Pasamos el subtotal de servicios, la acción calculará el resto si queremos, o le pasamos los extraCharges
             paymentMethod,
-            tenantId
+            tenantId,
+            extraCharges
         })
 
         if (res.success && res.transactionId) {
@@ -324,6 +350,7 @@ export default function PosV2({
         setSelectedClient(null)
         setSelectedServices([])
         setPaymentMethod('cash')
+        setExtraCharges(0)
         setSuccessTxId(null)
         setShowScanner(false)
     }
@@ -662,7 +689,7 @@ export default function PosV2({
                             <div className="flex items-center gap-4 mb-4">
                                 {/* Staff Selector */}
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Barbero</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">{staffLabel}</label>
                                     <div className="flex gap-2 overflow-x-auto pb-2">
                                         {staff.map(member => (
                                             <button
@@ -806,21 +833,54 @@ export default function PosV2({
                                             className="flex-1 py-4 bg-green-600 text-white rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <Banknote className="w-5 h-5" />
-                                            Cobrar ${total}
+                                            Continuar ${total.toFixed(2)}
                                         </button>
                                     </div>
                                 </>
                             )}
 
-                            {/* MODE: CHECKOUT - Payment method selection */}
+                            {/* MODE: CHECKOUT - Payment method selection + Extra Charges */}
                             {mode === 'checkout' && (
                                 <>
-                                    <div className="flex justify-between items-center mb-4 py-3 border-t border-gray-200">
-                                        <span className="text-gray-600 font-medium">Total</span>
-                                        <span className="text-2xl font-black text-gray-900">${total}</span>
+                                    <div className="space-y-3 py-3 border-t border-gray-200">
+                                        {/* Subtotal */}
+                                        <div className="flex justify-between items-center text-sm text-gray-500">
+                                            <span>Subtotal Servicios</span>
+                                            <span>{currency}{subtotal.toFixed(2)}</span>
+                                        </div>
+
+                                        {/* Extra Charges Input */}
+                                        <div className="flex justify-between items-center bg-amber-50 p-2 rounded-lg border border-amber-100">
+                                            <span className="text-sm font-bold text-amber-900">Cargos Extra</span>
+                                            <div className="flex items-center gap-1 bg-white border border-amber-200 rounded px-2">
+                                                <span className="text-amber-600 text-sm font-bold">{currency}</span>
+                                                <input
+                                                    type="number"
+                                                    value={extraCharges}
+                                                    onChange={(e) => setExtraCharges(Number(e.target.value))}
+                                                    className="w-20 py-1 text-right focus:outline-none text-amber-900 font-bold"
+                                                    placeholder="0.00"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Tax if applicable */}
+                                        {taxRate > 0 && (
+                                            <div className="flex justify-between items-center text-sm text-gray-500">
+                                                <span>Impuestos ({taxRate}%)</span>
+                                                <span>{currency}{taxAmount.toFixed(2)}</span>
+                                            </div>
+                                        )}
+
+                                        {/* Total Final */}
+                                        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+                                            <span className="text-lg font-bold text-gray-900">Total a Cobrar</span>
+                                            <span className="text-3xl font-black text-gray-900">{currency}{total.toFixed(2)}</span>
+                                        </div>
                                     </div>
 
                                     {/* Payment Methods */}
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Método de Pago</label>
                                     <div className="grid grid-cols-3 gap-2 mb-4">
                                         {[
                                             { id: 'cash', label: 'Efectivo', icon: Banknote },
@@ -854,7 +914,7 @@ export default function PosV2({
                                             className="flex-1 py-4 bg-green-600 text-white rounded-xl font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                                         >
                                             <CheckCircle className="w-5 h-5" />
-                                            {isProcessing ? 'Registrando...' : `Registrar $${total}`}
+                                            {isProcessing ? 'Registrando...' : `Registrar ${currency}${total.toFixed(2)}`}
                                         </button>
                                     </div>
                                 </>

@@ -5,6 +5,7 @@ import KioskModeToggle from "@/components/admin/KioskModeToggle";
 import GuestCheckoutToggle from "@/components/admin/GuestCheckoutToggle";
 import WorkflowModeToggle from "@/components/admin/WorkflowModeToggle";
 import GoogleReviewUrlInput from "@/components/admin/GoogleReviewUrlInput";
+import SalonSettings from "@/components/admin/SalonSettings";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { redirect } from "next/navigation";
@@ -65,6 +66,9 @@ export default async function SettingsPage() {
                 {tenantData && (
                     <TenantForm initialData={tenantData} />
                 )}
+
+                {/* Guest Checkout Toggle */}
+                <SalonSettings />
 
                 {/* Guest Checkout Toggle */}
                 <GuestCheckoutToggle />

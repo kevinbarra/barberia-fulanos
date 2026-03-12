@@ -127,8 +127,9 @@ export async function finalizeTicket(input: {
     tenantId: string;
     pointsRedeemed?: number;
     rewardId?: string | null;
+    extraCharges?: number;
 }) {
-    // ... (existing validation) ...
+    // 1. Validaciones Básicas
     if (!input.bookingId || !input.serviceId || !input.tenantId) {
         return { success: false, error: 'Datos incompletos.' };
     }
@@ -139,8 +140,24 @@ export async function finalizeTicket(input: {
         return { success: false, error: 'Método de pago inválido.' };
     }
 
-    const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null } = input;
+    const { bookingId, amount, serviceId, paymentMethod, tenantId, pointsRedeemed = 0, rewardId = null, extraCharges = 0 } = input;
     const supabase = createAdminClient()
+
+    // Get Tenant Settings for Tax Calculation
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single()
+
+    const settings = (tenant?.settings as any) || {}
+    const taxRate = settings.tax_rate || 0
+
+    // Financial Calculation
+    const subtotal = amount + extraCharges
+    const taxAmount = Number((subtotal * (taxRate / 100)).toFixed(2))
+    const totalWithTax = subtotal + taxAmount
+
     const sessionClient = await createClient() // To get current user
     const { data: { user } } = await sessionClient.auth.getUser()
 
@@ -157,16 +174,19 @@ export async function finalizeTicket(input: {
 
     try {
         // Usar la función RPC atómica para proteger de cobros duales concurrentes
+        // Actualizada para recibir p_extra_charges y p_tax_amount
         const { data: transactionId, error: txError } = await supabase.rpc('agile_checkout_atomic', {
             p_booking_id: bookingId,
             p_client_id: booking.customer_id,
-            p_total: amount,
+            p_total: totalWithTax,
             p_services: [{ id: serviceId, price: amount }],
             p_products: [],
             p_payment_method: paymentMethod,
             p_barber_id: booking.staff_id,
             p_points_redeemed: pointsRedeemed,
-            p_reward_id: rewardId
+            p_reward_id: rewardId,
+            p_extra_charges: extraCharges,
+            p_tax_amount: taxAmount
         });
 
         if (txError) throw txError;
@@ -274,8 +294,9 @@ export async function finalizeTicketV2(input: {
     totalAmount: number;
     paymentMethod: string;
     tenantId: string;
+    extraCharges?: number;
 }) {
-    const { bookingId, services, totalAmount, paymentMethod, tenantId } = input;
+    const { bookingId, services, totalAmount, paymentMethod, tenantId, extraCharges = 0 } = input;
 
     // Validación
     if (!bookingId || !tenantId) {
@@ -290,6 +311,21 @@ export async function finalizeTicketV2(input: {
 
     // Usamos cliente admin para bypass RLS
     const supabase = createAdminClient();
+
+    // Get Tenant Settings for Tax Calculation
+    const { data: tenantData } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single()
+
+    const settings = (tenantData?.settings as any) || {}
+    const taxRate = settings.tax_rate || 0
+
+    // Financial Calculation
+    const subtotal = totalAmount + extraCharges
+    const taxAmount = Number((subtotal * (taxRate / 100)).toFixed(2))
+    const totalWithTax = subtotal + taxAmount
 
     // Obtener datos del booking (incluyendo start_time para back-dating)
     const { data: booking } = await supabase
@@ -307,13 +343,15 @@ export async function finalizeTicketV2(input: {
         const { data: transactionId, error: txError } = await supabase.rpc('agile_checkout_atomic', {
             p_booking_id: bookingId,
             p_client_id: booking.customer_id,
-            p_total: totalAmount,
+            p_total: totalWithTax,
             p_services: services,
             p_products: [],
             p_payment_method: paymentMethod,
             p_barber_id: booking.staff_id,
             p_points_redeemed: 0,
-            p_reward_id: null
+            p_reward_id: null,
+            p_extra_charges: extraCharges,
+            p_tax_amount: taxAmount
         });
 
         if (txError) throw txError;

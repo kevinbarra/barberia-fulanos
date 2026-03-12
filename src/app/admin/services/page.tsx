@@ -1,9 +1,10 @@
 import { createClient, getTenantIdForAdmin } from "@/utils/supabase/server";
 import ServiceList from "@/components/admin/ServiceList";
 import CreateServiceForm from "@/components/admin/CreateServiceForm";
+import CategoryManager from "@/components/admin/services/CategoryManager";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 
 import { isKioskModeActive } from "@/utils/kiosk-server";
 
@@ -31,10 +32,20 @@ export default async function ServicesPage() {
     const userRole = profile?.role || 'staff';
     const canManageServices = userRole === 'owner' || userRole === 'super_admin';
 
-    // Traer TODOS los servicios
+    // Traer categorías
+    const { data: categories } = await supabase
+        .from('service_categories')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('order', { ascending: true });
+
+    // Traer TODOS los servicios (incluyendo join de categoría)
     const { data: services } = await supabase
         .from("services")
-        .select("*")
+        .select(`
+            *,
+            service_categories:category_id (id, name)
+        `)
         .eq("tenant_id", tenantId)
         .order("is_active", { ascending: false })
         .order("name", { ascending: true });
@@ -50,12 +61,30 @@ export default async function ServicesPage() {
                 <div className="flex-1 flex justify-between items-center">
                     <div>
                         <h1 className="text-3xl font-black text-gray-900 tracking-tight">Catálogo</h1>
-                        <p className="text-gray-500 text-sm">Gestiona tus precios y servicios.</p>
+                        <p className="text-gray-500 text-sm">Gestiona tus categorías y servicios.</p>
                     </div>
-                    <span className="hidden sm:block bg-zinc-100 px-4 py-2 rounded-full text-sm font-bold text-zinc-600 border border-zinc-200">
-                        {services?.length || 0} Servicios
-                    </span>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/admin/services/import"
+                            className="hidden sm:flex bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-4 py-2 rounded-xl text-sm transition-all items-center gap-2 border border-indigo-200"
+                            title="Importación Mágica con IA"
+                        >
+                            <Sparkles size={16} />
+                            Importar con IA
+                        </Link>
+                        <span className="hidden sm:block bg-zinc-100 px-4 py-2 rounded-full text-sm font-bold text-zinc-600 border border-zinc-200">
+                            {services?.length || 0} Servicios
+                        </span>
+                    </div>
                 </div>
+            </div>
+
+            <div className="mb-10">
+                <CategoryManager
+                    categories={categories || []}
+                    tenantId={tenantId}
+                    canManage={canManageServices}
+                />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -63,7 +92,10 @@ export default async function ServicesPage() {
                 {/* COLUMNA IZQUIERDA: CREAR */}
                 <div className="lg:col-span-1">
                     {canManageServices ? (
-                        <CreateServiceForm tenantId={tenantId} />
+                        <CreateServiceForm
+                            tenantId={tenantId}
+                            categories={categories || []}
+                        />
                     ) : (
                         <div className="bg-gray-50 p-6 rounded-2xl border border-gray-200 text-center">
                             <p className="text-sm text-gray-400 font-medium">Solo administradores pueden crear servicios.</p>
@@ -73,7 +105,11 @@ export default async function ServicesPage() {
 
                 {/* COLUMNA DERECHA: LISTA */}
                 <div className="lg:col-span-2">
-                    <ServiceList services={services || []} canManage={canManageServices} />
+                    <ServiceList
+                        services={services || []}
+                        canManage={canManageServices}
+                        categories={categories || []}
+                    />
                 </div>
 
             </div>

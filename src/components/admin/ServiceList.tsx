@@ -11,13 +11,20 @@ type Service = {
     price: number
     duration_min: number
     is_active: boolean
-    category?: string
+    category_id?: string
+    service_categories?: { id: string, name: string } | null
     description?: string
 }
 
-const CATEGORIES = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras'];
-
-export default function ServiceList({ services, canManage }: { services: Service[], canManage: boolean }) {
+export default function ServiceList({
+    services,
+    canManage,
+    categories
+}: {
+    services: Service[],
+    canManage: boolean,
+    categories: { id: string, name: string }[]
+}) {
     const [editingId, setEditingId] = useState<string | null>(null)
 
     const handleToggle = async (id: string, status: boolean) => {
@@ -67,8 +74,9 @@ export default function ServiceList({ services, canManage }: { services: Service
                                 </div>
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 uppercase">Categoría</label>
-                                    <select name="category" defaultValue={service.category || 'General'} className="p-2 border rounded-lg w-full text-sm bg-white">
-                                        {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                    <select name="category_id" defaultValue={service.category_id || ''} className="p-2 border rounded-lg w-full text-sm bg-white">
+                                        <option value="">Sin Categoría</option>
+                                        {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                                     </select>
                                 </div>
                             </div>
@@ -97,7 +105,7 @@ export default function ServiceList({ services, canManage }: { services: Service
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 text-[10px] font-bold uppercase rounded-md border border-zinc-200 tracking-wider">
-                                        {service.category || 'General'}
+                                        {service.service_categories?.name || 'General'}
                                     </span>
                                 </div>
                                 <h3 className="font-bold text-gray-900">{service.name}</h3>

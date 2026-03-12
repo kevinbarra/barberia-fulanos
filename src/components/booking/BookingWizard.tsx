@@ -11,8 +11,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 // --- TIPOS ---
-type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string };
-type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null };
+type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string };
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null; services?: string[] };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
 
@@ -66,8 +66,12 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     const wave = '\u{1F44B}';      // 👋
     const person = '\u{1F464}';    // 👤
     const scissors = '\u{2702}\u{FE0F}'; // ✂️
-    const barberPole = '\u{1F488}'; // 💈
-    const calendar = '\u{1F4C5}';  // 📅
+
+    // Choose icon based on business type (if available from props or a simple logic)
+    // For simplicity here, we'll keep it static or use a simple mapping if we had the prop in this function.
+    // However, generateWhatsAppConfirmation is outside the component.
+    // Let's pass the staffLabel to it if needed, or just keep it neutral.
+    const icon = '\u{1F4C5}'; // 📅
     const clock = '\u{23F0}';      // ⏰
     const checkmark = '\u{2705}';  // ✅
 
@@ -81,9 +85,9 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
         '',
         clientLine,
         `${scissors} *Servicio:* ${serviceName}`,
-        `${barberPole} *Barbero:* ${barberName}`,
-        `${calendar} *Fecha:* ${bookingDate}`,
-        `${clock} *Hora:* ${bookingTime}`,
+        `*Atendido por:* ${barberName}`,
+        `\u{1F4C5} *Fecha:* ${bookingDate}`,
+        `\u{23F0} *Hora:* ${bookingTime}`,
         '',
         `${checkmark} \u{00A1}Conf\u{00ED}rmame si todo bien! Gracias.`
     ].join('\n');
@@ -97,7 +101,8 @@ export default function BookingWizard({
     schedules,
     currentUser,
     whatsappPhone,
-    tenantName
+    tenantName,
+    businessType = 'barber'
 }: {
     services: Service[];
     staff: Staff[];
@@ -105,6 +110,7 @@ export default function BookingWizard({
     currentUser?: CurrentUser;
     whatsappPhone?: string | null;
     tenantName?: string;
+    businessType?: 'barber' | 'salon' | 'nails' | 'default';
 }) {
     // Hooks
     const searchParams = useSearchParams();
@@ -126,7 +132,7 @@ export default function BookingWizard({
     const dates = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(new Date(), i)), []);
 
     const [selectedTime, setSelectedTime] = useState("");
-    const [takenRanges, setTakenRanges] = useState<{ start: number, end: number }[]>([]);
+    const [takenRangesByStaff, setTakenRangesByStaff] = useState<Record<string, { start: number, end: number }[]>>({});
 
     // Datos Cliente
     const [clientData, setClientData] = useState({
@@ -135,19 +141,54 @@ export default function BookingWizard({
         email: currentUser?.email || ""
     });
 
+    // --- TERMINOLOGÍA DINÁMICA ---
+    const staffLabel = useMemo(() => {
+        switch (businessType) {
+            case 'barber': return 'Barbero';
+            case 'salon': return 'Estilista';
+            case 'nails': return 'Manicurista';
+            default: return 'Personal';
+        }
+    }, [businessType]);
+
+    const staffLabelPlural = useMemo(() => {
+        switch (businessType) {
+            case 'barber': return 'Barberos';
+            case 'salon': return 'Estilistas';
+            case 'nails': return 'Manicuristas';
+            default: return 'Personal';
+        }
+    }, [businessType]);
+
+    // --- FILTRADO DE STAFF ---
+    // Solo mostrar personal que puede realizar el servicio seleccionado
+    const filteredStaff = useMemo(() => {
+        if (!selectedService) return staff;
+        return staff.filter(s => s.services?.includes(selectedService.id));
+    }, [staff, selectedService]);
+
     // Cargar Slots cuando cambia Fecha o Staff
     useEffect(() => {
         let isMounted = true;
         let intervalId: NodeJS.Timeout;
 
         async function fetchSlots() {
-            if (selectedDate && selectedStaff) {
+            if (selectedDate && selectedStaff && filteredStaff.length > 0) {
                 setIsLoadingSlots(true);
                 try {
                     // Formato YYYY-MM-DD para la API
                     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-                    const ranges = await getTakenRanges(selectedStaff.id, dateStr);
-                    if (isMounted) setTakenRanges(ranges);
+
+                    const staffToFetch = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
+
+                    const newRanges: Record<string, { start: number, end: number }[]> = {};
+
+                    await Promise.all(staffToFetch.map(async (s) => {
+                        const ranges = await getTakenRanges(s.id, dateStr);
+                        newRanges[s.id] = ranges;
+                    }));
+
+                    if (isMounted) setTakenRangesByStaff(newRanges);
                 } catch (error) {
                     console.error(error);
                 } finally {
@@ -167,7 +208,7 @@ export default function BookingWizard({
             isMounted = false;
             if (intervalId) clearInterval(intervalId);
         };
-    }, [selectedDate, selectedStaff]);
+    }, [selectedDate, selectedStaff, filteredStaff]);
 
     // Categorías de Servicios
     const groupedServices = useMemo(() => {
@@ -186,36 +227,47 @@ export default function BookingWizard({
 
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
-
-        const workSchedule = schedules.find((s) => s.staff_id === selectedStaff?.id && s.day === dayName && s.is_active === true);
-
-        if (!workSchedule) return [];
-
-        const generatedSlots = [];
-        const currentTime = new Date(`${dateStr}T${workSchedule.start_time}`);
-        const endTime = new Date(`${dateStr}T${workSchedule.end_time}`);
         const now = new Date();
 
-        while (currentTime < endTime) {
-            const slotStartMs = currentTime.getTime();
-            const slotEndMs = slotStartMs + (selectedService?.duration_min || 30) * 60000;
+        const staffToCheck = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
 
-            if (isSameDay(selectedDate, now) && currentTime < now) {
+        // Use a Map to ensure unique slots and sort them later
+        const slotsMap = new Map<string, { label: string, value: string }>();
+
+        staffToCheck.forEach((member) => {
+            const workSchedule = schedules.find((s) => s.staff_id === member.id && s.day === dayName && s.is_active === true);
+            if (!workSchedule) return;
+
+            const takenRanges = takenRangesByStaff[member.id] || [];
+
+            const currentTime = new Date(`${dateStr}T${workSchedule.start_time}`);
+            const endTime = new Date(`${dateStr}T${workSchedule.end_time}`);
+
+            while (currentTime < endTime) {
+                const slotStartMs = currentTime.getTime();
+                const slotEndMs = slotStartMs + (selectedService?.duration_min || 30) * 60000;
+
+                if (isSameDay(selectedDate, now) && currentTime < now) {
+                    currentTime.setMinutes(currentTime.getMinutes() + 30);
+                    continue;
+                }
+
+                const isTaken = takenRanges.some(range => (slotStartMs < range.end && slotEndMs > range.start));
+
+                if (!isTaken) {
+                    const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
+                    if (!slotsMap.has(timeValue)) {
+                        slotsMap.set(timeValue, { label: timeLabel, value: timeValue });
+                    }
+                }
                 currentTime.setMinutes(currentTime.getMinutes() + 30);
-                continue;
             }
+        });
 
-            const isTaken = takenRanges.some(range => (slotStartMs < range.end && slotEndMs > range.start));
-
-            if (!isTaken) {
-                const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-                const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
-                generatedSlots.push({ label: timeLabel, value: timeValue });
-            }
-            currentTime.setMinutes(currentTime.getMinutes() + 30);
-        }
-        return generatedSlots;
-    }, [selectedDate, selectedStaff, schedules, takenRanges, selectedService]);
+        // Convert Map to Array and Sort by time (value)
+        return Array.from(slotsMap.values()).sort((a, b) => a.value.localeCompare(b.value));
+    }, [selectedDate, selectedStaff, schedules, takenRangesByStaff, selectedService, filteredStaff]);
 
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
@@ -223,6 +275,8 @@ export default function BookingWizard({
 
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dateTime = `${dateStr}T${selectedTime}`;
+
+        const isAnyStaff = selectedStaff.id === 'any';
 
         const result = await createBooking({
             tenant_id: selectedService.tenant_id,
@@ -234,7 +288,9 @@ export default function BookingWizard({
             client_phone: clientData.phone,
             client_email: clientData.email,
             customer_id: currentUser?.id || null,
-            origin: origin
+            origin: origin,
+            is_any_staff: isAnyStaff,
+            available_staff_ids: isAnyStaff ? filteredStaff.map(s => s.id) : []
         });
 
         setIsSubmitting(false);
@@ -299,7 +355,7 @@ export default function BookingWizard({
                     {whatsappSent ? (
                         <>
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Cita Asegurada! ✅</h2>
-                            <p className="text-gray-500 text-sm mt-1">Tu barbero ya fue notificado, {bookingData.guest_name.split(' ')[0]}</p>
+                            <p className="text-gray-500 text-sm mt-1">Tu {staffLabel.toLowerCase()} ya fue notificado, {bookingData.guest_name.split(' ')[0]}</p>
                         </>
                     ) : whatsappPhone ? (
                         <>
@@ -550,10 +606,34 @@ export default function BookingWizard({
                         <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4 h-full">
                             <div className="px-2 mb-6">
                                 <h2 className="text-2xl font-black text-gray-900">¿Con quién?</h2>
-                                <p className="text-gray-500 text-sm">Selecciona a tu profesional.</p>
+                                <p className="text-gray-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                {staff.map((member) => (
+                                {/* Opción Cualquiera / Load Balancer */}
+                                <button
+                                    onClick={() => {
+                                        setSelectedStaff({
+                                            id: 'any',
+                                            full_name: 'Cualquiera',
+                                            role: 'Staff',
+                                            avatar_url: null
+                                        });
+                                        setStep(3);
+                                    }}
+                                    className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center group active:scale-95 flex flex-col items-center gap-3 aspect-[3/4] justify-center"
+                                >
+                                    <div className="w-20 h-20 rounded-full overflow-hidden relative shadow-md group-hover:scale-105 transition-transform border-4 border-amber-100 bg-amber-50 flex items-center justify-center">
+                                        <Sparkles size={32} className="text-amber-500" />
+                                    </div>
+                                    <div>
+                                        <span className="font-bold text-gray-900 block">Cualquiera</span>
+                                        <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
+                                            Disponible
+                                        </div>
+                                    </div>
+                                </button>
+
+                                {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
                                         onClick={() => { setSelectedStaff(member); setStep(3); }}
@@ -569,7 +649,7 @@ export default function BookingWizard({
                                         <div>
                                             <span className="font-bold text-gray-900 block">{member.full_name.split(' ')[0]}</span>
                                             <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                                                Barbero
+                                                {staffLabel}
                                             </div>
                                         </div>
                                     </button>
@@ -623,8 +703,8 @@ export default function BookingWizard({
                                     </div>
                                 ) : slots.length === 0 ? (
                                     <div className="text-center py-10">
-                                        <p className="font-bold text-gray-900">Sin disponibilidad 😔</p>
-                                        <p className="text-xs text-gray-500">Intenta otro día u otro barbero.</p>
+                                        <p className="text-gray-900 font-bold">No hay horarios disponibles</p>
+                                        <p className="text-xs text-gray-500">Intenta otro día u otro {staffLabel.toLowerCase()}.</p>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-3 gap-3">

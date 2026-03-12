@@ -38,12 +38,32 @@ export default async function TeamPage() {
 
     const currentUserRole = profile?.role || 'staff';
 
-    // Get all profiles for this tenant (including new fields)
+    // Get all profiles for this tenant (including staff_services join)
     const { data: activeStaff } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, role, phone, is_active_barber, is_calendar_visible')
+        .select(`
+            id, full_name, email, avatar_url, role, phone, is_active_barber, is_calendar_visible,
+            staff_services(service_id)
+        `)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
+
+    // Fetch services for specialty mapping
+    const { data: services } = await supabase
+        .from('services')
+        .select('id, name')
+        .eq('tenant_id', tenantId)
+        .eq('is_active', true)
+        .order('name');
+
+    // Fetch business_type from tenant settings
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('settings')
+        .eq('id', tenantId)
+        .single();
+
+    const businessType = (tenant?.settings as any)?.business_type || 'barber';
 
     // Filter to team roles (exclude customers)
     const teamRoles = ['super_admin', 'owner', 'staff', 'kiosk'];
@@ -64,7 +84,11 @@ export default async function TeamPage() {
     }
 
     const staffList: StaffMember[] = [
-        ...filteredStaff.map(s => ({ ...s, status: 'active' as const })),
+        ...filteredStaff.map(s => ({
+            ...s,
+            status: 'active' as const,
+            services: (s as any).staff_services?.map((ss: any) => ss.service_id) || []
+        })),
         ...(pendingInvites || []).map(inv => ({
             id: inv.id,
             full_name: 'Invitado',
@@ -74,7 +98,8 @@ export default async function TeamPage() {
             phone: null,
             status: 'pending' as const,
             is_active_barber: false,
-            is_calendar_visible: false
+            is_calendar_visible: false,
+            services: []
         }))
     ];
 
@@ -92,7 +117,12 @@ export default async function TeamPage() {
                         </p>
                     </div>
                 </div>
-                <TeamList staff={staffList} currentUserRole={currentUserRole} />
+                <TeamList
+                    staff={staffList as any}
+                    currentUserRole={currentUserRole}
+                    services={services || []}
+                    businessType={businessType}
+                />
             </div>
         </div>
     )

@@ -743,3 +743,109 @@ export async function quickCheckout(bookingId: string, tenantId: string) {
         return { success: false, error: msg };
     }
 }
+
+// --- FUNCIÓN 8: MOTOR DE CONFLICTOS (Estirar Cita) ---
+export async function stretchBooking(
+    bookingId: string,
+    newEndTimeStr: string // ISO String in CDMX
+) {
+    const supabase = await createClient()
+
+    // 1. Auth & Get Booking
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'No autorizado' }
+
+    const { data: booking } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', bookingId)
+        .single()
+
+    if (!booking) return { success: false, error: 'Cita no encontrada.' }
+
+    // Convert new time to ISO UTC
+    const newEnd = fromZonedTime(newEndTimeStr, DEFAULT_TIMEZONE)
+
+    // Ensure they are not shrinking the booking to before it started
+    if (newEnd <= new Date(booking.start_time)) {
+        return { success: false, error: 'La nueva hora de fin debe ser posterior al inicio.' }
+    }
+
+    // 2. COLLISION CHECK (Solo buscamos citas después del fin original de la cita, hasta el nuevo fin propuesto)
+    // Para simplificar, buscamos si hay alguna cita de ese staff que inicie ANTES del nuevo end_time y termine DESPUÉS del start_time de la cita que se está estirando.
+    const { data: conflictingBookings } = await supabase
+        .from('bookings')
+        .select('*, customers:customer_id(full_name, phone)')
+        .eq('staff_id', booking.staff_id)
+        .in('status', ['confirmed', 'seated', 'pending'])
+        .neq('id', booking.id)
+        .lt('start_time', newEnd.toISOString())
+        .gt('end_time', booking.start_time)
+
+    // 3. CONFLICT RESOLUTION
+    if (conflictingBookings && conflictingBookings.length > 0) {
+        // Encontramos un conflicto con al menos una cita. Tomamos la primera (cronológicamente)
+        const conflict = conflictingBookings.sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0];
+
+        // Reglas de negocio de Excelencia Operativa
+        if (conflict.is_any_staff) {
+            // Priority 1: Reassign
+            return {
+                success: false,
+                conflict: true,
+                resolutionType: 'REASSIGN',
+                message: `La cita siguiente (${conflict.guest_name || 'Cliente'}) fue agendada como 'Cualquiera'. Recomendamos reasignarla a otro profesional disponible.`,
+                conflictingBooking: conflict
+            }
+        } else {
+            // Priority 1: Notify WhatsApp delay
+            return {
+                success: false,
+                conflict: true,
+                resolutionType: 'NOTIFY',
+                message: `La cita siguiente (${conflict.guest_name || 'Cliente'}) tiene a este profesional como preferencia. Recomendamos notificarle un retraso.`,
+                conflictingBooking: conflict
+            }
+        }
+    }
+
+    // Si también chocamos contra time_blocks, bloqueamos directo sin resolución avanzada.
+    const { count: blockCount } = await supabase
+        .from('time_blocks')
+        .select('*', { count: 'exact', head: true })
+        .eq('staff_id', booking.staff_id)
+        .lt('start_time', newEnd.toISOString())
+        .gt('end_time', booking.start_time)
+
+    if (blockCount && blockCount > 0) {
+        return { success: false, error: 'El horario propuesto choca con un bloqueo de administrador.' }
+    }
+
+    // 4. NO CONFLICT -> APLY STRETCH
+    const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ end_time: newEnd.toISOString() })
+        .eq('id', booking.id)
+
+    if (updateError) return { success: false, error: 'Error al estirar la cita.' }
+
+    // 5. Broadcast & Audit
+    await logActivity({
+        tenantId: booking.tenant_id,
+        actorId: user.id,
+        action: 'UPDATE',
+        entity: 'bookings',
+        entityId: booking.id,
+        metadata: { type: 'STRETCH', oldEnd: booking.end_time, newEnd: newEnd.toISOString() }
+    })
+
+    await broadcastBookingEvent(booking.tenant_id, 'booking-updated', {
+        id: booking.id,
+        end_time: newEnd.toISOString()
+    })
+
+    revalidatePath('/admin/bookings')
+    revalidatePath('/app')
+
+    return { success: true, message: 'Cita extendida correctamente.' }
+}

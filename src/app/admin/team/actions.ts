@@ -344,3 +344,56 @@ export async function updateStaffPhone(targetId: string, phone: string) {
     revalidatePath('/admin/team')
     return { success: true, message: 'WhatsApp actualizado' }
 }
+
+// --- TOGGLE STAFF SERVICE LINKAGE ---
+export async function toggleStaffService(staffId: string, serviceId: string, enabled: boolean) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Get requester info
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester || (requester.role !== 'owner' && requester.role !== 'super_admin')) {
+        return { error: 'No autorizado' }
+    }
+
+    const tenantId = requester.role === 'super_admin'
+        ? await getTenantIdForAdmin()
+        : requester.tenant_id
+
+    if (!tenantId) return { error: 'Tenant no encontrado' }
+
+    if (enabled) {
+        // Create link
+        const { error } = await supabase
+            .from('staff_services')
+            .insert({ staff_id: staffId, service_id: serviceId })
+
+        if (error && error.code !== '23505') { // Ignore unique constraint error
+            console.error('Error linking service:', error)
+            return { error: 'Error al vincular servicio' }
+        }
+    } else {
+        // Delete link
+        const { error } = await supabase
+            .from('staff_services')
+            .delete()
+            .eq('staff_id', staffId)
+            .eq('service_id', serviceId)
+
+        if (error) {
+            console.error('Error unlinking service:', error)
+            return { error: 'Error al desvincular servicio' }
+        }
+    }
+
+    revalidatePath('/admin/team')
+    revalidatePath('/book/[slug]')
+    return { success: true }
+}

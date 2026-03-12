@@ -8,7 +8,13 @@ import { Loader2, Plus } from 'lucide-react'
 // Categorías Estándar del Negocio
 const CATEGORIES = ['Cortes', 'Barba', 'Cejas', 'Paquetes', 'Extras'];
 
-export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
+export default function CreateServiceForm({
+    tenantId,
+    categories
+}: {
+    tenantId: string,
+    categories: { id: string, name: string }[]
+}) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const formRef = useRef<HTMLFormElement>(null)
 
@@ -38,7 +44,7 @@ export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
             >
                 <input type="hidden" name="tenant_id" value={tenantId} />
 
-                {/* NOMBRE */}
+                {/* NOMBRE ... (existing) ... */}
                 <div>
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Nombre</label>
                     <input
@@ -49,16 +55,17 @@ export default function CreateServiceForm({ tenantId }: { tenantId: string }) {
                     />
                 </div>
 
-                {/* CATEGORÍA (NUEVO) */}
+                {/* CATEGORÍA (DINÁMICA) */}
                 <div>
                     <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Categoría</label>
                     <div className="relative">
                         <select
-                            name="category"
+                            name="category_id"
                             className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium appearance-none"
                         >
-                            {CATEGORIES.map(cat => (
-                                <option key={cat} value={cat}>{cat}</option>
+                            <option value="">Sin Categoría</option>
+                            {categories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
                         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">

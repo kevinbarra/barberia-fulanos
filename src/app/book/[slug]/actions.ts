@@ -52,6 +52,8 @@ export async function createBooking(data: {
     duration_min: number;
     customer_id?: string | null;
     origin?: string;
+    is_any_staff?: boolean;
+    available_staff_ids?: string[];
 }) {
     // Usar cliente normal para el booking (funciona con RLS para guests)
     const supabase = await createClient()
@@ -67,16 +69,58 @@ export async function createBooking(data: {
     const businessName = tenantResult.data?.name || "AgendaBarber";
 
     // 1.0.1 CHECK: Guest Checkout Setting
-    // Default to true (enabled) if settings is null or key is missing
     const tenantSettings = tenantResult.data?.settings as { guest_checkout_enabled?: boolean } | null;
     const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
 
-    // If guest checkout is DISABLED and there's no customer_id (i.e., this is a guest booking), block it
     if (!isGuestCheckoutEnabled && !data.customer_id) {
         return {
             success: false,
             error: 'Este negocio requiere que inicies sesión para reservar.'
         };
+    }
+
+    // --- LOAD BALANCER LOGIC ("CUALQUIERA") ---
+    let finalStaffId = data.staff_id;
+    if (data.is_any_staff && data.available_staff_ids && data.available_staff_ids.length > 0) {
+        console.log('[BOOKING] Load Balancer triggered for available staff:', data.available_staff_ids);
+
+        const dateStr = data.start_time.split('T')[0];
+        const startOfDay = fromZonedTime(`${dateStr} 00:00:00`, TIMEZONE).toISOString();
+        const endOfDay = fromZonedTime(`${dateStr} 23:59:59`, TIMEZONE).toISOString();
+
+        // Get bookings count for each available staff
+        const { data: staffBookings } = await supabase
+            .from('bookings')
+            .select('staff_id')
+            .in('staff_id', data.available_staff_ids)
+            .in('status', ['confirmed', 'seated', 'completed'])
+            .gte('start_time', startOfDay)
+            .lte('start_time', endOfDay);
+
+        const counts: Record<string, number> = {};
+        data.available_staff_ids.forEach(id => counts[id] = 0); // Initialize
+
+        if (staffBookings) {
+            staffBookings.forEach(b => {
+                if (counts[b.staff_id] !== undefined) {
+                    counts[b.staff_id]++;
+                }
+            });
+        }
+
+        // Find the staff with minimum bookings
+        let minBookings = Infinity;
+        let selectedStaffId = finalStaffId;
+
+        for (const [id, count] of Object.entries(counts)) {
+            if (count < minBookings) {
+                minBookings = count;
+                selectedStaffId = id;
+            }
+        }
+
+        finalStaffId = selectedStaffId;
+        console.log(`[BOOKING] Load Balancer selected staff: ${finalStaffId} with ${minBookings} bookings today.`);
     }
 
     // 1.1 Obtener datos del staff con admin client (bypass RLS para email)
@@ -86,12 +130,12 @@ export async function createBooking(data: {
     try {
         console.log('[BOOKING] Creating admin client for staff data...');
         const adminClient = createAdminClient();
-        console.log('[BOOKING] Admin client created, querying staff_id:', data.staff_id);
+        console.log('[BOOKING] Admin client created, querying staff_id:', finalStaffId);
 
         const { data: staffData, error: staffError } = await adminClient
             .from('profiles')
             .select('full_name, email')
-            .eq('id', data.staff_id)
+            .eq('id', finalStaffId)
             .single();
 
         if (staffError) {
@@ -148,18 +192,18 @@ export async function createBooking(data: {
     console.log('[BOOKING] Creating booking with data:', {
         tenant_id: data.tenant_id,
         service_id: data.service_id,
-        staff_id: data.staff_id,
+        staff_id: finalStaffId,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         customer_id: finalCustomerId
     });
 
     // Validar que los IDs sean válidos UUIDs antes de insertar
-    if (!data.tenant_id || !data.service_id || !data.staff_id) {
-        console.error('[BOOKING] Missing required IDs:', {
+    if (!data.tenant_id || !data.service_id || !finalStaffId || finalStaffId === 'any') {
+        console.error('[BOOKING] Missing or invalid IDs:', {
             tenant_id: data.tenant_id,
             service_id: data.service_id,
-            staff_id: data.staff_id
+            staff_id: finalStaffId
         });
         return { success: false, error: 'Datos incompletos para la reserva.' }
     }
@@ -168,7 +212,7 @@ export async function createBooking(data: {
     const insertPayload: any = {
         tenant_id: data.tenant_id,
         service_id: data.service_id,
-        staff_id: data.staff_id,
+        staff_id: finalStaffId,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
         status: 'confirmed', // CHANGE: Auto-confirm immediately
@@ -177,7 +221,9 @@ export async function createBooking(data: {
         price_at_booking: servicePrice,
         service_name_at_booking: realServiceName,
         // ORIGIN TRACKING
-        origin: data.origin || 'web'
+        origin: data.origin || 'web',
+        // EXCELENCIA OPERATIVA
+        is_any_staff: data.is_any_staff || false
     };
 
     // LOGICA GUEST VS REGISTERED
@@ -218,7 +264,7 @@ export async function createBooking(data: {
     const { count: conflictCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
-        .eq('staff_id', data.staff_id)
+        .eq('staff_id', finalStaffId)
         .in('status', ['confirmed', 'seated', 'pending'])
         .neq('id', newBooking.id)
         .lt('start_time', endDate.toISOString())
@@ -227,7 +273,7 @@ export async function createBooking(data: {
     const { count: blockCount } = await supabase
         .from('time_blocks')
         .select('*', { count: 'exact', head: true })
-        .eq('staff_id', data.staff_id)
+        .eq('staff_id', finalStaffId)
         .lt('start_time', endDate.toISOString())
         .gt('end_time', startDate.toISOString())
 
