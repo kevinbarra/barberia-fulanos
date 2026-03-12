@@ -105,7 +105,8 @@ export async function seedTenantWithTemplate(tenantId: string, slug: string, bus
                 name: srv.name,
                 price: srv.price,
                 duration_min: srv.duration_min,
-                slug: srv.slug
+                slug: srv.slug,
+                metadata: srv.metadata || {}
             })
             .select()
             .single()
@@ -159,45 +160,69 @@ export async function seedTenantWithTemplate(tenantId: string, slug: string, bus
         }
     }
 
-    // 4. Insert Ghost Bookings
+    // 4. Insert Ghost Bookings (Aggressive "Busy Day" Engine)
     const today = new Date();
     const baseYear = today.getFullYear();
     const baseMonth = today.getMonth();
     const baseDate = today.getDate();
 
-    const customerNames = ["María González", "Ana López", "Juan Pérez", "Roberto Sánchez", "Lucía Díaz", "Pedro Ramírez", "Carlos Castro", "Elena Torres"];
+    const customerNames = ["María González", "Ana López", "Juan Pérez", "Roberto Sánchez", "Lucía Díaz", "Pedro Ramírez", "Carlos Castro", "Elena Torres", "Viviana Ruíz", "Monica Slim"];
     const phoneNumbers = ["5512345678", "5598765432", "5544332211", "5566778899", "5555443322"];
 
-    const { data: createdStaffServices } = await adminSupabase
-        .from('staff_services')
-        .select('staff_id, service_id, services(*)')
-        .eq('services.tenant_id', tenantId);
+    const { data: staffList } = await adminSupabase
+        .from('profiles')
+        .select('id, full_name')
+        .eq('tenant_id', tenantId)
+        .eq('is_active_barber', true);
 
-    if (createdStaffServices && createdStaffServices.length > 0) {
-        for (let i = 0; i < 6; i++) {
-            const randIdx = Math.floor(Math.random() * createdStaffServices.length);
-            const ss = createdStaffServices[randIdx];
-            const serviceInfo = Array.isArray(ss.services) ? ss.services[0] : ss.services;
-            if (!ss || !serviceInfo) continue;
+    if (staffList && staffList.length > 0) {
+        for (const person of staffList) {
+            // Get services for THIS staff member
+            const { data: myServices } = await adminSupabase
+                .from('staff_services')
+                .select('service_id, services(*)')
+                .eq('staff_id', person.id);
 
-            const startHour = 10 + Math.floor(Math.random() * 8); // 10 am to 17 pm
-            const startMins = Math.random() > 0.5 ? 0 : 30;
+            if (!myServices || myServices.length === 0) continue;
 
-            const startTime = new Date(baseYear, baseMonth, baseDate, startHour, startMins, 0);
-            const endTime = new Date(startTime.getTime() + (serviceInfo.duration_min * 60000));
+            let currentHour = 9; // Start at 9 AM
+            let currentMin = 0;
 
-            await adminSupabase.from('bookings').insert({
-                tenant_id: tenantId,
-                staff_id: ss.staff_id,
-                service_id: ss.service_id,
-                customer_id: null,
-                guest_name: customerNames[i % customerNames.length],
-                guest_phone: phoneNumbers[i % phoneNumbers.length],
-                start_time: startTime.toISOString(),
-                end_time: endTime.toISOString(),
-                status: i < 2 ? 'completed' : (i < 4 ? 'pending' : 'confirmed'),
-                total_price: serviceInfo.price,
-            });
+            // Generate 3-5 bookings per staff member to create density
+            const bookingsToCreate = 3 + Math.floor(Math.random() * 3);
+
+            for (let i = 0; i < bookingsToCreate; i++) {
+                // Pick a random service from their list
+                const ss = myServices[Math.floor(Math.random() * myServices.length)];
+                const serviceInfo = Array.isArray(ss.services) ? ss.services[0] : ss.services;
+                if (!serviceInfo) continue;
+
+                const startTime = new Date(baseYear, baseMonth, baseDate, currentHour, currentMin, 0);
+                const duration = serviceInfo.duration_min;
+                const endTime = new Date(startTime.getTime() + (duration * 60000));
+
+                // Don't book past 8 PM
+                if (currentHour >= 20) break;
+
+                await adminSupabase.from('bookings').insert({
+                    tenant_id: tenantId,
+                    staff_id: person.id,
+                    service_id: ss.service_id,
+                    customer_id: null,
+                    guest_name: customerNames[Math.floor(Math.random() * customerNames.length)],
+                    guest_phone: phoneNumbers[Math.floor(Math.random() * phoneNumbers.length)],
+                    start_time: startTime.toISOString(),
+                    end_time: endTime.toISOString(),
+                    status: i % 3 === 0 ? 'confirmed' : 'pending',
+                    total_price: serviceInfo.price,
+                });
+
+                // Strategic Gap: Small gap or back-to-back
+                const gap = Math.random() > 0.7 ? 30 : 0; // 30% chance of 30 min gap, 70% back-to-back
+                const nextTime = new Date(endTime.getTime() + (gap * 60000));
+                currentHour = nextTime.getHours();
+                currentMin = nextTime.getMinutes();
+            }
         }
     }
 }

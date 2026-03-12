@@ -6,6 +6,10 @@ export type SeedTemplate = {
         price: number;
         duration_min: number;
         slug: string;
+        metadata?: {
+            note?: string;
+            [key: string]: any;
+        };
     }[];
     staff: {
         name: string;
@@ -32,19 +36,37 @@ export const SEED_TEMPLATES: Record<string, SeedTemplate> = {
         ]
     },
     salon: {
-        categories: ["Corte y Peinado", "Coloración", "Tratamientos"],
+        categories: ["Colorimetría", "Corte y Peinado", "Tratamientos", "Manos y Pies"],
         services: [
-            { category: "Corte y Peinado", name: "Corte Dama", price: 350, duration_min: 45, slug: "corte-dama" },
-            { category: "Corte y Peinado", name: "Peinado Express", price: 250, duration_min: 30, slug: "peinado-express" },
-            { category: "Corte y Peinado", name: "Corte Caballero", price: 250, duration_min: 30, slug: "corte-caballero" },
-            { category: "Coloración", name: "Tinte Raíz", price: 600, duration_min: 60, slug: "tinte-raiz" },
-            { category: "Coloración", name: "Balayage", price: 1800, duration_min: 180, slug: "balayage" },
-            { category: "Tratamientos", name: "Keratina", price: 1200, duration_min: 120, slug: "keratina" },
+            // Colorimetría
+            { category: "Colorimetría", name: "Balayage Premium", price: 2800, duration_min: 180, slug: "balayage-premium" },
+            { category: "Colorimetría", name: "Tinte Global", price: 1200, duration_min: 120, slug: "tinte-global", metadata: { note: "Precio sujeto a diagnóstico" } },
+            { category: "Colorimetría", name: "Retoque de Raíz", price: 750, duration_min: 90, slug: "retoque-raiz" },
+            { category: "Colorimetría", name: "Matiz y Brillo", price: 550, duration_min: 45, slug: "matiz-brillo" },
+
+            // Corte y Peinado
+            { category: "Corte y Peinado", name: "Corte Dama (Estilizado)", price: 450, duration_min: 60, slug: "corte-dama-premium" },
+            { category: "Corte y Peinado", name: "Peinado de Gala / Novia", price: 1200, duration_min: 90, slug: "peinado-gala" },
+            { category: "Corte y Peinado", name: "Secado y Planchado", price: 350, duration_min: 45, slug: "secado-planchado" },
+            { category: "Corte y Peinado", name: "Corte Caballero Moderno", price: 280, duration_min: 30, slug: "corte-caballero-salon" },
+
+            // Tratamientos
+            { category: "Tratamientos", name: "Keratina Brasileña", price: 2200, duration_min: 150, slug: "keratina-brasil" },
+            { category: "Tratamientos", name: "Hidratación Profunda", price: 650, duration_min: 60, slug: "hidratacion-profunda" },
+            { category: "Tratamientos", name: "Botox Capilar", price: 1500, duration_min: 120, slug: "botox-capilar" },
+            { category: "Tratamientos", name: "Tratamiento de Argán", price: 400, duration_min: 30, slug: "argan-treatment" },
+
+            // Manos y Pies
+            { category: "Manos y Pies", name: "Gelish 1 Tono (Mano)", price: 350, duration_min: 60, slug: "gelish-manos" },
+            { category: "Manos y Pies", name: "Manicura Express", price: 250, duration_min: 30, slug: "manicura-express" },
+            { category: "Manos y Pies", name: "Pedicura Spa Premium", price: 550, duration_min: 75, slug: "pedicura-spa-premium" },
+            { category: "Manos y Pies", name: "Retiro de Gel", price: 100, duration_min: 20, slug: "retiro-gel" },
         ],
         staff: [
-            { name: "Sofía", role: "owner", specialties: ["Corte y Peinado", "Coloración", "Tratamientos"] },
-            { name: "Elena", role: "staff", specialties: ["Corte y Peinado", "Tratamientos"] },
-            { name: "Daniel", role: "staff", specialties: ["Coloración"] },
+            { name: "Sofía - Master Colorist", role: "owner", specialties: ["Colorimetría", "Corte y Peinado", "Tratamientos"] },
+            { name: "Elena - Estilista Senior", role: "staff", specialties: ["Corte y Peinado", "Tratamientos", "Colorimetría"] },
+            { name: "Lucía - Nail Artist", role: "staff", specialties: ["Manos y Pies"] },
+            { name: "Daniela - Especialista Capilar", role: "staff", specialties: ["Tratamientos", "Corte y Peinado"] },
         ]
     },
     nails: {

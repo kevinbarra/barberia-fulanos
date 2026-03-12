@@ -23,9 +23,9 @@ export default async function BookingsPage() {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user?.id).single();
     const currentUserRole = profile?.role || 'staff';
 
-    // Rango de fechas: +- 7 días desde hoy
+    // Rango de fechas: +- 30 días desde hoy (historial extendido)
     const today = new Date();
-    const startDate = subDays(today, 7).toISOString();
+    const startDate = subDays(today, 30).toISOString();
     const endDate = addDays(today, 14).toISOString();
 
     const { data: tenantData } = await supabase
