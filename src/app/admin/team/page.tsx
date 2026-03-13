@@ -43,7 +43,9 @@ export default async function TeamPage() {
         .from('profiles')
         .select(`
             id, full_name, email, avatar_url, role, phone, is_active_barber, is_calendar_visible,
-            staff_services(service_id)
+            staff_category, role_alias,
+            staff_services(service_id),
+            staff_skills(service_id)
         `)
         .eq('tenant_id', tenantId)
         .order('created_at', { ascending: true });
@@ -74,7 +76,7 @@ export default async function TeamPage() {
     if (currentUserRole === 'owner' || currentUserRole === 'super_admin') {
         const { data: invites } = await supabase
             .from('staff_invitations')
-            .select('id, email, created_at')
+            .select('id, email, created_at, metadata')
             .eq('tenant_id', tenantId)
             .eq('status', 'pending');
 
@@ -87,7 +89,8 @@ export default async function TeamPage() {
         ...filteredStaff.map(s => ({
             ...s,
             status: 'active' as const,
-            services: (s as any).staff_services?.map((ss: any) => ss.service_id) || []
+            services: (s as any).staff_services?.map((ss: any) => ss.service_id) || [],
+            skills: (s as any).staff_skills?.map((ss: any) => ss.service_id) || []
         })),
         ...(pendingInvites || []).map(inv => ({
             id: inv.id,
@@ -99,6 +102,8 @@ export default async function TeamPage() {
             status: 'pending' as const,
             is_active_barber: false,
             is_calendar_visible: false,
+            staff_category: (inv as any).metadata?.staff_category || 'barber',
+            role_alias: (inv as any).metadata?.role_alias || null,
             services: []
         }))
     ];

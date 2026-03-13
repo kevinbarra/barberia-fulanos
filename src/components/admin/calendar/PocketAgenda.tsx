@@ -18,7 +18,7 @@ import NewBookingModal from '../NewBookingModal';
 import EditBookingModal from '../bookings/EditBookingModal';
 import WhatsAppNotifyModal from '../bookings/WhatsAppNotifyModal';
 import CheckOutModal from '../CheckOutModal';
-import { cn } from '@/lib/utils';
+import { cn, calculateRemainingBalance } from '@/lib/utils';
 
 interface Props {
     bookings: PosBookingData[];
@@ -199,6 +199,7 @@ export default function PocketAgenda({ bookings, staff, services, tenantId, bloc
     const statusLabels: Record<string, string> = {
         completed: 'Pagado', confirmed: 'Confirmado', seated: 'En Silla',
         no_show: 'No Show', cancelled: 'Cancelado', pending: 'Pendiente',
+        pending_payment: 'Pago Pendiente'
     };
 
     return (
@@ -447,12 +448,36 @@ export default function PocketAgenda({ bookings, staff, services, tenantId, bloc
                                         "font-bold",
                                         selectedBooking.status === 'completed' ? 'text-emerald-600' :
                                             selectedBooking.status === 'cancelled' ? 'text-red-500' :
-                                                selectedBooking.status === 'seated' ? 'text-purple-600' : 'text-blue-600'
+                                                selectedBooking.status === 'seated' ? 'text-purple-600' : 
+                                                    selectedBooking.status === 'pending' && selectedBooking.payment_status === 'pending_payment' ? 'text-amber-500' : 'text-blue-600'
                                     )}>
-                                        {statusLabels[selectedBooking.status] || selectedBooking.status}
+                                        {selectedBooking.payment_status === 'pending_payment' ? 'Pendiente Pago' : (statusLabels[selectedBooking.status] || selectedBooking.status)}
                                     </p>
                                 </div>
                             </div>
+
+                            {/* Payment Info Section */}
+                            {(selectedBooking.total_price !== undefined || selectedBooking.paid_amount !== undefined) && (
+                                <div className="grid grid-cols-3 gap-3 mb-8">
+                                    <div className="bg-zinc-900 p-3 rounded-2xl text-center">
+                                        <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-0.5">Total</p>
+                                        <p className="font-black text-white text-sm">${selectedBooking.total_price || selectedBooking.services?.price || 0}</p>
+                                    </div>
+                                    <div className="bg-zinc-100 p-3 rounded-2xl text-center">
+                                        <p className="text-[8px] text-zinc-400 font-black uppercase tracking-widest mb-0.5">Pagado</p>
+                                        <p className="font-black text-zinc-900 text-sm">${selectedBooking.paid_amount || 0}</p>
+                                    </div>
+                                    <div className="bg-blue-50 p-3 rounded-2xl text-center border border-blue-100">
+                                        <p className="text-[8px] text-blue-400 font-black uppercase tracking-widest mb-0.5">Saldo</p>
+                                        <p className="font-black text-blue-600 text-sm">
+                                            ${calculateRemainingBalance(
+                                                selectedBooking.total_price || selectedBooking.services?.price || 0,
+                                                selectedBooking.paid_amount || 0
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {selectedBooking.notes && (
                                 <div className="bg-amber-50 p-4 rounded-3xl border border-amber-100 mb-8 italic">

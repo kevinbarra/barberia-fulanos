@@ -7,6 +7,7 @@ import { broadcastBookingEvent } from '@/lib/broadcast'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 import { isBefore } from 'date-fns'
 import { DEFAULT_TIMEZONE } from '@/lib/constants'
+import { getStaffLabel, BusinessType } from '@/lib/utils'
 
 // --- FUNCIÓN 1: PROCESAR COBRO (OPTIMIZADA) ---
 export async function processPayment(data: {
@@ -306,7 +307,10 @@ export async function createWalkIn(formData: FormData) {
         // ... (existing error handling) ...
         // Check if this is a double-booking constraint violation
         if (error.message?.includes('no_double_booking')) {
-            return { error: 'Este horario ya está ocupado para este barbero. Selecciona otro horario.' }
+            const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', tenantId).single();
+            const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+            const sLabel = getStaffLabel(bType);
+            return { error: `Este horario ya está ocupado para este ${sLabel.toLowerCase()}. Selecciona otro horario.` }
         }
         console.error('Error walk-in:', error)
         return { error: 'No se pudo registrar.' }
@@ -528,7 +532,10 @@ export async function rescheduleBooking(
         .single()
 
     if (!staffSchedule) {
-        return { error: 'El barbero no trabaja este día.' }
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', booking.tenant_id).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
+        return { error: `El ${sLabel.toLowerCase()} no trabaja este día.` }
     }
 
     // Parse schedule times to minutes for comparison
@@ -541,7 +548,10 @@ export async function rescheduleBooking(
     const bookingEndMin = localEnd.getHours() * 60 + localEnd.getMinutes()
 
     if (bookingStartMin < schedStartMin || bookingEndMin > schedEndMin) {
-        return { error: `Horario fuera de servicio. El barbero trabaja de ${staffSchedule.start_time.slice(0, 5)} a ${staffSchedule.end_time.slice(0, 5)}.` }
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', booking.tenant_id).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
+        return { error: `Horario fuera de servicio. El ${sLabel.toLowerCase()} trabaja de ${staffSchedule.start_time.slice(0, 5)} a ${staffSchedule.end_time.slice(0, 5)}.` }
     }
 
     // 5. Collision check (bookings)
@@ -555,7 +565,10 @@ export async function rescheduleBooking(
         .gt('end_time', newStart.toISOString())
 
     if (conflictCount && conflictCount > 0) {
-        return { error: 'El barbero ya tiene una cita en ese horario. Elige otro.' }
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', booking.tenant_id).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
+        return { error: `El ${sLabel.toLowerCase()} ya tiene una cita en ese horario. Elige otro.` }
     }
 
     // 6. Collision check (time blocks)
@@ -567,7 +580,10 @@ export async function rescheduleBooking(
         .gt('end_time', newStart.toISOString())
 
     if (blockCount && blockCount > 0) {
-        return { error: 'El barbero tiene un bloqueo de tiempo en ese horario.' }
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', booking.tenant_id).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
+        return { error: `El ${sLabel.toLowerCase()} tiene un bloqueo de tiempo en ese horario.` }
     }
 
     // 7. Save old values for audit

@@ -7,6 +7,7 @@ import { broadcastBookingEvent } from '@/lib/broadcast'
 import { isBefore } from 'date-fns'
 
 import { logActivity } from '@/lib/audit'
+import { getStaffLabel, BusinessType } from '@/lib/utils'
 // createClient is already imported from '@/utils/supabase/server' at line 3
 
 // --- ACCIÓN 1: CHECK-IN (Abrir Ticket / Bloquear Horario) ---
@@ -42,9 +43,12 @@ export async function createTicket(data: {
         .gte('start_time', recentThreshold)
 
     if (activeTickets && activeTickets > 0) {
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', data.tenantId).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
         return {
             success: false,
-            error: 'Este barbero ya tiene un cliente en silla.'
+            error: `Este ${sLabel.toLowerCase()} ya tiene un cliente en silla.`
         }
     }
 
@@ -90,9 +94,12 @@ export async function createTicket(data: {
     if (error) {
         // ... (existing error handling) ...
         if (error.message?.includes('no_double_booking')) {
+            const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', data.tenantId).single();
+            const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+            const sLabel = getStaffLabel(bType);
             return {
                 success: false,
-                error: 'Este horario ya está ocupado para este barbero. Selecciona otro horario.'
+                error: `Este horario ya está ocupado para este ${sLabel.toLowerCase()}. Selecciona otro horario.`
             }
         }
         console.error('Check-in error:', error.message, error.details, error.hint)
@@ -424,9 +431,12 @@ export async function seatBooking(bookingId: string) {
         .eq('status', 'seated')
 
     if (activeTickets && activeTickets > 0) {
+        const { data: tenant } = await supabase.from('tenants').select('settings').eq('id', booking.tenant_id).single();
+        const bType = (tenant?.settings as any)?.business_type as BusinessType || 'barber';
+        const sLabel = getStaffLabel(bType);
         return {
             success: false,
-            error: 'Este barbero ya tiene un cliente en silla. Finaliza el servicio actual primero.'
+            error: `Este ${sLabel.toLowerCase()} ya tiene un cliente en silla. Finaliza el servicio actual primero.`
         }
     }
 

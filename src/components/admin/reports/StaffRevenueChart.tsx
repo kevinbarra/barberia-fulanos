@@ -3,6 +3,7 @@
 import { StaffRevenueItem } from '@/hooks/useAnalyticsData'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { Users, RefreshCw } from 'lucide-react'
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 interface StaffRevenueChartProps {
     data: StaffRevenueItem[]
@@ -15,6 +16,7 @@ export default function StaffRevenueChart({
     isLoading = false,
     onRefresh
 }: StaffRevenueChartProps) {
+    const { vocabulary } = useVocabulary()
 
     const chartData = data.map(item => ({
         name: item.staff_name,
@@ -37,7 +39,7 @@ export default function StaffRevenueChart({
         return (
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
                 <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-gray-900">Revenue por Barbero</h3>
+                    <h3 className="text-lg font-bold text-gray-900">Revenue por {vocabulary.staff_singular}</h3>
                     {onRefresh && (
                         <button onClick={onRefresh} className="p-2 hover:bg-gray-100 rounded-lg">
                             <RefreshCw className="w-4 h-4 text-gray-400" />

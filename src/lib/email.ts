@@ -12,10 +12,12 @@ export async function sendBookingEmail(data: {
   time: string;
   barberName: string;
   businessName?: string;
+  staffLabel?: string;
 }) {
   if (!data.clientEmail) return;
 
   const business = data.businessName || 'AgendaBarber';
+  const staffLabel = data.staffLabel || 'Barbero';
 
   try {
     await resend.emails.send({
@@ -29,7 +31,7 @@ export async function sendBookingEmail(data: {
           
           <div style="background: #f4f4f5; padding: 24px; border-radius: 12px; margin: 24px 0;">
             <p style="margin: 0;"><strong>Servicio:</strong> ${data.serviceName}</p>
-            <p style="margin: 5px 0;"><strong>Barbero:</strong> ${data.barberName}</p>
+            <p style="margin: 5px 0;"><strong>${staffLabel}:</strong> ${data.barberName}</p>
             <p style="margin: 0;"><strong>Fecha:</strong> ${data.date} a las ${data.time}</p>
           </div>
 
@@ -114,10 +116,12 @@ export async function sendBookingReminder(data: {
   date: string;
   time: string;
   businessName?: string;
+  staffLabel?: string;
 }) {
   if (!data.clientEmail) return;
 
   const business = data.businessName || 'AgendaBarber';
+  const staffLabel = data.staffLabel || 'profesional';
 
   try {
     await resend.emails.send({
@@ -131,7 +135,7 @@ export async function sendBookingReminder(data: {
           
           <div style="background: linear-gradient(135deg, #3b82f620 0%, #8b5cf620 100%); padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #3b82f6;">
             <p style="margin: 0; font-size: 18px;"><strong>${data.serviceName}</strong></p>
-            <p style="margin: 8px 0; color: #666;">con ${data.barberName}</p>
+            <p style="margin: 8px 0; color: #666;">con ${data.barberName} (${staffLabel})</p>
             <p style="margin: 0; font-size: 16px;">📅 ${data.date} a las ${data.time}</p>
           </div>
 
@@ -208,10 +212,12 @@ export async function sendRatingRequestEmail(data: {
   bookingId: string;
   businessName?: string;
   tenantSlug?: string;
+  staffLabel?: string;
 }) {
   if (!data.clientEmail) return { success: false };
 
   const business = data.businessName || 'AgendaBarber';
+  const staffLabel = data.staffLabel || 'profesional';
   const baseUrl = data.tenantSlug
     ? `https://${data.tenantSlug}.${ROOT_DOMAIN}`
     : `https://${ROOT_DOMAIN}`;
@@ -250,7 +256,7 @@ export async function sendRatingRequestEmail(data: {
           <div style="background: linear-gradient(135deg, #18181b 0%, #27272a 100%); padding: 32px 24px; border-radius: 16px; text-align: center; margin-bottom: 24px;">
             <p style="color: #a1a1aa; font-size: 14px; margin: 0 0 8px 0;">Tu visita</p>
             <p style="color: #fff; font-size: 18px; font-weight: bold; margin: 0 0 4px 0;">${data.serviceName}</p>
-            <p style="color: #a1a1aa; font-size: 14px; margin: 0;">con ${data.barberName}</p>
+            <p style="color: #a1a1aa; font-size: 14px; margin: 0;">con ${data.barberName} (${staffLabel})</p>
           </div>
 
           <div style="text-align: center; margin-bottom: 24px;">

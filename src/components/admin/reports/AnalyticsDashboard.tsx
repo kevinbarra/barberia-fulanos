@@ -7,6 +7,7 @@ import { useAnalyticsData, AnalyticsClientData } from '@/hooks/useAnalyticsData'
 import { FileDown, Loader2 } from 'lucide-react'
 import { format, parseISO, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 // Import all report components
 import FinancialKPIs from '@/components/admin/reports/FinancialKPIs'
@@ -19,6 +20,7 @@ import CashDrawerSummary from '@/components/admin/reports/CashDrawerSummary'
 import ExpensesAuditTable from '@/components/admin/reports/ExpensesAuditTable'
 import StaffFinanceTable from '@/components/admin/reports/StaffFinanceTable'
 import PrintableReport from '@/components/admin/reports/PrintableReport'
+import PaymentMethodsChart from '@/components/admin/reports/PaymentMethodsChart'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 // ==================== TYPES ====================
@@ -26,11 +28,14 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 interface ServerSideData {
     financialKPIs: {
         total_revenue: number
+        total_collected?: number
+        total_pending?: number
         total_transactions: number
         avg_transaction_value: number
         unique_clients: number
         previous_revenue: number
         growth_rate: number
+        payment_methods?: Array<{ method: string; amount: number }>
     }
     retention: Array<{
         month: string
@@ -70,6 +75,7 @@ export default function AnalyticsDashboard({
 }: AnalyticsDashboardProps) {
     const searchParams = useSearchParams()
     const componentRef = useRef<HTMLDivElement>(null)
+    const { vocabulary } = useVocabulary()
 
     // Get date params from URL
     const startISO = searchParams.get('startISO')
@@ -178,9 +184,9 @@ export default function AnalyticsDashboard({
             <div>
                 <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                     <span className="text-violet-600">✂️</span>
-                    Corte por Barbero
+                    Corte por {vocabulary.staff_plural}
                 </h2>
-                <ErrorBoundary fallbackTitle="Error en Corte por Barbero" fallbackMessage="No se pudo cargar el desglose.">
+                <ErrorBoundary fallbackTitle={`Error en Corte por ${vocabulary.staff_plural}`} fallbackMessage="No se pudo cargar el desglose.">
                     <StaffFinanceTable
                         data={clientData.staffBreakdown}
                         isLoading={isLoading}
@@ -210,6 +216,28 @@ export default function AnalyticsDashboard({
                             onRefresh={refresh}
                         />
                     </ErrorBoundary>
+                </div>
+            </div>
+
+            {/* Métodos de Pago */}
+            <div>
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <span className="text-emerald-600">💳</span>
+                    Flujo de Efectivo por Método
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1">
+                        <PaymentMethodsChart data={financialKPIs.payment_methods || []} />
+                    </div>
+                    <div className="lg:col-span-2">
+                        <ErrorBoundary fallbackTitle="Error en Gráfico" fallbackMessage="No se pudo cargar.">
+                            <StaffRevenueChart
+                                data={clientData.staffRevenue}
+                                isLoading={isLoading}
+                                onRefresh={refresh}
+                            />
+                        </ErrorBoundary>
+                    </div>
                 </div>
             </div>
 

@@ -21,8 +21,8 @@ export default async function ProfilePage() {
     return (
         <div className="min-h-screen bg-gray-50 p-6 pb-32">
             <div className="max-w-md mx-auto mb-6">
-                <h1 className="text-3xl font-black text-gray-900">Ajustes</h1>
-                <p className="text-gray-500">Gestiona tu cuenta y accesos.</p>
+                <h1 className="text-3xl font-black text-gray-900">Perfil</h1>
+                <p className="text-gray-500">Información del usuario y acceso al negocio.</p>
             </div>
             <ProfileForm
                 initialName={profile?.full_name || ''}

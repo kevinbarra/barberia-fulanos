@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import { signOut } from '@/app/auth/actions';
 import { useRealtimePoints } from '@/hooks/useRealtimePoints';
 import { useRealtimeBookings } from '@/hooks/useRealtimeBookings';
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider';
 
 // Flexible types for Supabase data
 interface ClientDashboardUIProps {
@@ -46,6 +47,7 @@ export default function ClientDashboardUI({
     tenantSlug,
     tenantAddress
 }: ClientDashboardUIProps) {
+    const { vocabulary } = useVocabulary();
 
     const container = {
         hidden: { opacity: 0 },
@@ -113,7 +115,7 @@ export default function ClientDashboardUI({
                         <h1 className="text-xl font-bold capitalize bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
                             Hola, {profileName.split(" ")[0]}
                         </h1>
-                        <p className="text-zinc-500 text-xs font-medium mb-3">Bienvenido a tu barbería</p>
+                        <p className="text-zinc-500 text-xs font-medium mb-3">{vocabulary.welcome_message}</p>
 
                         <div className="flex gap-2">
                             {isStaffOrOwner && (

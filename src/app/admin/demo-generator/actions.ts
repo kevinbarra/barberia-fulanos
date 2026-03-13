@@ -145,15 +145,23 @@ export async function seedTenantWithTemplate(tenantId: string, slug: string, bus
 
         if (profileError) throw new Error(profileError.message)
 
-        // Link Staff Services (specialties)
+        // Link Staff Services (specialties) & Skills Matrix
         for (const spec of st.specialties) {
             const relatedServices = template.services.filter(s => s.category === spec)
             for (const rs of relatedServices) {
                 const sId = serviceMap.get(`${spec}_${rs.name}`)
                 if (sId) {
+                    // Legacy Link
                     await adminSupabase.from('staff_services').insert({
                         staff_id: staffId,
                         service_id: sId
+                    })
+
+                    // New Skills Matrix Link
+                    await adminSupabase.from('staff_skills').insert({
+                        staff_id: staffId,
+                        service_id: sId,
+                        tenant_id: tenantId
                     })
                 }
             }

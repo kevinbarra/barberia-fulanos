@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/admin'
 import { sendRatingRequestEmail } from '@/lib/email'
 import { DEFAULT_TIMEZONE } from '@/lib/constants'
+import { getStaffLabel, BusinessType } from '@/lib/utils'
 
 // Types for Supabase relations
 type ServiceRelation = { name: string } | { name: string }[] | null
@@ -43,7 +44,7 @@ export async function GET(request: Request) {
             guest_email,
             service:services(name),
             staff:profiles!bookings_staff_id_fkey(full_name),
-            tenant:tenants(name, slug),
+            tenant:tenants(name, slug, settings),
             customer:profiles!bookings_customer_id_fkey(full_name, email)
         `)
         .eq('status', 'completed')
@@ -77,16 +78,22 @@ export async function GET(request: Request) {
             results.push({ bookingId: booking.id, success: false })
             continue
         }
+        // Obtener label dinámico
+        const tenantSettings = (tenant as any)?.settings || {}
+        const businessType = (tenantSettings.business_type as BusinessType) || 'barber'
+        const staffLabel = getStaffLabel(businessType)
+        const staffLabelFinal = staff?.full_name || `Tu ${staffLabel.toLowerCase()}`
 
         // Send rating request email
         const result = await sendRatingRequestEmail({
             clientName,
             clientEmail,
             serviceName: service?.name || 'Servicio',
-            barberName: staff?.full_name || 'Tu barbero',
+            barberName: staffLabelFinal,
             bookingId: booking.id,
             businessName: tenant?.name || 'AgendaBarber',
-            tenantSlug: tenant?.slug
+            tenantSlug: tenant?.slug,
+            staffLabel: staffLabel.toLowerCase()
         })
 
         if (result?.success) {

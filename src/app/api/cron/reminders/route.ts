@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/utils/supabase/admin';
 import { sendBookingReminder } from '@/lib/email';
 import { DEFAULT_TIMEZONE } from '@/lib/constants';
+import { getStaffLabel, BusinessType } from '@/lib/utils';
 
 const TIMEZONE = DEFAULT_TIMEZONE;
 
@@ -43,7 +44,8 @@ export async function GET(request: Request) {
             customer_id,
             service:services(name),
             staff:profiles!bookings_staff_id_fkey(full_name),
-            tenant:tenants(name),
+            staff:profiles!bookings_staff_id_fkey(full_name),
+            tenant:tenants(name, settings),
             customer:profiles!bookings_customer_id_fkey(full_name, email)
         `)
         .eq('status', 'confirmed')
@@ -99,16 +101,21 @@ export async function GET(request: Request) {
             timeZone: TIMEZONE,
             hour: '2-digit', minute: '2-digit'
         });
+        // Obtener label dinámico
+        const tenantSettings = (tenant as any)?.settings || {};
+        const businessType = (tenantSettings.business_type as BusinessType) || 'barber';
+        const staffLabel = getStaffLabel(businessType);
+        const staffLabelFinal = staff?.full_name || `Tu ${staffLabel.toLowerCase()}`;
 
-        // Enviar recordatorio
         const result = await sendBookingReminder({
             clientName,
             clientEmail,
             serviceName: service?.name || 'Servicio',
-            barberName: staff?.full_name || 'Tu barbero',
+            barberName: staffLabelFinal,
             date: dateStr,
             time: timeStr,
-            businessName: tenant?.name || 'AgendaBarber'
+            businessName: tenant?.name || 'AgendaBarber',
+            staffLabel: staffLabel.toLowerCase()
         });
 
         if (result?.success) {

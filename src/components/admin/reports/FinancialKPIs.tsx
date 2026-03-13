@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart, Percent, Check, Clock } from 'lucide-react';
 
 interface FinancialKPIsProps {
     data: {
@@ -16,18 +16,25 @@ interface FinancialKPIsProps {
 export default function FinancialKPIs({ data }: FinancialKPIsProps) {
     const kpis = [
         {
-            title: 'Revenue Total',
+            title: 'Ventas Totales',
             value: `$${data?.total_revenue?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) ?? '0.00'}`,
             change: data?.growth_rate || 0,
             icon: DollarSign,
             color: 'blue'
         },
         {
-            title: 'Transacciones',
-            value: (data?.total_transactions || 0).toString(),
+            title: 'Recaudado',
+            value: `$${(data as any)?.total_collected?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) ?? '0.00'}`,
             change: null,
-            icon: ShoppingCart,
+            icon: Check,
             color: 'green'
+        },
+        {
+            title: 'Pendiente',
+            value: `$${(data as any)?.total_pending?.toLocaleString('es-MX', { minimumFractionDigits: 2 }) ?? '0.00'}`,
+            change: null,
+            icon: Clock,
+            color: 'amber'
         },
         {
             title: 'Ticket Promedio',
@@ -35,13 +42,6 @@ export default function FinancialKPIs({ data }: FinancialKPIsProps) {
             change: null,
             icon: Percent,
             color: 'purple'
-        },
-        {
-            title: 'Clientes Únicos',
-            value: (data?.unique_clients || 0).toString(),
-            change: null,
-            icon: Users,
-            color: 'pink'
         }
     ];
 

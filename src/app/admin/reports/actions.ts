@@ -90,10 +90,21 @@ export async function getFinancialDashboard(startDate?: string, endDate?: string
         });
 
         if (error) throw error;
-        return data;
+        
+        // Data is already correctly shaped by the RPC, but we normalize it
+        return {
+            ...data,
+            total_revenue: Number(data?.total_revenue || 0),
+            total_collected: Number(data?.total_collected || 0),
+            total_pending: Number(data?.total_pending || 0),
+            total_transactions: Number(data?.total_transactions || 0),
+            avg_transaction_value: Number(data?.avg_transaction_value || 0),
+            unique_clients: Number(data?.unique_clients || 0),
+            payment_methods: data?.payment_methods || [],
+            growth_rate: Number(data?.growth_rate || 0)
+        };
     } catch (error) {
         console.error('[Reports] Critical Error in Dashboard:', error);
-        // Retornamos null para que el Frontend maneje el estado vacío elegantemente
         return null;
     }
 }

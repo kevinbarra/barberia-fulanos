@@ -11,8 +11,8 @@ export default function NoTenantFallback() {
 
             <h1 className="text-2xl font-black text-gray-900 mb-2">Cuenta no vinculada</h1>
             <p className="text-gray-500 max-w-md mb-8">
-                Tu usuario ha iniciado sesión correctamente, pero no está vinculado a ninguna barbería activa.
-                Si crees que es un error, contacta a soporte o al dueño del negocio.
+                Tu usuario ha iniciado sesión correctamente, pero no está vinculado a ningún negocio activo.
+                Si crees que es un error, contacta a soporte o al dueño del establecimiento.
             </p>
 
             <div className="flex gap-4">

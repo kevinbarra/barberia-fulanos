@@ -2,17 +2,18 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useVocabulary } from "@/providers/BusinessVocabularyProvider";
 
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string };
-type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null; services?: string[] };
+type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null; services?: string[]; skills?: string[]; staff_category?: string; role_alias?: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
 
@@ -34,6 +35,20 @@ const containerVariants: Variants = {
     hidden: { opacity: 0, x: 20 },
     visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
     exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
+};
+
+const checkmarkVariants = {
+    hidden: { scale: 0, opacity: 0 },
+    visible: { 
+        scale: 1, 
+        opacity: 1, 
+        transition: { 
+            type: "spring" as const, 
+            stiffness: 260, 
+            damping: 20,
+            delay: 0.2 
+        } 
+    }
 };
 
 // Generate Google Calendar link
@@ -62,23 +77,14 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     const bookingDate = booking.date_formatted || new Date(booking.start_time).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
     const bookingTime = booking.time_formatted || new Date(booking.start_time).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-    // Use Unicode escapes so emojis survive any file encoding
-    const wave = '\u{1F44B}';      // 👋
-    const person = '\u{1F464}';    // 👤
-    const scissors = '\u{2702}\u{FE0F}'; // ✂️
+    const wave = '👋';
+    const scissors = '✂️';
+    const checkmark = '✅';
 
-    // Choose icon based on business type (if available from props or a simple logic)
-    // For simplicity here, we'll keep it static or use a simple mapping if we had the prop in this function.
-    // However, generateWhatsAppConfirmation is outside the component.
-    // Let's pass the staffLabel to it if needed, or just keep it neutral.
-    const icon = '\u{1F4C5}'; // 📅
-    const clock = '\u{23F0}';      // ⏰
-    const checkmark = '\u{2705}';  // ✅
-
-    const greeting = tenantName ? `\u{00A1}Hola ${tenantName}! ${wave}` : `\u{00A1}Hola! ${wave}`;
+    const greeting = tenantName ? `¡Hola ${tenantName}! ${wave}` : `¡Hola! ${wave}`;
     const clientLine = clientPhone
-        ? `${person} *Cliente:* ${clientName} (${clientPhone})`
-        : `${person} *Cliente:* ${clientName}`;
+        ? `👤 *Cliente:* ${clientName} (${clientPhone})`
+        : `👤 *Cliente:* ${clientName}`;
 
     const message = [
         `${greeting} Acabo de agendar por la App:`,
@@ -86,12 +92,23 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
         clientLine,
         `${scissors} *Servicio:* ${serviceName}`,
         `*Atendido por:* ${barberName}`,
-        `\u{1F4C5} *Fecha:* ${bookingDate}`,
-        `\u{23F0} *Hora:* ${bookingTime}`,
+        `📅 *Fecha:* ${bookingDate}`,
+        `⏰ *Hora:* ${bookingTime}`,
         '',
-        `${checkmark} \u{00A1}Conf\u{00ED}rmame si todo bien! Gracias.`
+        `${checkmark} ¡Confírmame si todo bien! Gracias.`
     ].join('\n');
 
+    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+// Generate WhatsApp reminder link (Requested for Phase 29)
+function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
+    const date = booking.date_formatted;
+    const time = booking.time_formatted;
+    const bookingId = booking.id.slice(0, 8).toUpperCase();
+
+    const message = `Hola, tengo una cita en *${tenantName}* el *${date}* a las *${time}*.\n\nAquí mi comprobante de anticipo: *${bookingId}*`;
+    
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
@@ -102,7 +119,8 @@ export default function BookingWizard({
     currentUser,
     whatsappPhone,
     tenantName,
-    businessType = 'barber'
+    businessType = 'barber',
+    paymentRules = { mode: 'Libre' }
 }: {
     services: Service[];
     staff: Staff[];
@@ -111,26 +129,23 @@ export default function BookingWizard({
     whatsappPhone?: string | null;
     tenantName?: string;
     businessType?: 'barber' | 'salon' | 'nails' | 'default';
+    paymentRules?: any;
 }) {
     // Hooks
     const searchParams = useSearchParams();
-    const origin = searchParams.get('source') || 'web'; // Default 'web'
+    const origin = searchParams.get('source') || 'web';
 
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [success, setSuccess] = useState(false);
     const [bookingData, setBookingData] = useState<BookingResult | null>(null);
+    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     // Selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
-
-    // CALENDARIO HORIZONTAL
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-    // Generar próximos 14 días
-    const dates = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(new Date(), i)), []);
-
     const [selectedTime, setSelectedTime] = useState("");
     const [takenRangesByStaff, setTakenRangesByStaff] = useState<Record<string, { start: number, end: number }[]>>({});
 
@@ -141,76 +156,48 @@ export default function BookingWizard({
         email: currentUser?.email || ""
     });
 
-    // --- TERMINOLOGÍA DINÁMICA ---
-    const staffLabel = useMemo(() => {
-        switch (businessType) {
-            case 'barber': return 'Barbero';
-            case 'salon': return 'Estilista';
-            case 'nails': return 'Manicurista';
-            default: return 'Personal';
-        }
-    }, [businessType]);
+    const dates = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(new Date(), i)), []);
+    const { vocabulary } = useVocabulary();
+    const staffLabel = vocabulary.staff_singular;
 
-    const staffLabelPlural = useMemo(() => {
-        switch (businessType) {
-            case 'barber': return 'Barberos';
-            case 'salon': return 'Estilistas';
-            case 'nails': return 'Manicuristas';
-            default: return 'Personal';
-        }
-    }, [businessType]);
-
-    // --- FILTRADO DE STAFF ---
-    // Solo mostrar personal que puede realizar el servicio seleccionado
     const filteredStaff = useMemo(() => {
         if (!selectedService) return staff;
-        return staff.filter(s => s.services?.includes(selectedService.id));
+        const staffWithSkill = staff.filter(s => s.skills?.includes(selectedService.id));
+        if (staffWithSkill.length > 0) return staffWithSkill;
+        const serviceCat = (selectedService.category || '').toLowerCase();
+        return staff.filter(s => {
+            const staffCat = (s.staff_category || '').toLowerCase();
+            if (!staffCat || staffCat === 'default') return true;
+            return serviceCat.includes(staffCat) || staffCat.includes(serviceCat);
+        });
     }, [staff, selectedService]);
 
-    // Cargar Slots cuando cambia Fecha o Staff
     useEffect(() => {
         let isMounted = true;
         let intervalId: NodeJS.Timeout;
-
         async function fetchSlots() {
             if (selectedDate && selectedStaff && filteredStaff.length > 0) {
                 setIsLoadingSlots(true);
                 try {
-                    // Formato YYYY-MM-DD para la API
                     const dateStr = format(selectedDate, 'yyyy-MM-dd');
-
                     const staffToFetch = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
-
                     const newRanges: Record<string, { start: number, end: number }[]> = {};
-
                     await Promise.all(staffToFetch.map(async (s) => {
                         const ranges = await getTakenRanges(s.id, dateStr);
                         newRanges[s.id] = ranges;
                     }));
-
                     if (isMounted) setTakenRangesByStaff(newRanges);
-                } catch (error) {
-                    console.error(error);
-                } finally {
-                    if (isMounted) setIsLoadingSlots(false);
-                }
+                } catch (e) { console.error(e); } 
+                finally { if (isMounted) setIsLoadingSlots(false); }
             }
         }
-
         fetchSlots();
-
-        // Auto-refresh cada 30 segundos
         if (selectedDate && selectedStaff) {
             intervalId = setInterval(fetchSlots, 30000);
         }
-
-        return () => {
-            isMounted = false;
-            if (intervalId) clearInterval(intervalId);
-        };
+        return () => { isMounted = false; if (intervalId) clearInterval(intervalId); };
     }, [selectedDate, selectedStaff, filteredStaff]);
 
-    // Categorías de Servicios
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
             const cat = service.category || 'Populares';
@@ -221,61 +208,44 @@ export default function BookingWizard({
     }, [services]);
     const categoryOrder = Object.keys(groupedServices).sort();
 
-    // Generador de Slots
     const slots = useMemo(() => {
         if (!selectedDate || !selectedStaff) return [];
-
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
         const now = new Date();
-
         const staffToCheck = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
-
-        // Use a Map to ensure unique slots and sort them later
         const slotsMap = new Map<string, { label: string, value: string }>();
 
         staffToCheck.forEach((member) => {
             const workSchedule = schedules.find((s) => s.staff_id === member.id && s.day === dayName && s.is_active === true);
             if (!workSchedule) return;
-
             const takenRanges = takenRangesByStaff[member.id] || [];
-
             const currentTime = new Date(`${dateStr}T${workSchedule.start_time}`);
             const endTime = new Date(`${dateStr}T${workSchedule.end_time}`);
-
             while (currentTime < endTime) {
                 const slotStartMs = currentTime.getTime();
                 const slotEndMs = slotStartMs + (selectedService?.duration_min || 30) * 60000;
-
                 if (isSameDay(selectedDate, now) && currentTime < now) {
                     currentTime.setMinutes(currentTime.getMinutes() + 30);
                     continue;
                 }
-
                 const isTaken = takenRanges.some(range => (slotStartMs < range.end && slotEndMs > range.start));
-
                 if (!isTaken) {
                     const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
                     const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
-                    if (!slotsMap.has(timeValue)) {
-                        slotsMap.set(timeValue, { label: timeLabel, value: timeValue });
-                    }
+                    if (!slotsMap.has(timeValue)) slotsMap.set(timeValue, { label: timeLabel, value: timeValue });
                 }
                 currentTime.setMinutes(currentTime.getMinutes() + 30);
             }
         });
-
-        // Convert Map to Array and Sort by time (value)
         return Array.from(slotsMap.values()).sort((a, b) => a.value.localeCompare(b.value));
     }, [selectedDate, selectedStaff, schedules, takenRangesByStaff, selectedService, filteredStaff]);
 
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
         setIsSubmitting(true);
-
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dateTime = `${dateStr}T${selectedTime}`;
-
         const isAnyStaff = selectedStaff.id === 'any';
 
         const result = await createBooking({
@@ -296,239 +266,111 @@ export default function BookingWizard({
         setIsSubmitting(false);
         if (result.success && result.booking) {
             setBookingData(result.booking);
-            setSuccess(true);
+            if (result.payment_url) {
+                setPaymentUrl(result.payment_url);
+                window.location.href = result.payment_url;
+            } else {
+                setSuccess(true);
+            }
         } else {
             alert(result.error || "Error al reservar");
         }
     };
 
-    // --- COUNTDOWN TIMER STATE ---
-    const [countdown, setCountdown] = useState(15 * 60); // 15 minutes in seconds
-    const [whatsappSent, setWhatsappSent] = useState(false);
+    // --- CÁLCULO DE DEPÓSITO (Fase 29) ---
+    const calculateBreakdown = useMemo(() => {
+        if (!selectedService) return { total: 0, deposit: 0, balance: 0 };
+        const total = selectedService.price;
+        const mode = paymentRules?.mode || 'Libre';
+        const threshold = Number(paymentRules?.threshold_amount || 0);
+        let deposit = 0;
 
+        if (mode === 'Pago Total') {
+            deposit = total;
+        } else if (mode === 'Anticipo' && total >= threshold) {
+            if (paymentRules.deposit_type === 'percentage') {
+                deposit = (total * Number(paymentRules.deposit_value || 0)) / 100;
+            } else {
+                deposit = Math.min(total, Number(paymentRules.deposit_value || 0));
+            }
+        }
+
+        return {
+            total,
+            deposit,
+            balance: total - deposit
+        };
+    }, [selectedService, paymentRules]);
+
+    const [countdown, setCountdown] = useState(15 * 60);
     useEffect(() => {
         if (!success) return;
-        const timer = setInterval(() => {
-            setCountdown(prev => (prev <= 0 ? 0 : prev - 1));
-        }, 1000);
+        const timer = setInterval(() => setCountdown(prev => (prev <= 0 ? 0 : prev - 1)), 1000);
         return () => clearInterval(timer);
     }, [success]);
 
-    const formatCountdown = (seconds: number) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
-
-    // --- VISTA ÉXITO: URGENCY-DRIVEN CONFIRMATION SCREEN ---
+    // --- VISTA ÉXITO PREMIUM (Fase 29) ---
     if (success && bookingData) {
-        const calendarUrl = generateCalendarLink(bookingData, selectedService?.duration_min || 30);
-        const isGuest = !currentUser;
-        const hasEmail = !!bookingData.guest_email;
-        const isUrgent = countdown > 0 && !whatsappSent && !!whatsappPhone;
-        const isExpired = countdown <= 0 && !whatsappSent && !!whatsappPhone;
-
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-6 min-h-full flex flex-col overflow-y-auto"
-            >
-                {/* URGENCY HEADER */}
-                <div className="text-center mb-5">
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", delay: 0.1 }}
-                        className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl ${whatsappSent
-                            ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-green-200'
-                            : 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-200'
-                            }`}
-                    >
-                        {whatsappSent ? (
-                            <Check size={40} strokeWidth={3} className="text-white" />
-                        ) : (
-                            <MessageCircle size={36} strokeWidth={2.5} className="text-white" />
-                        )}
-                    </motion.div>
-
-                    {whatsappSent ? (
-                        <>
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Cita Asegurada! ✅</h2>
-                            <p className="text-gray-500 text-sm mt-1">Tu {staffLabel.toLowerCase()} ya fue notificado, {bookingData.guest_name.split(' ')[0]}</p>
-                        </>
-                    ) : whatsappPhone ? (
-                        <>
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">⚠️ Paso final obligatorio</h2>
-                            <p className="text-gray-600 text-sm mt-2 leading-relaxed px-2">
-                                Para asegurar tu lugar, confirma tu cita por WhatsApp ahora mismo.
-                            </p>
-                        </>
-                    ) : (
-                        <>
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight">¡Cita Reservada! ✅</h2>
-                            <p className="text-gray-500 text-sm mt-1">Tu cita ha sido registrada, {bookingData.guest_name.split(' ')[0]}</p>
-                        </>
-                    )}
-                </div>
-
-                {/* COUNTDOWN TIMER - only show if not confirmed */}
-                {!whatsappSent && whatsappPhone && (
-                    <motion.div
-                        initial={{ y: 10, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.15 }}
-                        className={`rounded-2xl p-4 mb-5 text-center border ${isExpired
-                            ? 'bg-red-50 border-red-200'
-                            : countdown < 300
-                                ? 'bg-amber-50 border-amber-200'
-                                : 'bg-orange-50 border-orange-200'
-                            }`}
-                    >
-                        <div className={`text-3xl font-black font-mono tracking-wider ${isExpired ? 'text-red-600' : countdown < 300 ? 'text-amber-600' : 'text-orange-600'
-                            }`}>
-                            {isExpired ? '00:00' : formatCountdown(countdown)}
-                        </div>
-                        <p className={`text-xs font-medium mt-1 ${isExpired ? 'text-red-500' : 'text-gray-500'
-                            }`}>
-                            {isExpired
-                                ? 'Tu horario puede ser tomado por otro cliente'
-                                : 'Tu lugar se reserva mientras confirmas'}
-                        </p>
-                    </motion.div>
-                )}
-
-                {/* Digital Ticket Card - Compact */}
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="bg-white rounded-3xl border-2 border-gray-100 shadow-xl overflow-hidden mb-5"
-                >
-                    <div className="bg-brand h-2" />
-                    <div className="p-5 space-y-4">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Servicio</span>
-                                <p className="font-black text-xl text-gray-900">{bookingData.service_name}</p>
-                            </div>
-                            <span className="font-black text-xl text-gray-900 bg-gray-50 px-4 py-2 rounded-xl">
-                                ${bookingData.service_price}
-                            </span>
-                        </div>
-
-                        <div className="flex gap-4">
-                            <div className="flex-1 bg-gray-50 p-3 rounded-xl">
-                                <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Fecha</span>
-                                <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
-                                    <Calendar size={14} className="text-brand" />
-                                    {bookingData.date_formatted}
-                                </div>
-                            </div>
-                            <div className="flex-1 bg-gray-50 p-3 rounded-xl">
-                                <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Hora</span>
-                                <div className="flex items-center gap-2 font-bold text-sm text-gray-900">
-                                    <Clock size={14} className="text-brand" />
-                                    {bookingData.time_formatted}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
-                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                                <User size={18} className="text-gray-500" />
-                            </div>
-                            <div>
-                                <span className="text-xs text-gray-400">Con</span>
-                                <p className="font-bold text-gray-900">{bookingData.staff_name}</p>
-                            </div>
-                        </div>
-                    </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 flex flex-col items-center justify-center min-h-full text-center">
+                <motion.div variants={checkmarkVariants} initial="hidden" animate="visible" className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-white mb-6 shadow-2xl shadow-green-200">
+                    <Check size={48} strokeWidth={4} />
                 </motion.div>
 
-                {/* PRIMARY CTA: WhatsApp Confirmation — routes to staff if phone exists, else business */}
-                {(() => {
-                    const staffPhone = selectedStaff?.phone?.replace(/\D/g, '');
-                    const targetPhone = staffPhone || whatsappPhone;
-                    const targetName = staffPhone ? selectedStaff?.full_name : tenantName;
-                    if (!targetPhone) return null;
-                    return (
-                        <motion.a
-                            initial={{ y: 10, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 }}
-                            href={generateWhatsAppConfirmation(bookingData, targetPhone, targetName || undefined)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setWhatsappSent(true)}
-                            className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-base uppercase tracking-wide transition-all active:scale-[0.97] mb-4 ${whatsappSent
-                                ? 'bg-gray-100 text-gray-500'
-                                : 'bg-[#25D366] hover:bg-[#1fba59] text-white shadow-xl shadow-green-300/40 animate-pulse hover:animate-none'
-                                }`}
-                        >
-                            <MessageCircle size={22} />
-                            {whatsappSent
-                                ? '✓ WhatsApp Enviado'
-                                : staffPhone
-                                    ? `CONFIRMAR CON ${selectedStaff?.full_name?.split(' ')[0]?.toUpperCase()} →`
-                                    : 'CONFIRMAR POR WHATSAPP →'
-                            }
-                        </motion.a>
-                    );
-                })()}
+                <h2 className="text-3xl font-black text-gray-900 mb-2">¡Cita Confirmada!</h2>
+                <p className="text-gray-500 mb-8">Todo listo para tu visita a {tenantName}</p>
 
-                {/* Secondary actions - minimal */}
-                <div className="flex flex-col items-center gap-2 mt-2">
-                    <a
-                        href={calendarUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
-                    >
-                        <CalendarPlus size={12} />
-                        Añadir a mi calendario
-                    </a>
+                <div className="w-full bg-white rounded-3xl border-2 border-gray-50 p-6 shadow-sm mb-8 space-y-4">
+                    <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-bold uppercase tracking-widest">Servicio</span>
+                        <span className="font-black text-gray-900">{bookingData.service_name}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-bold uppercase tracking-widest">Cuándo</span>
+                        <span className="font-black text-gray-900">{bookingData.date_formatted} - {bookingData.time_formatted}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                        <span className="text-gray-400 font-bold uppercase tracking-widest">Atiende</span>
+                        <span className="font-black text-gray-900">{bookingData.staff_name}</span>
+                    </div>
                 </div>
 
-                {/* CONTEXT-AWARE FOOTER - Minimal */}
-                {
-                    isGuest ? (
-                        <div className="mt-auto pt-6 flex flex-col gap-2">
-                            <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
-                                <div className="flex items-start gap-3">
-                                    <Gift size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-xs text-gray-600">
-                                            <span className="font-bold text-gray-800">¿Quieres descuentos?</span> Crea una cuenta y acumula puntos.
-                                        </p>
-                                        <Link
-                                            href={hasEmail ? `/login?mode=signup&email=${encodeURIComponent(bookingData.guest_email || '')}` : '/login?mode=signup'}
-                                            className="text-xs text-amber-600 font-bold hover:text-amber-700 mt-1 inline-block"
-                                        >
-                                            Crear cuenta gratis →
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                            <Link
-                                href="/login"
-                                className="text-center text-xs text-gray-400 hover:text-gray-600 py-1"
-                            >
-                                ¿Ya tienes cuenta? <span className="font-bold">Iniciar Sesión</span>
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="mt-auto pt-4 text-center">
-                            <Link
-                                href="/app"
-                                className="text-xs text-gray-400 hover:text-gray-600 font-medium"
-                            >
-                                Ver mis citas →
-                            </Link>
-                        </div>
-                    )
-                }
-            </motion.div >
+                <div className="grid grid-cols-1 gap-3 w-full">
+                    <a 
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenantName || '')}`}
+                        target="_blank"
+                        className="flex items-center justify-center gap-2 w-full py-4 bg-black text-white rounded-2xl font-bold transition-all hover:scale-[1.02] active:scale-95"
+                    >
+                        <MapPin size={18} /> Abrir en Google Maps
+                    </a>
+                    
+                    {whatsappPhone && (
+                        <a 
+                            href={generateWhatsAppReminder(bookingData, whatsappPhone, tenantName || 'Negocio')}
+                            target="_blank"
+                            className="flex items-center justify-center gap-2 w-full py-4 bg-green-500 text-white rounded-2xl font-bold transition-all hover:scale-[1.02] active:scale-95"
+                        >
+                            <MessageCircle size={18} /> Enviar recordatorio WhatsApp
+                        </a>
+                    )}
+
+                    <button 
+                        onClick={() => window.location.href = '/app'}
+                        className="text-gray-400 font-bold text-sm py-2"
+                    >
+                        Ver mis próximas citas
+                    </button>
+                </div>
+
+                <div className="mt-8 pt-8 border-t border-gray-100 w-full">
+                    <p className="text-[10px] text-gray-300 font-bold uppercase tracking-[0.2em] mb-4">Añadir a Calendario</p>
+                    <div className="flex justify-center gap-4">
+                        <a href={generateCalendarLink(bookingData, selectedService?.duration_min || 30)} target="_blank" className="p-3 bg-gray-50 rounded-xl text-gray-400 hover:text-black transition-colors">
+                            <CalendarPlus size={20} />
+                        </a>
+                    </div>
+                </div>
+            </motion.div>
         );
     }
 
@@ -542,56 +384,37 @@ export default function BookingWizard({
                             <ChevronLeft size={20} />
                         </button>
                     ) : <div className="w-9" />}
-
-                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Paso {step} de 4</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Paso {step} de 5</span>
                     <div className="w-9" />
                 </div>
-                {/* Barra de progreso */}
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                        className="h-full bg-brand"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(step / 4) * 100}%` }}
-                        transition={{ duration: 0.3 }}
-                    />
+                    <motion.div className="h-full bg-brand" initial={{ width: 0 }} animate={{ width: `${(step / 5) * 100}%` }} transition={{ duration: 0.3 }} />
                 </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                 <AnimatePresence mode="wait">
-
-                    {/* --- PASO 1: SERVICIOS --- */}
+                    {/* PASO 1: SERVICIOS */}
                     {step === 1 && (
                         <motion.section key="step1" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4 space-y-8 pb-24">
                             <div className="px-2">
                                 <h2 className="text-2xl font-black text-gray-900 leading-tight">Elige tu<br />Experiencia</h2>
                             </div>
-
                             {categoryOrder.map(category => (
                                 <div key={category}>
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2 flex items-center gap-2">
-                                        {category}
-                                    </h3>
+                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2">{category}</h3>
                                     <div className="space-y-3">
                                         {groupedServices[category].map((service) => (
-                                            <button
-                                                key={service.id}
-                                                onClick={() => { setSelectedService(service); setStep(2); }}
-                                                className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:border-black/5 active:scale-[0.98] transition-all text-left group"
-                                            >
+                                            <button key={service.id} onClick={() => { setSelectedService(service); setStep(2); }} className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left">
                                                 <div className="flex justify-between items-start gap-4">
-                                                    <div className="flex-1 min-w-0">
-                                                        <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
-                                                        {service.description && (
-                                                            <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">{service.description}</p>
-                                                        )}
+                                                    <div className="flex-1">
+                                                        <span className="font-bold text-gray-900 text-lg block">{service.name}</span>
+                                                        {service.description && <p className="text-sm text-gray-500 mt-1">{service.description}</p>}
                                                         <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-2">
                                                             <Clock size={12} /> {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-gray-900 text-base bg-gray-50 px-3 py-1.5 rounded-xl flex-shrink-0">
-                                                        ${service.price}
-                                                    </span>
+                                                    <span className="font-black text-brand bg-brand/5 px-3 py-1.5 rounded-xl">${service.price}</span>
                                                 </div>
                                             </button>
                                         ))}
@@ -601,226 +424,168 @@ export default function BookingWizard({
                         </motion.section>
                     )}
 
-                    {/* --- PASO 2: STAFF --- */}
+                    {/* PASO 2: STAFF */}
                     {step === 2 && (
-                        <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4 h-full">
+                        <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4">
                             <div className="px-2 mb-6">
                                 <h2 className="text-2xl font-black text-gray-900">¿Con quién?</h2>
                                 <p className="text-gray-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                {/* Opción Cualquiera / Load Balancer */}
                                 <button
-                                    onClick={() => {
-                                        setSelectedStaff({
-                                            id: 'any',
-                                            full_name: 'Cualquiera',
-                                            role: 'Staff',
-                                            avatar_url: null
-                                        });
-                                        setStep(3);
-                                    }}
-                                    className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center group active:scale-95 flex flex-col items-center gap-3 aspect-[3/4] justify-center"
+                                    onClick={() => { setSelectedStaff({ id: 'any', full_name: 'Cualquiera', role: 'Staff', avatar_url: null }); setStep(3); }}
+                                    className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-3 aspect-square justify-center"
                                 >
-                                    <div className="w-20 h-20 rounded-full overflow-hidden relative shadow-md group-hover:scale-105 transition-transform border-4 border-amber-100 bg-amber-50 flex items-center justify-center">
+                                    <div className="w-20 h-20 rounded-full bg-amber-50 border-4 border-amber-100 flex items-center justify-center">
                                         <Sparkles size={32} className="text-amber-500" />
                                     </div>
-                                    <div>
-                                        <span className="font-bold text-gray-900 block">Cualquiera</span>
-                                        <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                                            Disponible
-                                        </div>
-                                    </div>
+                                    <span className="font-bold text-gray-900 block">Cualquiera</span>
                                 </button>
-
                                 {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
                                         onClick={() => { setSelectedStaff(member); setStep(3); }}
-                                        className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center group active:scale-95 flex flex-col items-center gap-3 aspect-[3/4] justify-center"
+                                        className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-3 aspect-square justify-center"
                                     >
-                                        <div className="w-20 h-20 rounded-full overflow-hidden relative shadow-md group-hover:scale-105 transition-transform border-4 border-white">
-                                            {member.avatar_url ? (
-                                                <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 font-bold text-2xl">{member.full_name[0]}</div>
-                                            )}
+                                        <div className="w-20 h-20 rounded-full overflow-hidden relative border-4 border-white shadow-md bg-gray-100">
+                                            {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 font-bold text-2xl">{member.full_name[0]}</div>}
                                         </div>
-                                        <div>
-                                            <span className="font-bold text-gray-900 block">{member.full_name.split(' ')[0]}</span>
-                                            <div className="flex items-center justify-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">
-                                                {staffLabel}
-                                            </div>
-                                        </div>
+                                        <span className="font-bold text-gray-900 block truncate w-full px-2">{member.full_name.split(' ')[0]}</span>
                                     </button>
                                 ))}
                             </div>
                         </motion.section>
                     )}
 
-                    {/* --- PASO 3: FECHA (CALENDARIO HORIZONTAL) --- */}
+                    {/* PASO 3: FECHA */}
                     {step === 3 && (
                         <motion.section key="step3" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="flex flex-col h-full">
                             <div className="p-6 pb-2">
                                 <h2 className="text-2xl font-black text-gray-900">Agenda</h2>
                                 <p className="text-gray-500 text-sm">Busca un hueco disponible.</p>
                             </div>
-
-                            {/* DATE STRIP (Scroll Horizontal) */}
-                            <div className="pl-6 py-4 overflow-x-auto hide-scrollbar flex gap-3 snap-x">
+                            <div className="pl-6 py-4 overflow-x-auto hide-scrollbar flex gap-3">
                                 {dates.map((date, i) => {
                                     const isSelected = selectedDate && isSameDay(date, selectedDate);
                                     return (
-                                        <button
-                                            key={i}
-                                            onClick={() => { setSelectedDate(date); setSelectedTime(""); }}
-                                            className={`snap-start min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected
-                                                ? "bg-brand text-brand-foreground border-brand shadow-lg scale-105"
-                                                : "bg-white text-gray-400 border-gray-200 hover:border-gray-400"
-                                                }`}
-                                        >
-                                            <span className="text-[10px] font-bold uppercase tracking-wider mb-1">
-                                                {format(date, 'EEE', { locale: es })}
-                                            </span>
-                                            <span className="text-xl font-black">
-                                                {format(date, 'd')}
-                                            </span>
+                                        <button key={i} onClick={() => { setSelectedDate(date); setSelectedTime(""); }} className={`min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected ? "bg-brand text-white border-brand shadow-lg scale-105" : "bg-white text-gray-400 border-gray-100"}`}>
+                                            <span className="text-[10px] font-bold uppercase mb-1">{format(date, 'EEE', { locale: es })}</span>
+                                            <span className="text-xl font-black">{format(date, 'd')}</span>
                                         </button>
                                     )
                                 })}
                             </div>
-
-                            <div className="flex-1 p-6 bg-white rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] border-t border-gray-100 overflow-y-auto">
-                                {!selectedDate ? (
-                                    <div className="text-center py-10 text-gray-300">
-                                        <Calendar size={48} className="mx-auto mb-2 opacity-20" />
-                                        <p className="text-sm">Selecciona un día arriba</p>
-                                    </div>
-                                ) : isLoadingSlots ? (
-                                    <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                                        <Loader2 className="animate-spin mb-2" />
-                                        <span className="text-xs">Cargando horas...</span>
-                                    </div>
-                                ) : slots.length === 0 ? (
-                                    <div className="text-center py-10">
-                                        <p className="text-gray-900 font-bold">No hay horarios disponibles</p>
-                                        <p className="text-xs text-gray-500">Intenta otro día u otro {staffLabel.toLowerCase()}.</p>
-                                    </div>
-                                ) : (
+                            <div className="flex-1 p-6 bg-white rounded-t-[32px] shadow-sm border-t border-gray-50 overflow-y-auto">
+                                {!selectedDate ? <div className="text-center py-10 text-gray-300">Selecciona un día</div> : isLoadingSlots ? <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div> : slots.length === 0 ? <div className="text-center py-10 text-gray-500 font-bold">No hay horarios disponibles</div> : (
                                     <div className="grid grid-cols-3 gap-3">
                                         {slots.map((s: any) => (
-                                            <button
-                                                key={s.value}
-                                                onClick={() => setSelectedTime(s.value)}
-                                                className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${selectedTime === s.value
-                                                    ? "bg-brand text-brand-foreground border-brand shadow-md transform scale-105"
-                                                    : "bg-white text-gray-700 border-gray-100 hover:border-brand/30"
-                                                    }`}
-                                            >
+                                            <button key={s.value} onClick={() => setSelectedTime(s.value)} className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${selectedTime === s.value ? "bg-black text-white border-black shadow-md" : "bg-white text-gray-700 border-gray-50 hover:border-gray-200"}`}>
                                                 {s.label}
                                             </button>
                                         ))}
                                     </div>
                                 )}
                             </div>
-
                             {selectedTime && (
-                                <div className="p-4 bg-white border-t border-gray-100 safe-area-bottom">
-                                    <button onClick={() => setStep(4)} className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 active:scale-95 transition-all">
-                                        Continuar
-                                    </button>
+                                <div className="p-4 bg-white border-t border-gray-50">
+                                    <button onClick={() => setStep(4)} className="w-full bg-black text-white py-4 rounded-2xl font-bold">Continuar</button>
                                 </div>
                             )}
                         </motion.section>
                     )}
 
-                    {/* --- PASO 4: CONFIRMACIÓN (FIXED INPUTS) --- */}
+                    {/* PASO 4: DATOS CLIENTE */}
                     {step === 4 && (
-                        <motion.section key="step4" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 h-full flex flex-col">
-                            <h2 className="text-2xl font-black text-gray-900 mb-6">Confirma tu cita</h2>
-
-                            <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl mb-8 space-y-4 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-2 bg-brand"></div>
-                                <div className="flex justify-between items-center border-b border-gray-100 pb-4">
-                                    <div>
-                                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Servicio</span>
-                                        <span className="font-black text-xl text-gray-900">{selectedService?.name}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Precio</span>
-                                        <span className="font-black text-xl text-gray-900">${selectedService?.price}</span>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="flex-1 bg-gray-50 p-3 rounded-xl">
-                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Fecha</span>
-                                        <div className="flex items-center gap-2 font-bold text-sm">
-                                            <Calendar size={14} className="text-brand" />
-                                            {selectedDate && format(selectedDate, 'dd MMM', { locale: es })}
-                                        </div>
-                                    </div>
-                                    <div className="flex-1 bg-gray-50 p-3 rounded-xl">
-                                        <span className="text-[10px] text-gray-400 font-bold uppercase block mb-1">Hora</span>
-                                        <div className="flex items-center gap-2 font-bold text-sm">
-                                            <Clock size={14} className="text-brand" />
-                                            {selectedTime}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
+                        <motion.section key="step4" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 flex flex-col">
+                            <h2 className="text-2xl font-black text-gray-900 mb-6">Tus Datos</h2>
                             <div className="space-y-4 flex-1">
-                                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">
-                                    Tus Datos <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative group">
-                                    <User size={18} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-black transition-colors" />
-                                    <input
-                                        type="text"
-                                        value={clientData.name}
-                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
-                                        placeholder="Tu nombre *"
-                                        onChange={(e) => setClientData({ ...clientData, name: e.target.value })}
-                                    />
+                                <div className="relative">
+                                    <User size={18} className="absolute left-4 top-4 text-gray-400" />
+                                    <input type="text" value={clientData.name} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="Nombre completo" onChange={(e) => setClientData({ ...clientData, name: e.target.value })} />
                                 </div>
-                                <div className="relative group">
-                                    <Phone size={18} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-black transition-colors" />
-                                    <input
-                                        type="tel"
-                                        value={clientData.phone}
-                                        className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
-                                        placeholder="WhatsApp (10 dígitos) *"
-                                        onChange={(e) => {
-                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            setClientData({ ...clientData, phone: val });
-                                        }}
-                                    />
-                                    {clientData.phone.length > 0 && clientData.phone.length < 10 && (
-                                        <p className="text-[10px] text-amber-600 font-bold mt-1 ml-1">Debe tener 10 dígitos</p>
-                                    )}
+                                <div className="relative">
+                                    <Phone size={18} className="absolute left-4 top-4 text-gray-400" />
+                                    <input type="tel" value={clientData.phone} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="WhatsApp (10 dígitos)" onChange={(e) => setClientData({ ...clientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
                                 </div>
                                 {!currentUser && (
-                                    <div className="relative group">
-                                        <Mail size={18} className="absolute left-4 top-4 text-gray-400 group-focus-within:text-black transition-colors" />
-                                        <input
-                                            type="email"
-                                            className="w-full pl-12 p-4 bg-gray-50 border border-transparent rounded-2xl font-bold focus:bg-white focus:border-brand focus:ring-0 transition-all outline-none"
-                                            placeholder="Correo (Opcional)"
-                                            onChange={(e) => setClientData({ ...clientData, email: e.target.value })}
-                                        />
+                                    <div className="relative">
+                                        <Mail size={18} className="absolute left-4 top-4 text-gray-400" />
+                                        <input type="email" value={clientData.email} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="Email (opcional)" onChange={(e) => setClientData({ ...clientData, email: e.target.value })} />
                                     </div>
                                 )}
                             </div>
+                            <button 
+                                onClick={() => setStep(5)} 
+                                disabled={!clientData.name || clientData.phone.length !== 10} 
+                                className="w-full bg-black text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8"
+                            >
+                                Revisar Resumen
+                            </button>
+                        </motion.section>
+                    )}
 
-                            {/* Sticky button for mobile */}
-                            <div className="sticky bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 -mx-6 -mb-6 mt-6 z-20">
+                    {/* PASO 5: RESUMEN Y PAGO (Fase 29) */}
+                    {step === 5 && (
+                        <motion.section key="step5" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 h-full flex flex-col">
+                            <h2 className="text-2xl font-black text-gray-900 mb-6">Resumen de Pago</h2>
+                            
+                            <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden mb-6">
+                                <div className="p-6 bg-gray-50/50 border-b border-gray-100">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Servicio Reservado</p>
+                                            <h3 className="text-xl font-black text-gray-900">{selectedService?.name}</h3>
+                                            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                                                <Calendar size={14} /> {selectedDate && format(selectedDate, 'dd MMMM', { locale: es })} @ {selectedTime}
+                                            </p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="font-black text-xl text-gray-900">${selectedService?.price}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 space-y-4">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <div className="flex items-center gap-2 text-gray-500 font-medium">
+                                            <Wallet size={16} className="text-brand" /> Pago hoy para asegurar
+                                        </div>
+                                        <span className="font-black text-brand text-lg">${calculateBreakdown.deposit.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <div className="flex items-center gap-2 text-gray-400 font-medium">
+                                            <CreditCard size={16} /> Pago restante en sucursal
+                                        </div>
+                                        <span className="font-black text-gray-400">${calculateBreakdown.balance.toLocaleString()}</span>
+                                    </div>
+                                    
+                                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Total del Servicio</span>
+                                        <span className="text-2xl font-black text-gray-900">${calculateBreakdown.total.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 mt-auto">
+                                <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                    <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                                    <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                                        Tu pago está protegido por <b>Mercado Pago</b>. <br />
+                                        {calculateBreakdown.deposit > 0 ? "Al confirmar, serás redirigido para completar el anticipo." : "No se requiere pago previo para este servicio."}
+                                    </p>
+                                </div>
+
                                 <button
                                     onClick={handleBooking}
-                                    disabled={!clientData.name || clientData.phone.length !== 10 || isSubmitting}
-                                    className="w-full bg-brand text-brand-foreground py-4 rounded-2xl font-bold text-lg shadow-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center transition-all active:scale-95"
+                                    disabled={isSubmitting}
+                                    className="w-full bg-brand text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-brand/20 active:scale-95 transition-all flex justify-center items-center gap-2"
                                 >
-                                    {isSubmitting ? <Loader2 className="animate-spin" /> : "Confirmar Reserva"}
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : (calculateBreakdown.deposit > 0 ? "PROCEDER AL PAGO →" : "CONFIRMAR RESERVA")}
                                 </button>
+                                
+                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest px-4">
+                                    Al continuar, aceptas nuestras políticas de cancelación.
+                                </p>
                             </div>
                         </motion.section>
                     )}

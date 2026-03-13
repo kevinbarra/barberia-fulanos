@@ -2,6 +2,7 @@
 
 import { StaffBreakdownData } from '@/hooks/useAnalyticsData'
 import { Users, Banknote, CreditCard, ArrowRightLeft, RefreshCw } from 'lucide-react'
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 interface StaffFinanceTableProps {
     data: StaffBreakdownData | null
@@ -14,6 +15,7 @@ export default function StaffFinanceTable({
     isLoading = false,
     onRefresh
 }: StaffFinanceTableProps) {
+    const { vocabulary } = useVocabulary()
     const breakdown = data?.breakdown || []
     const totals = data?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
 
@@ -40,7 +42,7 @@ export default function StaffFinanceTable({
                 <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center mx-auto mb-3">
                     <Users className="w-6 h-6 text-gray-300" />
                 </div>
-                <p className="text-sm text-gray-500">Sin transacciones por barbero</p>
+                <p className="text-sm text-gray-500">Sin transacciones por {vocabulary.staff_singular.toLowerCase()}</p>
             </div>
         )
     }
@@ -54,8 +56,8 @@ export default function StaffFinanceTable({
                         <Users className="w-5 h-5 text-violet-600" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-gray-900">Corte por Barbero</h3>
-                        <p className="text-xs text-gray-500">{breakdown.length} barbero{breakdown.length !== 1 ? 's' : ''}</p>
+                        <h3 className="font-semibold text-gray-900">Corte por {vocabulary.staff_singular}</h3>
+                        <p className="text-xs text-gray-500">{breakdown.length} {vocabulary.staff_singular.toLowerCase()}{breakdown.length !== 1 ? (vocabulary.staff_plural.endsWith('s') ? '' : 's') : ''}</p>
                     </div>
                 </div>
                 {onRefresh && (
@@ -74,7 +76,7 @@ export default function StaffFinanceTable({
                     <thead>
                         <tr className="bg-gray-50/50">
                             <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                                Barbero
+                                {vocabulary.staff_singular}
                             </th>
                             <th className="text-right px-4 py-3">
                                 <div className="flex items-center justify-end gap-1.5">

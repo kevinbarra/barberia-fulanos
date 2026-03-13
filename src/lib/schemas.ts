@@ -28,7 +28,7 @@ export type FinalizeTicketInput = z.infer<typeof finalizeTicketSchema>;
 export const createBookingSchema = z.object({
     tenant_id: z.string().uuid("ID de negocio inválido"),
     service_id: z.string().uuid("ID de servicio inválido"),
-    staff_id: z.string().uuid("ID de barbero inválido"),
+    staff_id: z.string().uuid("ID de personal inválido"),
     start_time: z.string().min(1, "Hora de inicio requerida"),
     client_name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
     client_phone: z.string().min(10, "Teléfono inválido"),

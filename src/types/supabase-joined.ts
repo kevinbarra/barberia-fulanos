@@ -35,6 +35,9 @@ export type PosBookingData = {
     profiles: JoinedProfile | null; // Staff
     services: JoinedService | null;
     customer: JoinedProfile | null; // Customer
+    total_price?: number | null;
+    paid_amount?: number | null;
+    payment_status?: string | null;
 };
 
 // Generic response wrapper if needed

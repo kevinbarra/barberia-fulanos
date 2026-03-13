@@ -27,8 +27,10 @@ export async function inviteStaff(formData: FormData) {
     if (!emailRaw) return { error: 'Email requerido' }
     const email = emailRaw.toLowerCase().trim()
 
+    const staff_category = formData.get('staff_category') as string || 'barber'
+    const role_alias = formData.get('role_alias') as string || null
+
     // --- VERIFICAR SI EL USUARIO YA EXISTE EN EL SISTEMA ---
-    // Usamos adminClient para bypasear RLS y encontrar usuarios de cualquier tenant
     const adminSupabase = createAdminClient()
     const { data: existingUser } = await adminSupabase
         .from('profiles')
@@ -43,12 +45,14 @@ export async function inviteStaff(formData: FormData) {
             return { error: 'Este usuario ya es parte activa de tu equipo.' }
         }
 
-        // Caso 2: Es un usuario existente (cliente u otro) - PROMOVER DIRECTAMENTE
+        // Caso 2: Es un usuario existente - PROMOVER DIRECTAMENTE
         const { error: updateError } = await adminSupabase
             .from('profiles')
             .update({
                 role: 'staff',
-                tenant_id: requester.tenant_id
+                tenant_id: requester.tenant_id,
+                staff_category,
+                role_alias
             })
             .eq('id', existingUser.id)
 
@@ -62,14 +66,14 @@ export async function inviteStaff(formData: FormData) {
     }
 
     // --- USUARIO NO EXISTE: CREAR INVITACIÓN PENDIENTE ---
-    // 3. Registrar Invitación en Base de Datos (Upsert permite re-enviar si está pendiente)
     const { error: inviteError } = await supabase
         .from('staff_invitations')
         .upsert({
             tenant_id: requester.tenant_id,
             email: email,
             role: 'staff',
-            status: 'pending'
+            status: 'pending',
+            metadata: { staff_category, role_alias } // Guardar en metadata para aplicarlo al aceptar
         }, { onConflict: 'tenant_id, email' })
 
     if (inviteError) {
@@ -80,9 +84,7 @@ export async function inviteStaff(formData: FormData) {
     // 4. Preparar Datos del Correo
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const inviteLink = `${baseUrl}/login?email=${encodeURIComponent(email)}`;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const businessName = (requester.tenants as any)?.name || "La Barbería";
+    const businessName = (requester.tenants as any)?.name || "Nuestro Negocio";
 
     // 5. Enviar el Correo Real
     const emailResult = await sendStaffInvitation({
@@ -93,7 +95,6 @@ export async function inviteStaff(formData: FormData) {
 
     revalidatePath('/admin/team')
 
-    // 6. Retornar Resultado
     if (emailResult.success) {
         return { success: true, message: `Invitación enviada a ${email}` }
     } else {
@@ -149,6 +150,12 @@ export async function removeStaff(targetId: string) {
         .update({ role: 'customer', tenant_id: null })
         .eq('id', targetId)
         .eq('tenant_id', tenantId) // TENANT ISOLATION
+
+    // Cleanup skills
+    await supabase
+        .from('staff_skills')
+        .delete()
+        .eq('staff_id', targetId)
 
     if (invError && profError) {
         return { error: 'No se pudo encontrar el usuario o invitación.' }
@@ -241,8 +248,8 @@ export async function changeUserRole(targetId: string, newRole: string) {
 // --- TOGGLE STAFF STATUS FLAGS ---
 export async function toggleStaffStatus(
     targetId: string,
-    field: 'is_active_barber' | 'is_calendar_visible',
-    value: boolean
+    field: 'is_active_barber' | 'is_calendar_visible' | 'staff_category' | 'role_alias',
+    value: any
 ) {
     const supabase = await createClient()
 
@@ -293,8 +300,7 @@ export async function toggleStaffStatus(
     revalidatePath('/admin/bookings')
     // Booking widget paths are dynamic, but we revalidate what we can
 
-    const fieldLabel = field === 'is_active_barber' ? 'estado de barbero' : 'visibilidad en calendario'
-    return { success: true, message: `${fieldLabel} actualizado` }
+    return { success: true, message: `Perfil actualizado` }
 }
 
 // --- UPDATE STAFF WHATSAPP PHONE ---
@@ -345,7 +351,64 @@ export async function updateStaffPhone(targetId: string, phone: string) {
     return { success: true, message: 'WhatsApp actualizado' }
 }
 
-// --- TOGGLE STAFF SERVICE LINKAGE ---
+// --- TOGGLE STAFF SKILL LINKAGE (MATRIZ DE COMPETENCIAS) ---
+export async function toggleStaffSkill(staffId: string, serviceId: string, enabled: boolean) {
+    const supabase = await createClient()
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: 'No autorizado' }
+
+    // Get requester info
+    const { data: requester } = await supabase
+        .from('profiles')
+        .select('role, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!requester || (requester.role !== 'owner' && requester.role !== 'super_admin')) {
+        return { error: 'No autorizado' }
+    }
+
+    const tenantId = requester.role === 'super_admin'
+        ? await getTenantIdForAdmin()
+        : requester.tenant_id
+
+    if (!tenantId) return { error: 'Tenant no encontrado' }
+
+    if (enabled) {
+        // Create link in staff_skills
+        const { error } = await supabase
+            .from('staff_skills')
+            .upsert({ 
+                staff_id: staffId, 
+                service_id: serviceId,
+                tenant_id: tenantId 
+            }, { onConflict: 'staff_id, service_id' })
+
+        if (error) {
+            console.error('Error linking skill:', error)
+            return { error: 'Error al vincular competencia' }
+        }
+    } else {
+        // Delete link from staff_skills
+        const { error } = await supabase
+            .from('staff_skills')
+            .delete()
+            .eq('staff_id', staffId)
+            .eq('service_id', serviceId)
+
+        if (error) {
+            console.error('Error unlinking skill:', error)
+            return { error: 'Error al desvincular competencia' }
+        }
+    }
+
+    revalidatePath('/admin/team')
+    revalidatePath('/book/[slug]')
+    return { success: true }
+}
+
+// --- TOGGLE STAFF SERVICE LINKAGE (LEGACY/BACKWARD COMPAT) ---
 export async function toggleStaffService(staffId: string, serviceId: string, enabled: boolean) {
     const supabase = await createClient()
 

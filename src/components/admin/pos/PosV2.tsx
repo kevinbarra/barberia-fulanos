@@ -17,6 +17,7 @@ import QRScanner from '@/components/admin/QRScanner'
 import ClientSelector from '@/components/admin/pos/ClientSelector'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 // Type for selected client from ClientSelector
 interface SelectedClient {
@@ -122,9 +123,7 @@ export default function PosV2({
     const currency = settings.currency_symbol || '$'
     const businessType = settings.business_type || 'barber'
 
-    // Terminology
-    const staffLabel = businessType === 'barber' ? 'Barbero' : 'Personal'
-    const staffLabelPlural = businessType === 'barber' ? 'Barberos' : 'Equipo'
+    const { vocabulary } = useVocabulary()
 
     // Ref to prevent duplicate QR scan processing (sync check)
     const isLinkingRef = useRef(false)
@@ -217,7 +216,7 @@ export default function PosV2({
 
     const handleCreateTicket = async () => {
         if (!selectedStaff || selectedServices.length === 0) {
-            toast.error('Selecciona barbero y al menos un servicio')
+            toast.error(`Selecciona ${vocabulary.staff_singular.toLowerCase()} y al menos un servicio`)
             return
         }
 
@@ -689,7 +688,7 @@ export default function PosV2({
                             <div className="flex items-center gap-4 mb-4">
                                 {/* Staff Selector */}
                                 <div className="flex-1">
-                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">{staffLabel}</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase block mb-2">{vocabulary.staff_singular}</label>
                                     <div className="flex gap-2 overflow-x-auto pb-2">
                                         {staff.map(member => (
                                             <button

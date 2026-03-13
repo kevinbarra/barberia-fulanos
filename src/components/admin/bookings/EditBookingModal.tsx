@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { rescheduleBooking } from '@/app/admin/bookings/actions';
 import { format, addDays } from 'date-fns';
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider';
 
 // Map JS getDay() (0=Sun) to DB day names
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -62,6 +63,7 @@ export default function EditBookingModal({
     staffSchedules = [],
     onSuccess,
 }: EditBookingModalProps) {
+    const { vocabulary } = useVocabulary();
     // Parse current booking date into local date/time inputs
     const currentLocalDate = new Date(currentDate);
     const dateDefault = format(currentLocalDate, 'yyyy-MM-dd');
@@ -137,12 +139,12 @@ export default function EditBookingModal({
         }
 
         if (isDayOff) {
-            toast.error('El barbero no trabaja este día.');
+            toast.error(`El ${vocabulary.staff_singular.toLowerCase()} no trabaja este día.`);
             return;
         }
 
         if (!isTimeValid) {
-            toast.error('Selecciona un horario válido dentro del turno del barbero.');
+            toast.error(`Selecciona un horario válido dentro del turno del ${vocabulary.staff_singular.toLowerCase()}.`);
             return;
         }
 
@@ -233,7 +235,7 @@ export default function EditBookingModal({
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
                                 <User size={12} className="inline mr-1" />
-                                Barbero
+                                {vocabulary.staff_singular}
                             </label>
                             <select
                                 value={selectedStaffId}
@@ -277,7 +279,7 @@ export default function EditBookingModal({
                             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl">
                                 <AlertTriangle size={16} className="text-red-500 shrink-0" />
                                 <p className="text-xs text-red-600 font-medium">
-                                    El barbero no trabaja este día. Selecciona otra fecha.
+                                    El {vocabulary.staff_singular.toLowerCase()} no trabaja este día. Selecciona otra fecha.
                                 </p>
                             </div>
                         )}

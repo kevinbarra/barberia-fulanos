@@ -3,6 +3,7 @@
 import { forwardRef } from 'react'
 import { FullReportData } from './AnalyticsDashboard'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts'
+import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 const COLORS = ['#8b5cf6', '#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444']
 
@@ -13,6 +14,7 @@ interface PrintableReportProps {
 
 const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
     ({ data, dateRange }, ref) => {
+        const { vocabulary } = useVocabulary()
         const { financialKPIs, clientData, tenantName } = data
         const staffBreakdown = clientData.staffBreakdown?.breakdown || []
         const staffTotals = clientData.staffBreakdown?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
@@ -88,12 +90,12 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                 {/* SECCIÓN 2: CORTE POR BARBERO */}
                 <section className="mb-8">
                     <h2 className="text-lg font-bold mb-4 border-l-4 border-violet-600 pl-3">
-                        Corte por Barbero
+                        Corte por {vocabulary.staff_singular}
                     </h2>
                     <table className="w-full border-collapse text-sm">
                         <thead>
                             <tr className="bg-gray-100">
-                                <th className="border border-gray-300 px-3 py-2 text-left font-bold">Barbero</th>
+                                <th className="border border-gray-300 px-3 py-2 text-left font-bold">{vocabulary.staff_singular}</th>
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Efectivo</th>
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Tarjeta</th>
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Transferencia</th>
@@ -132,7 +134,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                     <div className="grid grid-cols-2 gap-6">
                         {/* Revenue por Barbero */}
                         <div className="border border-gray-200 rounded-lg p-4">
-                            <h3 className="text-sm font-bold text-gray-900 mb-3">Revenue por Barbero</h3>
+                            <h3 className="text-sm font-bold text-gray-900 mb-3">Revenue por {vocabulary.staff_singular}</h3>
                             {staffChartData.length > 0 ? (
                                 <div>
                                     <BarChart width={320} height={180} data={staffChartData}>
@@ -194,7 +196,7 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
 
                 {/* FOOTER */}
                 <footer className="border-t border-gray-300 pt-4 mt-8 text-center text-xs text-gray-500">
-                    <p>Reporte generado por AgendaBarber | © {new Date().getFullYear()} Todos los derechos reservados.</p>
+                    <p>Reporte generado por {tenantName || 'AgendaBarber'} | © {new Date().getFullYear()} Todos los derechos reservados.</p>
                 </footer>
             </div>
         )

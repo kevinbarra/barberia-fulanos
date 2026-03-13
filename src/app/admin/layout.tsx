@@ -9,6 +9,7 @@ import { headers, cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AutoRefreshWrapper from "@/components/admin/AutoRefreshWrapper";
 import { ROOT_DOMAIN, extractTenantSlug } from "@/lib/constants";
+import { BusinessVocabularyProvider, BusinessType } from "@/providers/BusinessVocabularyProvider";
 
 export default async function AdminLayout({
     children,
@@ -37,7 +38,7 @@ export default async function AdminLayout({
     // Get user profile and tenant info
     const { data: profile } = await supabase
         .from('profiles')
-        .select('role, tenant_id, tenants(slug, name, subscription_status)')
+        .select('role, tenant_id, tenants(slug, name, subscription_status, settings)')
         .eq('id', user.id)
         .single();
 
@@ -49,12 +50,14 @@ export default async function AdminLayout({
     let tenantData = profile?.tenants as unknown as {
         slug: string;
         name: string;
-        subscription_status: string
+        subscription_status: string;
+        settings: any;
     } | null;
     let userTenantSlug = tenantData?.slug || null;
     let tenantName = tenantData?.name || 'AgendaBarber';
     let tenantStatus = tenantData?.subscription_status || 'active';
     let tenantId = profile?.tenant_id || '';
+    let businessType = (tenantData?.settings?.business_type as BusinessType) || 'barber';
 
     // SUPER ADMIN ON TENANT SUBDOMAIN: Fetch tenant data from the subdomain
     // This allows super admin to properly access any tenant's admin panel
@@ -62,22 +65,25 @@ export default async function AdminLayout({
         console.log('[ADMIN LAYOUT] Super admin on tenant subdomain:', currentSubdomain);
         const { data: subdomainTenant, error: tenantError } = await supabase
             .from('tenants')
-            .select('id, slug, name, subscription_status')
+            .select('id, slug, name, subscription_status, settings')
             .eq('slug', currentSubdomain)
             .single();
 
         console.log('[ADMIN LAYOUT] Tenant lookup result:', subdomainTenant, 'error:', tenantError);
 
         if (subdomainTenant) {
+            const subdomainData = subdomainTenant as any;
             tenantData = {
-                slug: subdomainTenant.slug,
-                name: subdomainTenant.name,
-                subscription_status: subdomainTenant.subscription_status
+                slug: subdomainData.slug,
+                name: subdomainData.name,
+                subscription_status: subdomainData.subscription_status,
+                settings: subdomainData.settings
             };
-            userTenantSlug = subdomainTenant.slug;
-            tenantName = subdomainTenant.name;
-            tenantStatus = subdomainTenant.subscription_status;
-            tenantId = subdomainTenant.id;
+            userTenantSlug = subdomainData.slug;
+            tenantName = subdomainData.name;
+            tenantStatus = subdomainData.subscription_status;
+            tenantId = subdomainData.id;
+            businessType = (subdomainData.settings?.business_type as BusinessType) || 'barber';
         }
     }
 
@@ -112,25 +118,27 @@ export default async function AdminLayout({
     // No server-side cookie reading needed
 
     return (
-        <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId}>
-            <div className="min-h-screen bg-gray-50 flex flex-row">
-                <AutoRefreshWrapper />
-                <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
-                <Sidebar role={userRole} tenantName={tenantName} />
-                <div className="flex-1 flex flex-col min-h-[100dvh] relative w-full pt-16 lg:pt-0">
-                    {/* Realtime notifications - Desktop only */}
-                    {tenantId && (
-                        <div className="fixed top-4 right-4 z-50 hidden lg:block">
-                            <RealtimeBookingNotifications tenantId={tenantId} />
-                        </div>
-                    )}
-                    <main className="flex-1 pb-8 w-full">
-                        <KioskProtectedRouteProvider userRole={userRole} tenantId={tenantId}>
-                            {children}
-                        </KioskProtectedRouteProvider>
-                    </main>
+        <BusinessVocabularyProvider businessType={businessType}>
+            <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId}>
+                <div className="min-h-screen bg-gray-50 flex flex-row">
+                    <AutoRefreshWrapper />
+                    <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
+                    <Sidebar role={userRole} tenantName={tenantName} />
+                    <div className="flex-1 flex flex-col min-h-[100dvh] relative w-full pt-16 lg:pt-0">
+                        {/* Realtime notifications - Desktop only */}
+                        {tenantId && (
+                            <div className="fixed top-4 right-4 z-50 hidden lg:block">
+                                <RealtimeBookingNotifications tenantId={tenantId} />
+                            </div>
+                        )}
+                        <main className="flex-1 pb-8 w-full">
+                            <KioskProtectedRouteProvider userRole={userRole} tenantId={tenantId}>
+                                {children}
+                            </KioskProtectedRouteProvider>
+                        </main>
+                    </div>
                 </div>
-            </div>
-        </KioskModeProvider>
+            </KioskModeProvider>
+        </BusinessVocabularyProvider>
     );
 }

@@ -55,40 +55,42 @@ export async function createBooking(data: {
     is_any_staff?: boolean;
     available_staff_ids?: string[];
 }) {
-    // Usar cliente normal para el booking (funciona con RLS para guests)
     const supabase = await createClient()
 
-    // 1. Validaciones - Obtener info del servicio y tenant (públicas, no necesitan admin)
+    // 1. Validaciones
     const [serviceResult, tenantResult] = await Promise.all([
         supabase.from('services').select('name, price').eq('id', data.service_id).single(),
         supabase.from('tenants').select('name, settings').eq('id', data.tenant_id).single()
     ]);
 
     const realServiceName = serviceResult.data?.name || "Servicio General";
-    const servicePrice = serviceResult.data?.price; // Price snapshot
+    const servicePrice = serviceResult.data?.price || 0;
     const businessName = tenantResult.data?.name || "AgendaBarber";
 
-    // 1.0.1 CHECK: Guest Checkout Setting
-    const tenantSettings = tenantResult.data?.settings as { guest_checkout_enabled?: boolean } | null;
-    const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
+    const tenantSettings = tenantResult.data?.settings as { 
+        guest_checkout_enabled?: boolean,
+        payment_rules?: { mode: 'Libre' | 'Anticipo' | 'Pago Total', deposit_type?: string, deposit_value?: number, threshold_amount?: number, mp_access_token?: string }
+    } | null;
+
+    const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false;
+    const paymentMode = tenantSettings?.payment_rules?.mode || 'Libre';
 
     if (!isGuestCheckoutEnabled && !data.customer_id) {
-        return {
-            success: false,
-            error: 'Este negocio requiere que inicies sesión para reservar.'
-        };
+        return { success: false, error: 'Este negocio requiere inicio de sesión.' };
     }
 
-    // --- LOAD BALANCER LOGIC ("CUALQUIERA") ---
+    let initialPaymentStatus: 'unpaid' | 'partially_paid' | 'paid' | 'pending_payment' = 'unpaid';
+    if (paymentMode === 'Anticipo' || paymentMode === 'Pago Total') {
+        initialPaymentStatus = 'pending_payment';
+    }
+
+    // --- LOAD BALANCER ---
     let finalStaffId = data.staff_id;
     if (data.is_any_staff && data.available_staff_ids && data.available_staff_ids.length > 0) {
-        console.log('[BOOKING] Load Balancer triggered for available staff:', data.available_staff_ids);
-
         const dateStr = data.start_time.split('T')[0];
         const startOfDay = fromZonedTime(`${dateStr} 00:00:00`, TIMEZONE).toISOString();
         const endOfDay = fromZonedTime(`${dateStr} 23:59:59`, TIMEZONE).toISOString();
 
-        // Get bookings count for each available staff
         const { data: staffBookings } = await supabase
             .from('bookings')
             .select('staff_id')
@@ -98,169 +100,133 @@ export async function createBooking(data: {
             .lte('start_time', endOfDay);
 
         const counts: Record<string, number> = {};
-        data.available_staff_ids.forEach(id => counts[id] = 0); // Initialize
+        data.available_staff_ids.forEach(id => counts[id] = 0);
 
         if (staffBookings) {
             staffBookings.forEach(b => {
-                if (counts[b.staff_id] !== undefined) {
-                    counts[b.staff_id]++;
-                }
+                if (counts[b.staff_id] !== undefined) counts[b.staff_id]++;
             });
         }
 
-        // Find the staff with minimum bookings
         let minBookings = Infinity;
         let selectedStaffId = finalStaffId;
-
         for (const [id, count] of Object.entries(counts)) {
             if (count < minBookings) {
                 minBookings = count;
                 selectedStaffId = id;
             }
         }
-
         finalStaffId = selectedStaffId;
-        console.log(`[BOOKING] Load Balancer selected staff: ${finalStaffId} with ${minBookings} bookings today.`);
     }
 
-    // 1.1 Obtener datos del staff con admin client (bypass RLS para email)
-    let staffEmail: string | undefined;
+    // Info del Staff
     let realStaffName = "El equipo";
-
     try {
-        console.log('[BOOKING] Creating admin client for staff data...');
         const adminClient = createAdminClient();
-        console.log('[BOOKING] Admin client created, querying staff_id:', finalStaffId);
-
-        const { data: staffData, error: staffError } = await adminClient
+        const { data: staffData } = await adminClient
             .from('profiles')
-            .select('full_name, email')
+            .select('full_name')
             .eq('id', finalStaffId)
             .single();
+        if (staffData) realStaffName = staffData.full_name || "El equipo";
+    } catch (e) { console.error(e); }
 
-        if (staffError) {
-            console.error('[BOOKING] Staff query error:', staffError);
-        } else if (staffData) {
-            realStaffName = staffData.full_name || "El equipo";
-            staffEmail = staffData.email;
-            console.log('[BOOKING] Staff data found:', {
-                name: realStaffName,
-                email: staffEmail || '(no email)'
-            });
-        } else {
-            console.warn('[BOOKING] No staff data returned');
-        }
-    } catch (adminError) {
-        console.error('[BOOKING] Admin client exception:', adminError);
-    }
-
-    console.log('[BOOKING] Final data:', {
-        service: realServiceName,
-        staff: realStaffName,
-        hasStaffEmail: !!staffEmail,
-        business: businessName
-    });
-
-    // 1.5. VINCULACIÓN INTELIGENTE (Anti-Duplicados)
-    // Si no viene customer_id (Guest), buscamos si ya existe alguien con ese email.
-    let finalCustomerId = data.customer_id;
-
-    /* REVISADO: Deshabilitado para forzar que los Guests sean siempre Guests (customer_id: null)
-       y evitar conflictos con reglas de negocio estrictas solicitadas.
-    if (!finalCustomerId && data.client_email) {
-        const { data: existingProfile } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('email', data.client_email)
-            .single();
-
-        if (existingProfile) {
-            finalCustomerId = existingProfile.id;
-        }
-    }
-    */
-
-    // 2. CORRECCIÓN DE TIMEZONE CRÍTICA
-    // Interpretamos la fecha string como hora CDMX, no como UTC.
-    // Si data.start_time es "2023-10-25T10:00", esto crea un Date en UTC equivalente (16:00 UTC)
+    // 2. TIMEZONE
     const startDate = fromZonedTime(data.start_time, TIMEZONE);
     const endDate = new Date(startDate.getTime() + data.duration_min * 60000);
 
-    const guestInfo = `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`;
+    const dateStrFormatted = startDate.toLocaleDateString('es-MX', { timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long' });
+    const timeStrFormatted = startDate.toLocaleTimeString('es-MX', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' });
 
-    // Log para debugging
-    console.log('[BOOKING] Creating booking with data:', {
-        tenant_id: data.tenant_id,
-        service_id: data.service_id,
-        staff_id: finalStaffId,
-        start_time: startDate.toISOString(),
-        end_time: endDate.toISOString(),
-        customer_id: finalCustomerId
-    });
-
-    // Validar que los IDs sean válidos UUIDs antes de insertar
-    if (!data.tenant_id || !data.service_id || !finalStaffId || finalStaffId === 'any') {
-        console.error('[BOOKING] Missing or invalid IDs:', {
-            tenant_id: data.tenant_id,
-            service_id: data.service_id,
-            staff_id: finalStaffId
-        });
-        return { success: false, error: 'Datos incompletos para la reserva.' }
-    }
-
-    // 3. INSERTAR CON ESTADO CONFIRMADO (Auto-Confirm Policy)
+    // 3. INSERTAR
     const insertPayload: any = {
         tenant_id: data.tenant_id,
         service_id: data.service_id,
         staff_id: finalStaffId,
         start_time: startDate.toISOString(),
         end_time: endDate.toISOString(),
-        status: 'confirmed', // CHANGE: Auto-confirm immediately
-        notes: guestInfo, // Mantenemos redundancia en notes por compatibilidad
-        // PRICE SNAPSHOT (immutable for financial integrity)
+        status: initialPaymentStatus === 'pending_payment' ? 'pending' : 'confirmed', 
+        payment_status: initialPaymentStatus,
+        total_price: servicePrice,
         price_at_booking: servicePrice,
         service_name_at_booking: realServiceName,
-        // ORIGIN TRACKING
         origin: data.origin || 'web',
-        // EXCELENCIA OPERATIVA
-        is_any_staff: data.is_any_staff || false
+        is_any_staff: data.is_any_staff || false,
+        guest_name: data.client_name,
+        guest_phone: data.client_phone,
+        guest_email: data.client_email || null,
+        customer_id: data.customer_id || null,
+        notes: `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`
     };
-
-    // LOGICA GUEST VS REGISTERED
-    // ALWAYS save guest fields from input (supports "booking for a friend")
-    // The input name is the source of truth for THIS booking
-    insertPayload.guest_name = data.client_name;
-    insertPayload.guest_phone = data.client_phone;
-    insertPayload.guest_email = data.client_email || null;
-
-    // If logged in, also link to customer_id for loyalty points
-    if (finalCustomerId) {
-        insertPayload.customer_id = finalCustomerId;
-    } else {
-        insertPayload.customer_id = null;
-    }
 
     const { data: newBooking, error: insertError } = await supabase
         .from('bookings')
         .insert(insertPayload)
         .select('id')
-        .single()
+        .single();
 
     if (insertError) {
-        // Check if this is a double-booking constraint violation
         if (insertError.message?.includes('no_double_booking')) {
-            return {
-                success: false,
-                error: 'Lo sentimos, este horario acaba de ser ocupado por otra persona. Por favor selecciona otro horario.'
-            }
+            return { success: false, error: 'Ese horario se ocupó. Elige otro.' };
         }
-        console.error('[BOOKING] Error al insertar:', insertError)
-        return { success: false, error: `Error al crear reserva: ${insertError.message}` }
+        return { success: false, error: 'Error al reservar.' };
     }
 
-    console.log('[BOOKING] Booking created successfully:', newBooking.id);
+    if (!newBooking) return { success: false, error: 'Error al crear la reserva.' };
 
-    // 4. VALIDAR CONFLICTOS POST-INSERT (anti race condition)
+    // 4. MERCADO PAGO
+    let paymentUrl = null;
+    let depositAmount = 0;
+
+    if (paymentMode !== 'Libre') {
+        const rules = tenantSettings?.payment_rules;
+        const threshold = Number(rules?.threshold_amount || 0);
+        
+        if (paymentMode === 'Pago Total') {
+            depositAmount = Number(servicePrice);
+        } else if (paymentMode === 'Anticipo') {
+            if (Number(servicePrice) >= threshold) {
+                if (rules?.deposit_type === 'percentage') {
+                    depositAmount = (Number(servicePrice) * Number(rules?.deposit_value || 0)) / 100;
+                } else {
+                    depositAmount = Math.min(Number(servicePrice), Number(rules?.deposit_value || 0));
+                }
+            }
+        }
+
+        if (depositAmount > 0 && rules?.mp_access_token) {
+            try {
+                const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${rules.mp_access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        items: [{
+                            id: newBooking.id,
+                            title: `${realServiceName} - ${businessName}`,
+                            quantity: 1,
+                            unit_price: Number(depositAmount.toFixed(2)),
+                            currency_id: 'MXN'
+                        }],
+                        external_reference: newBooking.id,
+                        back_urls: {
+                            success: `https://${data.tenant_id}.agendabarber.pro/book-success`,
+                            failure: `https://${data.tenant_id}.agendabarber.pro/book-failure`,
+                            pending: `https://${data.tenant_id}.agendabarber.pro/book-pending`
+                        },
+                        auto_return: 'approved',
+                        binary_mode: true
+                    })
+                });
+                const mpData = await mpResponse.json();
+                if (mpData.init_point) paymentUrl = mpData.init_point;
+            } catch (err) { console.error('MP ERROR:', err); }
+        }
+    }
+
+    // 5. RACE CONDITION CHECK
     const { count: conflictCount } = await supabase
         .from('bookings')
         .select('*', { count: 'exact', head: true })
@@ -268,119 +234,21 @@ export async function createBooking(data: {
         .in('status', ['confirmed', 'seated', 'pending'])
         .neq('id', newBooking.id)
         .lt('start_time', endDate.toISOString())
-        .gt('end_time', startDate.toISOString())
+        .gt('end_time', startDate.toISOString());
 
-    const { count: blockCount } = await supabase
-        .from('time_blocks')
-        .select('*', { count: 'exact', head: true })
-        .eq('staff_id', finalStaffId)
-        .lt('start_time', endDate.toISOString())
-        .gt('end_time', startDate.toISOString())
-
-    if ((conflictCount && conflictCount > 0) || (blockCount && blockCount > 0)) {
-        // ROLLBACK: Eliminar la reserva que acabamos de crear
-        await supabase.from('bookings').delete().eq('id', newBooking.id)
-        return {
-            success: false,
-            error: 'Este horario fue tomado mientras procesábamos. Elige otro.'
-        }
+    if (conflictCount && conflictCount > 0) {
+        await supabase.from('bookings').delete().eq('id', newBooking.id);
+        return { success: false, error: 'Horario ocupado.' };
     }
 
-    // 5. CONFIRMACIÓN IMPLÍCITA (Ya insertamos como confirmed)
-    // No explicit update needed.
-
-    // 6. Formatear fecha/hora para emails
-    const dateStr = startDate.toLocaleDateString('es-MX', {
-        timeZone: TIMEZONE,
-        weekday: 'long', day: 'numeric', month: 'long'
-    });
-    const timeStr = startDate.toLocaleTimeString('es-MX', {
-        timeZone: TIMEZONE,
-        hour: '2-digit', minute: '2-digit'
-    });
-
-    // 7. ENVIAR NOTIFICACIONES (en paralelo, no bloqueantes)
-    /* 
-    // TEMPORARY DISABLED FOR PRODUCTION SETUP (PREVENT SPAM)
-    
-    // 7.1 Email de confirmación al cliente
-    sendBookingEmail({
-        clientName: data.client_name,
-        clientEmail: data.client_email,
-        serviceName: realServiceName,
-        barberName: realStaffName,
-        date: dateStr,
-        time: timeStr,
-        businessName
-    });
-
-    // 7.2 Email al barbero asignado
-    if (staffEmail) {
-        sendStaffNewBookingNotification({
-            staffEmail,
-            staffName: realStaffName,
-            clientName: data.client_name,
-            serviceName: realServiceName,
-            date: dateStr,
-            time: timeStr,
-            businessName,
-            isOwnerNotification: false
-        });
-    }
-
-    // 7.3 Email al owner del negocio
-    const { data: ownerData } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('tenant_id', data.tenant_id)
-        .eq('role', 'owner')
-        .single();
-
-    if (ownerData?.email && ownerData.email !== staffEmail) {
-        sendStaffNewBookingNotification({
-            staffEmail: ownerData.email,
-            staffName: realStaffName,
-            clientName: data.client_name,
-            serviceName: realServiceName,
-            date: dateStr,
-            time: timeStr,
-            businessName,
-            isOwnerNotification: true
-        });
-    }
-    */
-
-    // 8. BROADCAST para notificación en tiempo real al admin
-    // Esto no depende de RLS, funciona siempre
-    try {
-        const broadcastClient = createAdminClient();
-        const channel = broadcastClient.channel(`booking-notifications-${data.tenant_id}`);
-
-        await channel.send({
-            type: 'broadcast',
-            event: 'new-booking',
-            payload: {
-                id: newBooking.id,
-                clientName: data.client_name,
-                serviceName: realServiceName,
-                staffName: realStaffName,
-                time: timeStr,
-                date: dateStr
-            }
-        });
-
-        console.log('[BOOKING] Broadcast sent to admin channel');
-    } catch (broadcastError) {
-        console.warn('[BOOKING] Broadcast failed (non-critical):', broadcastError);
-    }
-
-    // Revalidar rutas para que aparezca en POS y Schedule
     revalidatePath('/admin/pos');
     revalidatePath('/admin/schedule');
     revalidatePath('/app');
 
     return {
         success: true,
+        payment_url: paymentUrl,
+        deposit_amount: depositAmount,
         booking: {
             id: newBooking.id,
             guest_name: data.client_name,
@@ -390,8 +258,8 @@ export async function createBooking(data: {
             service_price: servicePrice,
             start_time: startDate.toISOString(),
             staff_name: realStaffName,
-            date_formatted: dateStr,
-            time_formatted: timeStr
+            date_formatted: dateStrFormatted,
+            time_formatted: timeStrFormatted
         }
-    }
+    };
 }

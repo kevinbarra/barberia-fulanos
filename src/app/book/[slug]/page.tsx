@@ -104,7 +104,7 @@ export default async function BookingPage({
 
     const { data: staff } = await supabase
         .from("profiles")
-        .select("*, staff_services(service_id)")
+        .select("id, full_name, role, avatar_url, phone, staff_category, role_alias, staff_services(service_id), staff_skills(service_id)")
         .eq("tenant_id", tenant.id)
         .neq("role", "customer")
         .eq("is_active_barber", true)
@@ -122,10 +122,11 @@ export default async function BookingPage({
         category: (s as any).service_categories?.name || s.category // Fallback to old string if needed
     })) || [];
 
-    // Transform staff to include a flat array of service_ids
+    // Transform staff to include flat arrays of service_ids and skills
     const transformedStaff = staff?.map(p => ({
         ...p,
-        services: (p as any).staff_services?.map((ss: any) => ss.service_id) || []
+        services: (p as any).staff_services?.map((ss: any) => ss.service_id) || [],
+        skills: (p as any).staff_skills?.map((ss: any) => ss.service_id) || []
     })) || [];
 
     return (
@@ -170,6 +171,7 @@ export default async function BookingPage({
                         whatsappPhone={whatsappPhone}
                         tenantName={tenant.name}
                         businessType={tenantSettings?.business_type || 'barber'}
+                        paymentRules={tenantSettings?.payment_rules || { mode: 'Libre' }}
                     />
                 </div>
             </div>
