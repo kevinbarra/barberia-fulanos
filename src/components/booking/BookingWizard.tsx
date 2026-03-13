@@ -114,13 +114,26 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-// Generate WhatsApp reminder link (Requested for Phase 29)
+// Generate WhatsApp reminder link (Requested for Phase 37)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
+    const serviceName = booking.service_name;
+    const staffName = booking.staff_name;
     const date = booking.date_formatted;
     const time = booking.time_formatted;
-    const bookingId = booking.id.slice(0, 8).toUpperCase();
+    const guestName = booking.guest_name || 'Cliente';
+    const guestPhone = booking.guest_phone || '';
+    const paymentId = booking.id.slice(0, 8).toUpperCase();
 
-    const message = `Hola, tengo una cita en *${tenantName}* el *${date}* a las *${time}*.\n\nAquí mi comprobante de anticipo: *${bookingId}*`;
+    const message = [
+        `¡Hola ${tenantName}! 👋 Acabo de agendar por la App:`,
+        `👤 Cliente: ${guestName} (${guestPhone})`,
+        `✂️ Servicio: ${serviceName}`,
+        `Atendido por: ${staffName}`,
+        `📅 Fecha: ${date}`,
+        `⏰ Hora: ${time}`,
+        `🧾 Comprobante: ${paymentId}`,
+        `✅ ¡Confírmame si todo bien! Gracias.`
+    ].join('\n');
     
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
@@ -691,7 +704,7 @@ export default function BookingWizard({
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 group transition-all duration-300"
                 >
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología por</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología que profesionaliza tu negocio |</span>
                     <span className="text-[10px] font-black tracking-tight bg-black text-white px-2 py-1 rounded-md shadow-sm group-hover:bg-brand group-hover:scale-105 transition-all">kevinconsulting.services</span>
                 </a>
             </div>

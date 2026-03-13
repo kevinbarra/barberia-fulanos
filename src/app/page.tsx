@@ -73,11 +73,18 @@ export default async function HomePage() {
         </div>
       </main>
 
-      {/* FOOTER */}
-      <footer className="p-6 text-center z-10">
-        <p className="text-zinc-600 text-xs">
-          © {new Date().getFullYear()} Barbería {slug}. Powered by AgendaBarber.
+      <footer className="p-6 text-center z-10 flex flex-col items-center gap-2">
+        <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+          © {new Date().getFullYear()} Barbería {slug}
         </p>
+        <a 
+          href="https://kevinconsulting.services" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-zinc-600 text-[10px] font-medium hover:text-white transition-colors"
+        >
+          Tecnología que profesionaliza tu negocio | kevinconsulting.services
+        </a>
       </footer>
 
     </div>

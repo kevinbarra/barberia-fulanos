@@ -229,7 +229,7 @@ export default async function LoginPage({
                         rel="noopener noreferrer"
                         className="flex items-center gap-2 group transition-all duration-300"
                     >
-                        <span className="text-[10px] font-bold tracking-widest uppercase text-zinc-600 group-hover:text-zinc-400 transition-colors">Tecnología por</span>
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-zinc-600 group-hover:text-zinc-400 transition-colors">Tecnología que profesionaliza tu negocio |</span>
                         <span className="text-[10px] font-black tracking-tight bg-white/5 text-zinc-300 px-2 py-1 rounded-md border border-white/10 group-hover:bg-brand group-hover:text-white group-hover:border-brand transition-all">kevinconsulting.services</span>
                     </a>
                 </div>
