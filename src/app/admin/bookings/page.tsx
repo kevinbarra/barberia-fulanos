@@ -65,12 +65,13 @@ export default async function BookingsPage() {
         .order("created_at");
 
     // Fetch Time Blocks for visual gaps
+    // FIX: Modified to fetch either blocks in range OR any recurrent block
     const { data: blocks } = await supabase
         .from("time_blocks")
         .select(`*, profiles:staff_id ( full_name )`)
         .eq("tenant_id", tenantId)
-        .gte("start_time", startDate)
-        .lte("start_time", endDate);
+        .or(`start_time.gte.${startDate},is_recurrent.eq.true`)
+        .lte("start_time", "2100-01-01"); // Safety cap for non-recurrent but very far future
 
     // ============ DYNAMIC HOURS CALCULATION ============
     // Fetch all schedules for active barbers 

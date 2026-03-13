@@ -44,6 +44,7 @@ export default function ScheduleManager({
     const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly'>('weekly');
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
     const [isRecurrent, setIsRecurrent] = useState(false);
+    const [noEndDate, setNoEndDate] = useState(true);
     const formRef = useRef<HTMLFormElement>(null)
 
     // Forzar re-render del formulario cuando cambia el staff
@@ -211,15 +212,22 @@ export default function ScheduleManager({
                     <form
                         ref={formRef}
                         action={(formData) => {
+                            // VALIDATION: Weekly requires at least one day
+                            if (isRecurrent && recurrenceFreq === 'weekly' && selectedDays.length === 0) {
+                                toast.error('Selecciona al menos un día para la repetición semanal');
+                                return;
+                            }
+
                             // FORCE OVERRIDE: Ensure formData has the CURRENT targetStaffId
                             formData.set('staff_id', targetStaffId);
 
                             // Construct recurrence rule if enabled
                             formData.set('is_recurrent', isRecurrent ? 'true' : 'false');
                             if (isRecurrent) {
+                                const untilDate = noEndDate ? '2099-12-31' : formData.get('until');
                                 formData.set('recurrence_rule', JSON.stringify({
                                     type: recurrenceFreq,
-                                    until: formData.get('until'),
+                                    until: untilDate,
                                     days: recurrenceFreq === 'weekly' ? selectedDays : []
                                 }));
                             }
@@ -279,9 +287,28 @@ export default function ScheduleManager({
                                                 <option value="daily">Diario</option>
                                             </select>
                                         </div>
-                                        <div>
+                                        <div className="flex flex-col gap-2">
                                             <label className="text-[10px] font-bold text-gray-400 uppercase">Repetir hasta</label>
-                                            <input type="date" name="until" className="w-full mt-1 p-2 border rounded-lg text-xs bg-white" />
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="date"
+                                                    name="until"
+                                                    disabled={noEndDate}
+                                                    required={!noEndDate}
+                                                    defaultValue={noEndDate ? '' : undefined}
+                                                    className="flex-1 p-2 border rounded-lg text-xs bg-white disabled:bg-gray-100 disabled:text-gray-400"
+                                                />
+                                                <div className="flex items-center gap-1 min-w-fit">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="no_end_date"
+                                                        checked={noEndDate}
+                                                        onChange={(e) => setNoEndDate(e.target.checked)}
+                                                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black accent-black cursor-pointer"
+                                                    />
+                                                    <label htmlFor="no_end_date" className="text-[10px] font-bold text-gray-600 cursor-pointer">Sin fin</label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

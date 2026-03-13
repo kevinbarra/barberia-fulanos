@@ -121,6 +121,16 @@ export async function addTimeBlock(formData: FormData) {
         console.error('Invalid recurrence rule JSON', e)
     }
 
+    // Use the reliable tenant_id from requester or context
+    const tenantId = requester?.tenant_id || await getTenantIdForAdmin()
+
+    console.log('[TIME_BLOCK] Attempting insert:', {
+        tenantId,
+        staffId: targetStaffId,
+        isRecurrent,
+        rule: recurrenceRule
+    })
+
     if (!date || !startTime || !endTime) return { error: 'Faltan datos.' }
 
     // Conversión de Zona Horaria
@@ -132,7 +142,7 @@ export async function addTimeBlock(formData: FormData) {
     const { error } = await supabase
         .from('time_blocks')
         .insert({
-            tenant_id: requester?.tenant_id,
+            tenant_id: tenantId,
             staff_id: targetStaffId,
             start_time: startISO,
             end_time: endISO,
@@ -142,8 +152,13 @@ export async function addTimeBlock(formData: FormData) {
         })
 
     if (error) {
-        console.error(error)
-        return { error: 'Error al crear bloqueo.' }
+        console.error('[TIME_BLOCK ERROR]:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+        })
+        return { error: `Error al crear bloqueo: ${error.message}` }
     }
 
     revalidatePath('/admin/schedule')
