@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
     LayoutDashboard, CalendarDays, Wallet, ShieldCheck, User, LogOut, 
     Scissors, Clock, Settings, Users, BarChart3, Menu, X, RefreshCw, 
-    Receipt, Lock, ChevronDown, Layers, Type, Palette, Landmark, Globe 
+    Receipt, Lock, ChevronDown, Layers, Type, Palette, Landmark, Globe, CreditCard 
 } from 'lucide-react';
 import { signOut } from '@/app/auth/actions';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -30,8 +30,8 @@ const ADMIN_GROUPS = [
     {
         name: 'Gestión de Equipo',
         items: [
-            { name: 'Staff / Equipo', href: '/admin/team', icon: ShieldCheck },
-            { name: 'Competencias', href: '/admin/team/matrix', icon: Layers },
+            { name: 'Staff / Equipo', href: '/admin/team', icon: Users },
+            { name: 'Competencias', href: '/admin/team/matrix', icon: Scissors },
             { name: 'Horarios', href: '/admin/schedule', icon: Clock },
         ]
     },
@@ -47,7 +47,7 @@ const ADMIN_GROUPS = [
     {
         name: 'Finanzas',
         items: [
-            { name: 'Reglas de Pago', href: '/admin/settings/payments', icon: Landmark },
+            { name: 'Reglas de Pago', href: '/admin/settings/payments', icon: CreditCard },
             { name: 'Reportes', href: '/admin/reports', icon: BarChart3 },
             { name: 'Gastos', href: '/admin/expenses', icon: Receipt },
         ]

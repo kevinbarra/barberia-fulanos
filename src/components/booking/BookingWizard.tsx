@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid, Scissors, Wind, Hand, Palette, Heart, Star } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
@@ -415,18 +415,34 @@ export default function BookingWizard({
                                         <p className="text-gray-500 text-sm mt-1">Elige una categoría para ver los servicios.</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
-                                        {categoryOrder.map(category => (
-                                            <button 
-                                                key={category} 
-                                                onClick={() => setSelectedCategory(category)}
-                                                className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
-                                            >
-                                                <div className="w-16 h-16 rounded-2xl bg-brand/5 flex items-center justify-center text-brand group-hover:scale-110 transition-transform">
-                                                    <LayoutGrid size={32} />
-                                                </div>
-                                                <span className="font-black text-gray-900 text-sm uppercase tracking-tight">{category}</span>
-                                            </button>
-                                        ))}
+                                        {categoryOrder.map(category => {
+                                            // Dynamic Icon Mapping for Industry Parity
+                                            const iconMap: Record<string, any> = {
+                                                'Cortes': Scissors,
+                                                'Barba': Sparkles, // No native razor, using sparkles for grooming
+                                                'Cabello': Wind,
+                                                'Uñas': Hand,
+                                                'Tintes': Palette,
+                                                'Masajes': Heart,
+                                                'Extras': Star,
+                                                'Combos': Gift,
+                                                'General': LayoutGrid
+                                            };
+                                            const CategoryIcon = iconMap[category] || LayoutGrid;
+
+                                            return (
+                                                <button 
+                                                    key={category} 
+                                                    onClick={() => setSelectedCategory(category)}
+                                                    className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
+                                                >
+                                                    <div className="w-16 h-16 rounded-2xl bg-brand/5 flex items-center justify-center text-brand group-hover:scale-110 transition-transform">
+                                                        <CategoryIcon size={32} />
+                                                    </div>
+                                                    <span className="font-black text-gray-900 text-sm uppercase tracking-tight">{category}</span>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </>
                             ) : (
@@ -647,6 +663,19 @@ export default function BookingWizard({
                         </motion.section>
                     )}
                 </AnimatePresence>
+            </div>
+
+            {/* HIGH-PERFORMANCE BRANDING FOOTER */}
+            <div className="py-4 border-t border-gray-100 bg-white flex justify-center items-center">
+                <a 
+                    href="https://KevinSolutions.services" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-gray-400 hover:text-black transition-colors duration-300"
+                >
+                    <span className="text-[10px] font-bold tracking-widest uppercase">Powered by</span>
+                    <span className="text-[10px] font-black tracking-tight bg-black text-white px-1.5 py-0.5 rounded-sm">KevinSolutions.services</span>
+                </a>
             </div>
         </div>
     );

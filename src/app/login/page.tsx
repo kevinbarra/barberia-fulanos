@@ -222,6 +222,19 @@ export default async function LoginPage({
                         </p>
                     </div>
                 </div>
+
+                {/* HIGH-PERFORMANCE BRANDING FOOTER */}
+                <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center z-10">
+                    <a 
+                        href="https://KevinSolutions.services" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors duration-300"
+                    >
+                        <span className="text-[10px] font-bold tracking-widest uppercase">Powered by</span>
+                        <span className="text-[10px] font-black tracking-tight bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded-sm">KevinSolutions.services</span>
+                    </a>
+                </div>
             </div>
         </div>
     )
