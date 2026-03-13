@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/login/LoginForm";
 import { getTenantSlug } from "@/lib/tenant";
-import { Scissors } from "lucide-react";
+import { Scissors, Lock } from "lucide-react";
 import { ROOT_DOMAIN, isRootDomain as isRootDomainCheck } from "@/lib/constants";
 
 export default async function LoginPage({
@@ -174,7 +174,7 @@ export default async function LoginPage({
                 <div className="lg:hidden absolute top-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-600/10 blur-[100px] rounded-full pointer-events-none"></div>
                 <div className="lg:hidden absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-600/10 blur-[100px] rounded-full pointer-events-none"></div>
 
-                <div className="w-full max-w-sm z-10">
+                <div className="w-full max-w-sm z-10 bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 shadow-2xl">
                     {/* Mobile Logo (Only visible on mobile) */}
                     <div className="lg:hidden flex items-center justify-center gap-2 mb-8">
                         <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-600 rounded-xl flex items-center justify-center">
@@ -213,26 +213,24 @@ export default async function LoginPage({
                     <LoginForm />
 
                     {/* Footer */}
-                    <div className="mt-8 text-center">
-                        <p className="text-zinc-600 text-xs flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                            Código de un solo uso. Seguro y sin contraseñas.
+                    <div className="mt-8 text-center border-t border-white/5 pt-6">
+                        <p className="text-zinc-600 text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-2">
+                            <Lock size={12} className="text-zinc-700" />
+                            Acceso Seguro y sin contraseñas
                         </p>
                     </div>
                 </div>
 
                 {/* HIGH-PERFORMANCE BRANDING FOOTER */}
-                <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center z-10">
+                <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center z-10 px-6">
                     <a 
-                        href="https://KevinSolutions.services" 
+                        href="https://kevinconsulting.services" 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-zinc-600 hover:text-zinc-400 transition-colors duration-300"
+                        className="flex items-center gap-2 group transition-all duration-300"
                     >
-                        <span className="text-[10px] font-bold tracking-widest uppercase">Powered by</span>
-                        <span className="text-[10px] font-black tracking-tight bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded-sm">KevinSolutions.services</span>
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-zinc-600 group-hover:text-zinc-400 transition-colors">Tecnología por</span>
+                        <span className="text-[10px] font-black tracking-tight bg-white/5 text-zinc-300 px-2 py-1 rounded-md border border-white/10 group-hover:bg-brand group-hover:text-white group-hover:border-brand transition-all">kevinconsulting.services</span>
                     </a>
                 </div>
             </div>

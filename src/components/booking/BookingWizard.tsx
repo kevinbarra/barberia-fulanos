@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid, Scissors, Wind, Hand, Palette, Heart, Star } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid, Scissors, Wind, Hand, Palette, Heart, Star, Gem } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
@@ -32,9 +32,22 @@ type BookingResult = {
 
 // --- UTILS UI ---
 const containerVariants: Variants = {
-    hidden: { opacity: 0, x: 20 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
-    exit: { opacity: 0, x: -20, transition: { duration: 0.2 } }
+    hidden: { opacity: 0, y: 10, scale: 0.98 },
+    visible: { 
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        transition: { 
+            duration: 0.4, 
+            ease: [0.23, 1, 0.32, 1] 
+        } 
+    },
+    exit: { 
+        opacity: 0, 
+        y: -10, 
+        scale: 0.98,
+        transition: { duration: 0.3 } 
+    }
 };
 
 const checkmarkVariants = {
@@ -417,29 +430,31 @@ export default function BookingWizard({
                                     <div className="grid grid-cols-2 gap-4">
                                         {categoryOrder.map(category => {
                                             // Dynamic Icon Mapping for Industry Parity
-                                            const iconMap: Record<string, any> = {
-                                                'Cortes': Scissors,
-                                                'Barba': Sparkles, // No native razor, using sparkles for grooming
-                                                'Cabello': Wind,
-                                                'Uñas': Hand,
-                                                'Tintes': Palette,
-                                                'Masajes': Heart,
-                                                'Extras': Star,
-                                                'Combos': Gift,
-                                                'General': LayoutGrid
+                                            const iconMap: Record<string, { icon: any, color: string }> = {
+                                                'Cortes': { icon: Scissors, color: 'bg-blue-500/10 text-blue-600' },
+                                                'Barba': { icon: Sparkles, color: 'bg-amber-500/10 text-amber-600' },
+                                                'Cabello': { icon: Wind, color: 'bg-purple-500/10 text-purple-600' },
+                                                'Uñas': { icon: Hand, color: 'bg-pink-500/10 text-pink-600' },
+                                                'Tintes': { icon: Palette, color: 'bg-indigo-500/10 text-indigo-600' },
+                                                'Masajes': { icon: Heart, color: 'bg-rose-500/10 text-rose-600' },
+                                                'Extras': { icon: Star, color: 'bg-orange-500/10 text-orange-600' },
+                                                'Combos': { icon: Gem, color: 'bg-emerald-500/10 text-emerald-600' },
+                                                'General': { icon: LayoutGrid, color: 'bg-gray-500/10 text-gray-600' }
                                             };
-                                            const CategoryIcon = iconMap[category] || LayoutGrid;
+                                            const config = iconMap[category] || iconMap['General'];
+                                            const CategoryIcon = config.icon;
 
                                             return (
                                                 <button 
                                                     key={category} 
                                                     onClick={() => setSelectedCategory(category)}
-                                                    className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
+                                                    className="group relative bg-white/70 backdrop-blur-md p-6 rounded-[2rem] border border-white/40 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden"
                                                 >
-                                                    <div className="w-16 h-16 rounded-2xl bg-brand/5 flex items-center justify-center text-brand group-hover:scale-110 transition-transform">
+                                                    <div className={`w-16 h-16 rounded-full ${config.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-500 relative z-10`}>
                                                         <CategoryIcon size={32} />
                                                     </div>
-                                                    <span className="font-black text-gray-900 text-sm uppercase tracking-tight">{category}</span>
+                                                    <span className="font-black text-gray-900 text-sm uppercase tracking-tight relative z-10">{category}</span>
+                                                    <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                 </button>
                                             );
                                         })}
@@ -458,22 +473,25 @@ export default function BookingWizard({
                                             <h2 className="text-2xl font-black text-gray-900 leading-tight">{selectedCategory}</h2>
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
                                         {groupedServices[selectedCategory].map((service) => (
                                             <button 
                                                 key={service.id} 
                                                 onClick={() => { setSelectedService(service); setStep(2); }} 
-                                                className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group"
+                                                className="w-full bg-white/80 backdrop-blur-sm p-6 rounded-[2rem] border border-white/40 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 text-left group"
                                             >
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="flex-1">
                                                         <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
                                                         {service.description && <p className="text-sm text-gray-500 mt-1">{service.description}</p>}
-                                                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-2">
-                                                            <Clock size={12} /> {service.duration_min} min
+                                                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-3">
+                                                            <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-brand/10 group-hover:text-brand transition-colors">
+                                                                <Clock size={12} />
+                                                            </div>
+                                                            {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-brand bg-brand/5 px-3 py-1.5 rounded-xl transition-all group-hover:bg-brand group-hover:text-white">${service.price}</span>
+                                                    <span className="font-black text-brand bg-brand/5 px-4 py-2 rounded-2xl transition-all group-hover:bg-brand group-hover:text-white shadow-sm ring-1 ring-brand/10">${service.price}</span>
                                                 </div>
                                             </button>
                                         ))}
@@ -493,23 +511,23 @@ export default function BookingWizard({
                             <div className="grid grid-cols-2 gap-4">
                                 <button
                                     onClick={() => { setSelectedStaff({ id: 'any', full_name: 'Cualquiera', role: 'Staff', avatar_url: null }); setStep(3); }}
-                                    className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-3 aspect-square justify-center"
+                                    className="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/40 shadow-sm hover:shadow-xl transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
                                 >
-                                    <div className="w-20 h-20 rounded-full bg-amber-50 border-4 border-amber-100 flex items-center justify-center">
-                                        <Sparkles size={32} className="text-amber-500" />
+                                    <div className="w-24 h-24 rounded-full bg-amber-50/50 border-8 border-white shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                                        <Sparkles size={40} className="text-amber-500" />
                                     </div>
-                                    <span className="font-bold text-gray-900 block">Cualquiera</span>
+                                    <span className="font-bold text-gray-900 block group-hover:text-amber-600 transition-colors">Cualquiera</span>
                                 </button>
                                 {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
                                         onClick={() => { setSelectedStaff(member); setStep(3); }}
-                                        className="bg-white p-4 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-3 aspect-square justify-center"
+                                        className="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/40 shadow-sm hover:shadow-xl transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
                                     >
-                                        <div className="w-20 h-20 rounded-full overflow-hidden relative border-4 border-white shadow-md bg-gray-100">
+                                        <div className="w-24 h-24 rounded-full overflow-hidden relative border-8 border-white shadow-lg bg-gray-100 group-hover:scale-110 transition-transform duration-500">
                                             {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 font-bold text-2xl">{member.full_name[0]}</div>}
                                         </div>
-                                        <span className="font-bold text-gray-900 block truncate w-full px-2">{member.full_name.split(' ')[0]}</span>
+                                        <span className="font-bold text-gray-900 block truncate w-full px-2 group-hover:text-brand transition-colors">{member.full_name.split(' ')[0]}</span>
                                     </button>
                                 ))}
                             </div>
@@ -666,15 +684,15 @@ export default function BookingWizard({
             </div>
 
             {/* HIGH-PERFORMANCE BRANDING FOOTER */}
-            <div className="py-4 border-t border-gray-100 bg-white flex justify-center items-center">
+            <div className="py-6 border-t border-gray-100/50 bg-white/80 backdrop-blur-lg flex justify-center items-center">
                 <a 
-                    href="https://KevinSolutions.services" 
+                    href="https://kevinconsulting.services" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-gray-400 hover:text-black transition-colors duration-300"
+                    className="flex items-center gap-2 group transition-all duration-300"
                 >
-                    <span className="text-[10px] font-bold tracking-widest uppercase">Powered by</span>
-                    <span className="text-[10px] font-black tracking-tight bg-black text-white px-1.5 py-0.5 rounded-sm">KevinSolutions.services</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología por</span>
+                    <span className="text-[10px] font-black tracking-tight bg-black text-white px-2 py-1 rounded-md shadow-sm group-hover:bg-brand group-hover:scale-105 transition-all">kevinconsulting.services</span>
                 </a>
             </div>
         </div>
