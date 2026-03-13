@@ -162,14 +162,24 @@ export default function BookingWizard({
 
     const filteredStaff = useMemo(() => {
         if (!selectedService) return staff;
+
+        // 1. Try filtering by explicit skills
         const staffWithSkill = staff.filter(s => s.skills?.includes(selectedService.id));
         if (staffWithSkill.length > 0) return staffWithSkill;
+
+        // 2. Try filtering by category matching
         const serviceCat = (selectedService.category || '').toLowerCase();
-        return staff.filter(s => {
+        const staffByCat = staff.filter(s => {
             const staffCat = (s.staff_category || '').toLowerCase();
             if (!staffCat || staffCat === 'default') return true;
             return serviceCat.includes(staffCat) || staffCat.includes(serviceCat);
         });
+
+        // 3. SAFETY FALLBACK: If filtering returns nothing, show all staff
+        // to prevent bricking the booking flow for unconfigured tenants.
+        if (staffByCat.length === 0) return staff;
+
+        return staffByCat;
     }, [staff, selectedService]);
 
     useEffect(() => {
