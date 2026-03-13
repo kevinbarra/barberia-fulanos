@@ -208,6 +208,15 @@ export default function ScheduleManager({
                         action={(formData) => {
                             // FORCE OVERRIDE: Ensure formData has the CURRENT targetStaffId
                             formData.set('staff_id', targetStaffId);
+
+                            // Construct recurrence rule if enabled
+                            const isRecurrent = formData.get('is_recurrent') === 'true';
+                            if (isRecurrent) {
+                                const freq = formData.get('freq');
+                                const until = formData.get('until');
+                                formData.set('recurrence_rule', JSON.stringify({ type: freq, until }));
+                            }
+
                             handleAddBlock(formData);
                         }}
                         className="space-y-4"
@@ -232,8 +241,42 @@ export default function ScheduleManager({
                             <label className="text-xs font-bold text-gray-500 uppercase">Motivo</label>
                             <input type="text" name="reason" placeholder="Ej. Comida, Médico..." required className="w-full mt-1 p-2 border rounded-lg text-sm" />
                         </div>
-                        <button type="submit" disabled={isAddingBlock || isLoadingData} className="w-full bg-red-50 text-red-600 border border-red-100 py-2 rounded-lg text-sm font-bold hover:bg-red-100 transition-all flex justify-center items-center gap-2">
-                            {isAddingBlock ? 'Procesando...' : '+ Bloquear Horario'}
+
+                        {/* RECURRENCE UI */}
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="is_recurrent"
+                                    name="is_recurrent"
+                                    value="true"
+                                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black accent-black"
+                                />
+                                <label htmlFor="is_recurrent" className="text-sm font-bold text-gray-700">Repetir este bloqueo</label>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 opacity-0 h-0 overflow-hidden transition-all peer-checked:opacity-100 peer-checked:h-auto" id="recurrence-options">
+                                <style>{`#is_recurrent:checked ~ #recurrence-options { opacity: 1; height: auto; }`}</style>
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase">Frecuencia</label>
+                                    <select name="freq" className="w-full mt-1 p-2 border rounded-lg text-xs bg-white">
+                                        <option value="weekly">Semanal (mismo día)</option>
+                                        <option value="daily">Diario</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase">Repetir hasta</label>
+                                    <input type="date" name="until" className="w-full mt-1 p-2 border rounded-lg text-xs bg-white" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={isAddingBlock || isLoadingData}
+                            className="w-full bg-red-50 text-red-600 border border-red-100 py-3 rounded-xl text-sm font-black hover:bg-red-100 transition-all flex justify-center items-center gap-2 uppercase tracking-widest active:scale-95"
+                        >
+                            {isAddingBlock ? 'Procesando...' : 'Bloquear Horario'}
                         </button>
                     </form>
                 </div>

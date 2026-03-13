@@ -112,6 +112,15 @@ export async function addTimeBlock(formData: FormData) {
     let targetStaffId = (isManager ? formData.get('staff_id') : user.id) as string;
     if (!targetStaffId) targetStaffId = user.id;
 
+    const isRecurrent = formData.get('is_recurrent') === 'true'
+    const recurrenceRuleStr = formData.get('recurrence_rule') as string
+    let recurrenceRule = null
+    try {
+        if (recurrenceRuleStr) recurrenceRule = JSON.parse(recurrenceRuleStr)
+    } catch (e) {
+        console.error('Invalid recurrence rule JSON', e)
+    }
+
     if (!date || !startTime || !endTime) return { error: 'Faltan datos.' }
 
     // Conversión de Zona Horaria
@@ -127,7 +136,9 @@ export async function addTimeBlock(formData: FormData) {
             staff_id: targetStaffId,
             start_time: startISO,
             end_time: endISO,
-            reason: reason || 'No disponible'
+            reason: reason || 'No disponible',
+            is_recurrent: isRecurrent,
+            recurrence_rule: recurrenceRule
         })
 
     if (error) {

@@ -55,7 +55,7 @@ export default function BookingsViewSwitcher({
         <div className="h-full w-full relative">
             {/* MOBILE ONLY (< 768px) */}
             <div className="block md:hidden h-full absolute inset-0">
-                <PocketAgenda bookings={bookings} staff={staff} services={services} />
+                <PocketAgenda bookings={bookings} staff={staff} services={services} tenantId={tenantId} />
             </div>
 
             {/* TABLET ONLY (768px -> 1024px) */}
