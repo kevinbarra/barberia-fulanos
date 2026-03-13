@@ -346,18 +346,19 @@ export default function BookingWizard({
         return () => clearInterval(timer);
     }, [success]);
 
-    // --- VISTA ÉXITO PREMIUM (Fase 29) ---
+    // --- VISTA ÉXITO – PASO FINAL (Fase 37b) ---
     if (success && bookingData) {
         return (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 flex flex-col items-center justify-center min-h-full text-center">
-                <motion.div variants={checkmarkVariants} initial="hidden" animate="visible" className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-white mb-6 shadow-2xl shadow-green-200">
-                    <Check size={48} strokeWidth={4} />
+                <motion.div variants={checkmarkVariants} initial="hidden" animate="visible" className="w-20 h-20 bg-amber-400 rounded-full flex items-center justify-center text-white mb-6 shadow-xl shadow-amber-100">
+                    <MessageCircle size={40} strokeWidth={2.5} />
                 </motion.div>
 
-                <h2 className="text-3xl font-black text-gray-900 mb-2">¡Cita Confirmada!</h2>
-                <p className="text-gray-500 mb-8">Todo listo para tu visita a {tenantName}</p>
+                <h2 className="text-3xl font-black text-gray-900 mb-2">¡Cita Reservada!</h2>
+                <p className="text-lg font-bold text-brand mb-1">Paso Final</p>
+                <p className="text-gray-500 mb-8 text-sm max-w-xs">Envía la confirmación por WhatsApp para que el equipo de <b>{tenantName}</b> pueda ver tu cita.</p>
 
-                <div className="w-full bg-white rounded-3xl border-2 border-gray-50 p-6 shadow-sm mb-8 space-y-4">
+                <div className="w-full bg-white/80 backdrop-blur-md rounded-3xl border-2 border-gray-100 p-6 shadow-sm mb-6 space-y-4">
                     <div className="flex justify-between text-sm">
                         <span className="text-gray-400 font-bold uppercase tracking-widest">Servicio</span>
                         <span className="font-black text-gray-900">{bookingData.service_name}</span>
@@ -373,30 +374,36 @@ export default function BookingWizard({
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 w-full">
-                    <a 
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenantName || '')}`}
-                        target="_blank"
-                        className="flex items-center justify-center gap-2 w-full py-4 bg-black text-white rounded-2xl font-bold transition-all hover:scale-[1.02] active:scale-95"
-                    >
-                        <MapPin size={18} /> Abrir en Google Maps
-                    </a>
-                    
+                    {/* MANDATORY WHATSAPP CTA */}
                     {whatsappPhone && (
                         <a 
                             href={generateWhatsAppReminder(bookingData, whatsappPhone, tenantName || 'Negocio')}
                             target="_blank"
-                            className="flex items-center justify-center gap-2 w-full py-4 bg-green-500 text-white rounded-2xl font-bold transition-all hover:scale-[1.02] active:scale-95"
+                            className="flex items-center justify-center gap-3 w-full py-5 bg-green-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200 transition-all hover:scale-[1.03] active:scale-95 animate-pulse hover:animate-none"
                         >
-                            <MessageCircle size={18} /> Enviar recordatorio WhatsApp
+                            <MessageCircle size={22} /> Confirmar por WhatsApp
                         </a>
                     )}
 
-                    <button 
-                        onClick={() => window.location.href = '/app'}
-                        className="text-gray-400 font-bold text-sm py-2"
-                    >
-                        Ver mis próximas citas
-                    </button>
+                    <p className="text-[11px] text-red-500 font-bold px-4 leading-relaxed">
+                        ⚠️ Tu cita no será visible para el equipo hasta que envíes este mensaje.
+                    </p>
+                    
+                    <div className="pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+                        <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenantName || '')}`}
+                            target="_blank"
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-bold text-xs transition-all hover:bg-gray-100 active:scale-95"
+                        >
+                            <MapPin size={14} /> Google Maps
+                        </a>
+                        <button 
+                            onClick={() => window.location.href = '/app'}
+                            className="flex items-center justify-center gap-2 w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-bold text-xs transition-all hover:bg-gray-100 active:scale-95"
+                        >
+                            Mis Citas
+                        </button>
+                    </div>
                 </div>
 
                 <div className="mt-8 pt-8 border-t border-gray-100 w-full">
