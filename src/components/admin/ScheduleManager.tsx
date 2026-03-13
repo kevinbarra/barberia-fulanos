@@ -43,6 +43,7 @@ export default function ScheduleManager({
     const [scheduleKey, setScheduleKey] = useState(targetStaffId);
     const [recurrenceFreq, setRecurrenceFreq] = useState<'daily' | 'weekly'>('weekly');
     const [selectedDays, setSelectedDays] = useState<string[]>([]);
+    const [isRecurrent, setIsRecurrent] = useState(false);
     const formRef = useRef<HTMLFormElement>(null)
 
     // Forzar re-render del formulario cuando cambia el staff
@@ -84,6 +85,8 @@ export default function ScheduleManager({
             else {
                 toast.success(res?.message || 'Bloqueo agregado')
                 formRef.current?.reset()
+                setIsRecurrent(false)
+                setSelectedDays([])
             }
         } catch (e) {
             toast.error('Error al crear bloqueo')
@@ -212,7 +215,7 @@ export default function ScheduleManager({
                             formData.set('staff_id', targetStaffId);
 
                             // Construct recurrence rule if enabled
-                            const isRecurrent = formData.get('is_recurrent') === 'true';
+                            formData.set('is_recurrent', isRecurrent ? 'true' : 'false');
                             if (isRecurrent) {
                                 formData.set('recurrence_rule', JSON.stringify({
                                     type: recurrenceFreq,
@@ -254,58 +257,61 @@ export default function ScheduleManager({
                                     id="is_recurrent"
                                     name="is_recurrent"
                                     value="true"
-                                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black accent-black"
+                                    checked={isRecurrent}
+                                    onChange={(e) => setIsRecurrent(e.target.checked)}
+                                    className="h-5 w-5 rounded border-gray-300 text-black focus:ring-black accent-black cursor-pointer"
                                 />
-                                <label htmlFor="is_recurrent" className="text-sm font-bold text-gray-700">Repetir este bloqueo</label>
+                                <label htmlFor="is_recurrent" className="text-sm font-medium text-gray-900 cursor-pointer">Repetir este bloqueo</label>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-4 opacity-0 h-0 overflow-hidden transition-all peer-checked:opacity-100 peer-checked:h-auto" id="recurrence-options">
-                                <style>{`#is_recurrent:checked ~ #recurrence-options { opacity: 1; height: auto; }`}</style>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase">Frecuencia</label>
-                                        <select
-                                            name="freq"
-                                            value={recurrenceFreq}
-                                            onChange={(e) => setRecurrenceFreq(e.target.value as any)}
-                                            className="w-full mt-1 p-2 border rounded-lg text-xs bg-white font-bold"
-                                        >
-                                            <option value="weekly">Semanal</option>
-                                            <option value="daily">Diario</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase">Repetir hasta</label>
-                                        <input type="date" name="until" className="w-full mt-1 p-2 border rounded-lg text-xs bg-white" />
-                                    </div>
-                                </div>
-
-                                {recurrenceFreq === 'weekly' && (
-                                    <div className="pt-2 border-t border-gray-100">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase block mb-2">Días de repetición</label>
-                                        <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-                                            {Object.entries(DAY_LABELS).map(([key, label]) => (
-                                                <div key={key} className="flex items-center gap-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        id={`repeat_${key}`}
-                                                        checked={selectedDays.includes(key)}
-                                                        onChange={() => {
-                                                            setSelectedDays(prev =>
-                                                                prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
-                                                            )
-                                                        }}
-                                                        className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black accent-black cursor-pointer"
-                                                    />
-                                                    <label htmlFor={`repeat_${key}`} className="text-xs font-medium text-gray-700 cursor-pointer">
-                                                        {label}
-                                                    </label>
-                                                </div>
-                                            ))}
+                            {isRecurrent && (
+                                <div className="grid grid-cols-1 gap-4 pt-2 border-t border-gray-100 animate-in fade-in slide-in-from-top-1">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Frecuencia</label>
+                                            <select
+                                                name="freq"
+                                                value={recurrenceFreq}
+                                                onChange={(e) => setRecurrenceFreq(e.target.value as any)}
+                                                className="w-full mt-1 p-2 border rounded-lg text-xs bg-white font-bold"
+                                            >
+                                                <option value="weekly">Semanal</option>
+                                                <option value="daily">Diario</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Repetir hasta</label>
+                                            <input type="date" name="until" className="w-full mt-1 p-2 border rounded-lg text-xs bg-white" />
                                         </div>
                                     </div>
-                                )}
-                            </div>
+
+                                    {recurrenceFreq === 'weekly' && (
+                                        <div className="pt-2 border-t border-gray-100">
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase block mb-2">Días de repetición</label>
+                                            <div className="grid grid-cols-2 gap-y-2 gap-x-4">
+                                                {Object.entries(DAY_LABELS).map(([key, label]) => (
+                                                    <div key={key} className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`repeat_${key}`}
+                                                            checked={selectedDays.includes(key)}
+                                                            onChange={() => {
+                                                                setSelectedDays(prev =>
+                                                                    prev.includes(key) ? prev.filter(d => d !== key) : [...prev, key]
+                                                                )
+                                                            }}
+                                                            className="h-5 w-5 rounded border-gray-300 text-black focus:ring-black accent-black cursor-pointer"
+                                                        />
+                                                        <label htmlFor={`repeat_${key}`} className="text-sm font-medium text-gray-900 cursor-pointer">
+                                                            {label}
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <button
