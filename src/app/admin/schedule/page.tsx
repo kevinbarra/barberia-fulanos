@@ -49,7 +49,7 @@ export default async function SchedulePage({
     let blocksQuery = supabase
         .from("time_blocks")
         .select(`*, profiles:staff_id ( full_name )`)
-        .gte("end_time", new Date().toISOString())
+        .or(`end_time.gte.${new Date().toISOString()},is_recurrent.eq.true`)
         .order("start_time", { ascending: true });
 
     if (isManager) {
@@ -80,7 +80,9 @@ export default async function SchedulePage({
         reason: b.reason,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         staff_name: (b.profiles as any)?.full_name || 'Desconocido',
-        staff_id: b.staff_id
+        staff_id: b.staff_id,
+        is_recurrent: b.is_recurrent,
+        recurrence_rule: b.recurrence_rule
     })) || [];
 
     return (

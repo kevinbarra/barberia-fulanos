@@ -12,7 +12,16 @@ const TIMEZONE = DEFAULT_TIMEZONE;
 
 // TIPOS
 type Schedule = { day: string; start_time: string; end_time: string; is_active: boolean | null }
-type TimeBlock = { id: string; start_time: string; end_time: string; reason: string | null; staff_name: string; staff_id: string }
+type TimeBlock = {
+    id: string;
+    start_time: string;
+    end_time: string;
+    reason: string | null;
+    staff_name: string;
+    staff_id: string;
+    is_recurrent?: boolean;
+    recurrence_rule?: any;
+}
 type StaffOption = { id: string; full_name: string }
 
 const DAY_LABELS: Record<string, string> = {
@@ -88,6 +97,7 @@ export default function ScheduleManager({
                 formRef.current?.reset()
                 setIsRecurrent(false)
                 setSelectedDays([])
+                router.refresh() // AUTO-REFRESH
             }
         } catch (e) {
             toast.error('Error al crear bloqueo')
@@ -101,7 +111,10 @@ export default function ScheduleManager({
         try {
             const res = await deleteTimeBlock(id)
             if (res?.error) toast.error(res.error)
-            else toast.success('Bloqueo eliminado')
+            else {
+                toast.success('Bloqueo eliminado')
+                router.refresh() // AUTO-REFRESH
+            }
         } catch (e) {
             toast.error('Error al eliminar')
         }
@@ -365,6 +378,21 @@ export default function ScheduleManager({
                             const end = formatTime(block.end_time)
                             const isOwnBlock = block.staff_id === userId;
 
+                            // FORMATEO DE RECURRENCIA
+                            let displayPattern = start.date;
+                            if (block.is_recurrent && block.recurrence_rule) {
+                                const rule = typeof block.recurrence_rule === 'string'
+                                    ? JSON.parse(block.recurrence_rule)
+                                    : block.recurrence_rule;
+
+                                if (rule.type === 'daily') {
+                                    displayPattern = 'Diario';
+                                } else if (rule.type === 'weekly' && rule.days?.length > 0) {
+                                    const days = rule.days.map((d: string) => DAY_LABELS[d]?.substring(0, 3)).join(', ');
+                                    displayPattern = `Semanal (${days})`;
+                                }
+                            }
+
                             return (
                                 <div key={block.id} className={`p-3 rounded-xl border flex justify-between items-center shadow-sm ${block.staff_id === targetStaffId ? 'bg-white border-gray-200' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
                                     <div>
@@ -376,9 +404,12 @@ export default function ScheduleManager({
                                                     {isOwnBlock ? 'Tú' : block.staff_name}
                                                 </span>
                                             )}
+                                            {block.is_recurrent && (
+                                                <span className="bg-blue-50 text-blue-600 text-[9px] px-1.5 py-0.5 rounded uppercase font-black tracking-tighter">Recurrente</span>
+                                            )}
                                         </div>
                                         <p className="text-xs text-gray-500 font-mono">
-                                            {start.date} • {start.time} - {end.time}
+                                            <span className="font-bold text-gray-700">{displayPattern}</span> • {start.time} - {end.time}
                                         </p>
                                     </div>
                                     <button onClick={() => handleDeleteBlock(block.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
