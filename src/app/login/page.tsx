@@ -221,16 +221,21 @@ export default async function LoginPage({
                     </div>
                 </div>
 
-                {/* GLASSMORPHISM BRANDING FOOTER */}
-                <div className="absolute bottom-8 left-0 right-0 flex flex-col justify-center items-center z-10 px-6 gap-2">
+                {/* KEVIN CONSULTING — IDENTITY CARD */}
+                <div className="absolute bottom-8 left-0 right-0 flex flex-col justify-center items-center z-10 px-6">
                     <a 
                         href="https://kevinconsulting.services" 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-2 group transition-all duration-300"
+                        className="flex flex-col items-center gap-3 group transition-all duration-500"
                     >
-                        <span className="text-[10px] font-bold tracking-widest uppercase text-zinc-600 group-hover:text-zinc-400 transition-colors">Tecnología que profesionaliza tu negocio</span>
-                        <span className="text-[10px] font-black tracking-tight bg-white/5 backdrop-blur-md text-zinc-400 px-3 py-1.5 rounded-lg border border-white/10 shadow-sm group-hover:text-brand group-hover:border-brand/30 transition-all">kevinconsulting.services</span>
+                        <div className="bg-white/5 backdrop-blur-xl px-6 py-4 rounded-full border border-white/10 shadow-sm group-hover:bg-white/10 group-hover:scale-[1.02] transition-all">
+                            <span className="text-[11px] font-semibold tracking-[0.25em] uppercase text-[#F5F5F0]">KEVIN CONSULTING</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                            <span className="text-[10px] font-light tracking-[0.15em] uppercase text-zinc-500 leading-relaxed">Tecnología que profesionaliza tu negocio</span>
+                            <span className="text-[9px] font-light tracking-[0.2em] uppercase text-zinc-600">Ingeniería de precisión · Sistemas de élite</span>
+                        </div>
                     </a>
                 </div>
             </div>

@@ -641,16 +641,21 @@ export default function BookingWizard({
                 </AnimatePresence>
             </div>
 
-            {/* GLASSMORPHISM BRANDING FOOTER */}
-            <div className="py-12 border-t border-gray-100/50 bg-white/60 backdrop-blur-xl flex flex-col justify-center items-center gap-2">
+            {/* KEVIN CONSULTING — IDENTITY CARD */}
+            <div className="py-12 border-t border-gray-100/30 bg-white/40 backdrop-blur-xl flex flex-col justify-center items-center">
                 <a 
                     href="https://kevinconsulting.services" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-2 group transition-all duration-300"
+                    className="flex flex-col items-center gap-3 group transition-all duration-500"
                 >
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología que profesionaliza tu negocio</span>
-                    <span className="text-[10px] font-black tracking-tight bg-white/70 backdrop-blur-md text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200/60 shadow-[0_2px_10px_rgb(0,0,0,0.04)] group-hover:text-brand group-hover:border-brand/30 group-hover:shadow-brand/10 transition-all">kevinconsulting.services</span>
+                    <div className="bg-[#1A1A1A]/90 backdrop-blur-xl px-6 py-4 rounded-full border border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.08)] group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:scale-[1.02] transition-all">
+                        <span className="text-[11px] font-semibold tracking-[0.25em] uppercase text-[#F5F5F0]">KEVIN CONSULTING</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] font-light tracking-[0.15em] uppercase text-gray-400 leading-relaxed">Tecnología que profesionaliza tu negocio</span>
+                        <span className="text-[9px] font-light tracking-[0.2em] uppercase text-gray-300">Ingeniería de precisión · Sistemas de élite</span>
+                    </div>
                 </a>
             </div>
         </div>

@@ -285,29 +285,33 @@ export default function SaaSLandingPage() {
             </section>
 
             {/* Footer */}
-            <footer className="relative z-10 px-6 py-12 bg-white/80 backdrop-blur-xl border-t border-white">
-                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-                    <div className="flex flex-col items-center md:items-start gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-lg">
-                                <Scissors className="w-5 h-5 text-white" />
-                            </div>
-                            <span className="font-black text-2xl tracking-tighter">AgendaBarber</span>
+            <footer className="relative z-10 px-6 py-16 bg-white/80 backdrop-blur-xl border-t border-white">
+                <div className="max-w-6xl mx-auto flex flex-col items-center gap-10">
+                    {/* IDENTITY CARD */}
+                    <a 
+                        href="https://kevinconsulting.services" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex flex-col items-center gap-3 group transition-all duration-500"
+                    >
+                        <div className="bg-[#1A1A1A]/90 backdrop-blur-xl px-8 py-4 rounded-full border border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.08)] group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:scale-[1.02] transition-all">
+                            <span className="text-[12px] font-semibold tracking-[0.25em] uppercase text-[#F5F5F0]">KEVIN CONSULTING</span>
                         </div>
-                        <p className="text-[#86868B] text-sm font-bold max-w-xs text-center md:text-left leading-relaxed">
-                            Tecnología que profesionaliza tu negocio | 
-                            <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="text-brand hover:underline ml-1">kevinconsulting.services</a>
-                        </p>
-                    </div>
-                    
-                    <div className="flex flex-col items-center md:items-end gap-6">
+                        <div className="flex flex-col items-center gap-1">
+                            <span className="text-[10px] font-light tracking-[0.15em] uppercase text-[#86868B] leading-relaxed">Tecnología que profesionaliza tu negocio</span>
+                            <span className="text-[9px] font-light tracking-[0.2em] uppercase text-[#86868B]/60">Ingeniería de precisión · Sistemas de élite</span>
+                        </div>
+                    </a>
+
+                    {/* NAV + COPYRIGHT */}
+                    <div className="flex flex-col items-center gap-4">
                         <div className="flex gap-8 text-[#86868B] text-xs font-black uppercase tracking-[0.2em]">
                             <a href="#features" className="hover:text-black transition-colors">Funciones</a>
                             <a href="#pricing" className="hover:text-black transition-colors">Precios</a>
                             <a href="#contact" className="hover:text-black transition-colors">Contacto</a>
                         </div>
-                        <p className="text-[#86868B] text-[10px] font-bold uppercase tracking-widest">
-                            © {new Date().getFullYear()} AgendaBarber. Software de alto rendimiento.
+                        <p className="text-[#86868B] text-[10px] font-light uppercase tracking-widest">
+                            © {new Date().getFullYear()} AgendaBarber
                         </p>
                     </div>
                 </div>
