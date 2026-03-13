@@ -125,7 +125,7 @@ export default async function AdminLayout({
     return (
         <BusinessVocabularyProvider businessType={businessType}>
             <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId}>
-                <div className="min-h-screen bg-gray-50 flex flex-row">
+                <div className="min-h-screen bg-[#F5F5F7] flex flex-row">
                     <AutoRefreshWrapper />
                     <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} isMainDomain={isOnWww} />
                     <Sidebar role={userRole} tenantName={tenantName} isMainDomain={isOnWww} />

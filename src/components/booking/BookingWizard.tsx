@@ -359,20 +359,14 @@ export default function BookingWizard({
                         ⚠️ Tu cita no será visible para el equipo hasta que envíes este mensaje.
                     </p>
                     
-                    <div className="pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
+                    <div className="pt-4 border-t border-gray-100">
                         <a 
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tenantName || '')}`}
                             target="_blank"
                             className="flex items-center justify-center gap-2 w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-bold text-xs transition-all hover:bg-gray-100 active:scale-95"
                         >
-                            <MapPin size={14} /> Google Maps
+                            <MapPin size={14} /> Ver ubicación en Google Maps
                         </a>
-                        <button 
-                            onClick={() => window.location.href = '/app'}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-gray-50 text-gray-500 rounded-xl font-bold text-xs transition-all hover:bg-gray-100 active:scale-95"
-                        >
-                            Mis Citas
-                        </button>
                     </div>
                 </div>
 
@@ -647,16 +641,16 @@ export default function BookingWizard({
                 </AnimatePresence>
             </div>
 
-            {/* HIGH-PERFORMANCE BRANDING FOOTER */}
-            <div className="py-6 border-t border-gray-100/50 bg-white/80 backdrop-blur-lg flex justify-center items-center">
+            {/* GLASSMORPHISM BRANDING FOOTER */}
+            <div className="py-12 border-t border-gray-100/50 bg-white/60 backdrop-blur-xl flex flex-col justify-center items-center gap-2">
                 <a 
                     href="https://kevinconsulting.services" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 group transition-all duration-300"
+                    className="flex flex-col items-center gap-2 group transition-all duration-300"
                 >
-                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología que profesionaliza tu negocio |</span>
-                    <span className="text-[10px] font-black tracking-tight bg-black text-white px-2 py-1 rounded-md shadow-sm group-hover:bg-brand group-hover:scale-105 transition-all">kevinconsulting.services</span>
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Tecnología que profesionaliza tu negocio</span>
+                    <span className="text-[10px] font-black tracking-tight bg-white/70 backdrop-blur-md text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200/60 shadow-[0_2px_10px_rgb(0,0,0,0.04)] group-hover:text-brand group-hover:border-brand/30 group-hover:shadow-brand/10 transition-all">kevinconsulting.services</span>
                 </a>
             </div>
         </div>
