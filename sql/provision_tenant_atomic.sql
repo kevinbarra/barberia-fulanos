@@ -105,13 +105,25 @@ BEGIN
         SET 
             tenant_id = v_tenant_id, 
             role = 'owner',
+            is_active_barber = TRUE, -- [Phase 33] Auto-onboarding
+            is_calendar_visible = TRUE, -- [Phase 33] Auto-onboarding
             updated_at = NOW()
         WHERE id = v_owner_id;
         
         v_owner_assigned := TRUE;
         
         -- ==================================================
-        -- 5. SEED DEFAULT SCHEDULE FOR OWNER (as first barber)
+        -- 5. SEED DEFAULT SKILLS (Phase 33)
+        -- ==================================================
+        -- Link owner to all seeded services by default
+        INSERT INTO staff_skills (staff_id, tenant_id, service_id)
+        SELECT v_owner_id, v_tenant_id, id
+        FROM services
+        WHERE tenant_id = v_tenant_id
+        ON CONFLICT DO NOTHING;
+        
+        -- ==================================================
+        -- 6. SEED DEFAULT SCHEDULE FOR OWNER (as first barber)
         -- ==================================================
         -- Note: Using staff_schedules table (not business_hours which doesn't exist)
         

@@ -127,7 +127,7 @@ export default async function AdminLayout({
             <KioskModeProvider userRole={userRole} userEmail={user.email || ''} tenantId={tenantId}>
                 <div className="min-h-screen bg-gray-50 flex flex-row">
                     <AutoRefreshWrapper />
-                    <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
+                    <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} isMainDomain={isOnWww} />
                     <Sidebar role={userRole} tenantName={tenantName} isMainDomain={isOnWww} />
                     <div className="flex-1 flex flex-col min-h-[100dvh] relative w-full pt-16 lg:pt-0">
                         {/* Realtime notifications - Desktop only */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
@@ -144,6 +144,7 @@ export default function BookingWizard({
 
     // Selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [selectedTime, setSelectedTime] = useState("");
@@ -404,33 +405,65 @@ export default function BookingWizard({
 
             <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                 <AnimatePresence mode="wait">
-                    {/* PASO 1: SERVICIOS */}
+                    {/* PASO 1: CATEGORÍAS Y SERVICIOS */}
                     {step === 1 && (
                         <motion.section key="step1" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4 space-y-8 pb-24">
-                            <div className="px-2">
-                                <h2 className="text-2xl font-black text-gray-900 leading-tight">Elige tu<br />Experiencia</h2>
-                            </div>
-                            {categoryOrder.map(category => (
-                                <div key={category}>
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2">{category}</h3>
+                            {!selectedCategory ? (
+                                <>
+                                    <div className="px-2">
+                                        <h2 className="text-2xl font-black text-gray-900 leading-tight">¿Qué estas<br />buscando?</h2>
+                                        <p className="text-gray-500 text-sm mt-1">Elige una categoría para ver los servicios.</p>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {categoryOrder.map(category => (
+                                            <button 
+                                                key={category} 
+                                                onClick={() => setSelectedCategory(category)}
+                                                className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-lg transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
+                                            >
+                                                <div className="w-16 h-16 rounded-2xl bg-brand/5 flex items-center justify-center text-brand group-hover:scale-110 transition-transform">
+                                                    <LayoutGrid size={32} />
+                                                </div>
+                                                <span className="font-black text-gray-900 text-sm uppercase tracking-tight">{category}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="px-2 flex items-center justify-between">
+                                        <div>
+                                            <button 
+                                                onClick={() => setSelectedCategory(null)}
+                                                className="flex items-center gap-1 text-xs font-bold text-brand uppercase tracking-widest mb-2"
+                                            >
+                                                <ChevronLeft size={14} /> Volver a categorías
+                                            </button>
+                                            <h2 className="text-2xl font-black text-gray-900 leading-tight">{selectedCategory}</h2>
+                                        </div>
+                                    </div>
                                     <div className="space-y-3">
-                                        {groupedServices[category].map((service) => (
-                                            <button key={service.id} onClick={() => { setSelectedService(service); setStep(2); }} className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left">
+                                        {groupedServices[selectedCategory].map((service) => (
+                                            <button 
+                                                key={service.id} 
+                                                onClick={() => { setSelectedService(service); setStep(2); }} 
+                                                className="w-full bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all text-left group"
+                                            >
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="flex-1">
-                                                        <span className="font-bold text-gray-900 text-lg block">{service.name}</span>
+                                                        <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
                                                         {service.description && <p className="text-sm text-gray-500 mt-1">{service.description}</p>}
                                                         <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-2">
                                                             <Clock size={12} /> {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-brand bg-brand/5 px-3 py-1.5 rounded-xl">${service.price}</span>
+                                                    <span className="font-black text-brand bg-brand/5 px-3 py-1.5 rounded-xl transition-all group-hover:bg-brand group-hover:text-white">${service.price}</span>
                                                 </div>
                                             </button>
                                         ))}
                                     </div>
-                                </div>
-                            ))}
+                                </>
+                            )}
                         </motion.section>
                     )}
 
