@@ -25,6 +25,7 @@ interface Props {
     staff: any[];
     services: any[];
     tenantId: string;
+    blocks?: any[];
 }
 
 // Resolve client info from a booking
@@ -57,7 +58,7 @@ function getClientInfo(booking: PosBookingData) {
     return { clientName, clientPhone };
 }
 
-export default function PocketAgenda({ bookings, staff, services, tenantId }: Props) {
+export default function PocketAgenda({ bookings, staff, services, tenantId, blocks = [] }: Props) {
     const router = useRouter();
     const now = new Date();
     const [selectedDate, setSelectedDate] = useState(startOfDay(now));
@@ -113,13 +114,57 @@ export default function PocketAgenda({ bookings, staff, services, tenantId }: Pr
         return { current: currentBooking, next: nextBooking };
     }, [bookings, selectedDate, now]);
 
+    // Utility to combine a date and a time string
+    const combineDateAndTime = (date: Date, isoTime: string) => {
+        const timeZoneDate = toZonedTime(isoTime, DEFAULT_TIMEZONE);
+        const newDate = new Date(date);
+        newDate.setHours(timeZoneDate.getHours(), timeZoneDate.getMinutes(), 0, 0);
+        return newDate.toISOString();
+    };
+
     const dailyBookings = useMemo(() => {
-        return bookings
+        const slots: any[] = bookings
             .filter(b => isSameDay(toZonedTime(b.start_time, DEFAULT_TIMEZONE), selectedDate))
             .filter(b => b.id !== current?.id && b.id !== next?.id)
             .filter(b => showCancelled ? true : b.status !== 'cancelled')
-            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-    }, [bookings, selectedDate, current, next, showCancelled]);
+            .map(b => ({ ...b, type: 'booking' }));
+
+        // Match Time Blocks (Simplified recurrence matching)
+        const matchedBlocks = (blocks || []).filter(block => {
+            const blockStart = toZonedTime(block.start_time, DEFAULT_TIMEZONE);
+
+            // 1. Direct match
+            if (isSameDay(blockStart, selectedDate)) return true;
+
+            // 2. Recurrent match
+            if (block.is_recurrent && block.recurrence_rule) {
+                const rule = typeof block.recurrence_rule === 'string'
+                    ? JSON.parse(block.recurrence_rule)
+                    : block.recurrence_rule;
+
+                // Check if until date is set and we are past it
+                if (rule.until && isAfter(selectedDate, new Date(rule.until))) return false;
+
+                if (rule.type === 'daily') return true;
+                if (rule.type === 'weekly') {
+                    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                    const currentDayName = dayNames[selectedDate.getDay()];
+                    return rule.days?.includes(currentDayName);
+                }
+            }
+            return false;
+        }).map(block => ({
+            ...block,
+            type: 'blockage',
+            // For sorting consistently, we use the TIME of the original block but the DATE of the selectedDay
+            start_time: combineDateAndTime(selectedDate, block.start_time),
+            end_time: combineDateAndTime(selectedDate, block.end_time)
+        }));
+
+        return [...slots, ...matchedBlocks].sort((a, b) =>
+            new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+    }, [bookings, selectedDate, current, next, showCancelled, blocks]);
 
     const formatTime = (iso: string) => {
         return toZonedTime(iso, DEFAULT_TIMEZONE).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
@@ -301,6 +346,29 @@ export default function PocketAgenda({ bookings, staff, services, tenantId }: Pr
                     <div className="space-y-3">
                         {dailyBookings.length > 0 ? (
                             dailyBookings.map(b => {
+                                if (b.type === 'blockage') {
+                                    return (
+                                        <div
+                                            key={`block-${b.id}`}
+                                            className="bg-gray-100/50 p-4 rounded-3xl border border-gray-200 border-dashed flex items-center justify-between opacity-80"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-1 h-8 rounded-full bg-gray-300"></div>
+                                                <div>
+                                                    <p className="font-black text-gray-500 uppercase tracking-widest text-[10px]">Bloqueo de Tiempo</p>
+                                                    <p className="font-bold text-gray-700">{b.reason || 'Sin motivo'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-black text-lg text-gray-700">{formatTime(b.start_time)}</p>
+                                                <p className="text-[10px] font-bold uppercase text-gray-400">
+                                                    {b.profiles?.full_name?.split(' ')[0] || 'Staff'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
                                 const isCancelled = b.status === 'cancelled';
                                 return (
                                     <div

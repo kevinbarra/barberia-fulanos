@@ -35,6 +35,7 @@ interface BookingsViewSwitcherProps {
     endHour?: number;
     staffSchedules?: StaffSchedule[];
     workflowMode?: 'auto' | 'manual';
+    blocks?: any[];
 }
 
 export default function BookingsViewSwitcher({
@@ -46,7 +47,8 @@ export default function BookingsViewSwitcher({
     startHour = 9,
     endHour = 21,
     staffSchedules = [],
-    workflowMode = 'manual'
+    workflowMode = 'manual',
+    blocks = []
 }: BookingsViewSwitcherProps) {
     // Shared staff filter — persists across view switches
     const [soloStaffId, setSoloStaffId] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function BookingsViewSwitcher({
         <div className="h-full w-full relative">
             {/* MOBILE ONLY (< 768px) */}
             <div className="block md:hidden h-full absolute inset-0">
-                <PocketAgenda bookings={bookings} staff={staff} services={services} tenantId={tenantId} />
+                <PocketAgenda bookings={bookings} staff={staff} services={services} tenantId={tenantId} blocks={blocks} />
             </div>
 
             {/* TABLET ONLY (768px -> 1024px) */}

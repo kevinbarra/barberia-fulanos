@@ -64,6 +64,14 @@ export default async function BookingsPage() {
         .eq("is_active_barber", true)
         .order("created_at");
 
+    // Fetch Time Blocks for visual gaps
+    const { data: blocks } = await supabase
+        .from("time_blocks")
+        .select(`*, profiles:staff_id ( full_name )`)
+        .eq("tenant_id", tenantId)
+        .gte("start_time", startDate)
+        .lte("start_time", endDate);
+
     // ============ DYNAMIC HOURS CALCULATION ============
     // Fetch all schedules for active barbers 
     const staffIds = staff?.map(s => s.id) || [];
@@ -117,6 +125,7 @@ export default async function BookingsPage() {
                 endHour={endHour}
                 staffSchedules={schedules || []}
                 workflowMode={workflowMode}
+                blocks={blocks || []}
             />
         </div>
     );
