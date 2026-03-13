@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createBooking, getTakenRanges } from "@/app/book/[slug]/actions";
-import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, Lock, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, Wallet, CreditCard, LayoutGrid, Scissors, Wind, Hand, Palette, Heart, Star, Gem } from "lucide-react";
+import { Loader2, Calendar, Clock, Check, ChevronLeft, User, Mail, Phone, ChevronRight, Sparkles, CalendarPlus, Gift, ExternalLink, MessageCircle, Briefcase, MapPin, Share2, LayoutGrid, Scissors, Wind, Hand, Palette, Heart, Star, Gem } from "lucide-react";
 import Image from 'next/image';
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { addDays, format, isSameDay } from "date-fns";
@@ -114,7 +114,7 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-// Generate WhatsApp reminder link (Requested for Phase 37)
+// Generate WhatsApp reminder link (Phase 38 — Clean)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
     const serviceName = booking.service_name;
     const staffName = booking.staff_name;
@@ -122,20 +122,18 @@ function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantN
     const time = booking.time_formatted;
     const guestName = booking.guest_name || 'Cliente';
     const guestPhone = booking.guest_phone || '';
-    const paymentId = booking.id.slice(0, 8).toUpperCase();
 
     const message = [
-        `¡Hola ${tenantName}! 👋 Acabo de agendar por la App:`,
-        `👤 Cliente: ${guestName} (${guestPhone})`,
-        `✂️ Servicio: ${serviceName}`,
-        `Atendido por: ${staffName}`,
-        `📅 Fecha: ${date}`,
-        `⏰ Hora: ${time}`,
-        `🧾 Comprobante: ${paymentId}`,
-        `✅ ¡Confírmame si todo bien! Gracias.`
+        '\u00A1Hola ' + tenantName + '! \uD83D\uDC4B Acabo de agendar por la App:',
+        '\uD83D\uDC64 Cliente: ' + guestName + ' (' + guestPhone + ')',
+        '\u2702\uFE0F Servicio: ' + serviceName,
+        'Atendido por: ' + staffName,
+        '\uD83D\uDCC5 Fecha: ' + date,
+        '\u23F0 Hora: ' + time,
+        '\u2705 \u00A1Conf\u00EDrmame si todo bien! Gracias.'
     ].join('\n');
     
-    return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
 }
 
 export default function BookingWizard({
@@ -166,7 +164,7 @@ export default function BookingWizard({
     const [isLoadingSlots, setIsLoadingSlots] = useState(false);
     const [success, setSuccess] = useState(false);
     const [bookingData, setBookingData] = useState<BookingResult | null>(null);
-    const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+
 
     // Selección
     const [selectedService, setSelectedService] = useState<Service | null>(null);
@@ -303,41 +301,13 @@ export default function BookingWizard({
         setIsSubmitting(false);
         if (result.success && result.booking) {
             setBookingData(result.booking);
-            if (result.payment_url) {
-                setPaymentUrl(result.payment_url);
-                window.location.href = result.payment_url;
-            } else {
-                setSuccess(true);
-            }
+            setSuccess(true);
         } else {
             alert(result.error || "Error al reservar");
         }
     };
 
-    // --- CÁLCULO DE DEPÓSITO (Fase 29) ---
-    const calculateBreakdown = useMemo(() => {
-        if (!selectedService) return { total: 0, deposit: 0, balance: 0 };
-        const total = selectedService.price;
-        const mode = paymentRules?.mode || 'Libre';
-        const threshold = Number(paymentRules?.threshold_amount || 0);
-        let deposit = 0;
 
-        if (mode === 'Pago Total') {
-            deposit = total;
-        } else if (mode === 'Anticipo' && total >= threshold) {
-            if (paymentRules.deposit_type === 'percentage') {
-                deposit = (total * Number(paymentRules.deposit_value || 0)) / 100;
-            } else {
-                deposit = Math.min(total, Number(paymentRules.deposit_value || 0));
-            }
-        }
-
-        return {
-            total,
-            deposit,
-            balance: total - deposit
-        };
-    }, [selectedService, paymentRules]);
 
     const [countdown, setCountdown] = useState(15 * 60);
     useEffect(() => {
@@ -354,9 +324,9 @@ export default function BookingWizard({
                     <MessageCircle size={40} strokeWidth={2.5} />
                 </motion.div>
 
-                <h2 className="text-3xl font-black text-gray-900 mb-2">¡Cita Reservada!</h2>
+                <h2 className="text-3xl font-black text-gray-900 mb-2">¡Casi listo!</h2>
                 <p className="text-lg font-bold text-brand mb-1">Paso Final</p>
-                <p className="text-gray-500 mb-8 text-sm max-w-xs">Envía la confirmación por WhatsApp para que el equipo de <b>{tenantName}</b> pueda ver tu cita.</p>
+                <p className="text-gray-500 mb-8 text-sm max-w-xs">Envía el mensaje para que el barbero confirme tu espacio en <b>{tenantName}</b>.</p>
 
                 <div className="w-full bg-white/80 backdrop-blur-md rounded-3xl border-2 border-gray-100 p-6 shadow-sm mb-6 space-y-4">
                     <div className="flex justify-between text-sm">
@@ -621,24 +591,26 @@ export default function BookingWizard({
                         </motion.section>
                     )}
 
-                    {/* PASO 5: RESUMEN Y PAGO (Fase 29) */}
+                    {/* PASO 5: RESUMEN DE CITA (Fase 38 — Sin pagos) */}
                     {step === 5 && (
                         <motion.section key="step5" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 h-full flex flex-col">
-                            <h2 className="text-2xl font-black text-gray-900 mb-6">Resumen de Pago</h2>
+                            <h2 className="text-2xl font-black text-gray-900 mb-6">Confirma tu Cita</h2>
                             
-                            <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden mb-6">
-                                <div className="p-6 bg-gray-50/50 border-b border-gray-100 space-y-4">
+                            <div className="bg-white/80 backdrop-blur-md rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden mb-6">
+                                <div className="p-6 space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Servicio Reservado</p>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Servicio</p>
                                             <h3 className="text-xl font-black text-gray-900">{selectedService?.name}</h3>
                                             <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
                                                 <Calendar size={14} /> {selectedDate && format(selectedDate, 'dd MMMM', { locale: es })} @ {selectedTime}
                                             </p>
                                         </div>
-                                        <div className="text-right">
-                                            <span className="font-black text-xl text-gray-900">${selectedService?.price}</span>
-                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100">
+                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Atendido por</p>
+                                        <h4 className="text-sm font-bold text-gray-900">{selectedStaff?.full_name}</h4>
                                     </div>
 
                                     <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
@@ -655,43 +627,15 @@ export default function BookingWizard({
                                         </button>
                                     </div>
                                 </div>
-
-                                <div className="p-6 space-y-4">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <div className="flex items-center gap-2 text-gray-500 font-medium">
-                                            <Wallet size={16} className="text-brand" /> Pago hoy para asegurar
-                                        </div>
-                                        <span className="font-black text-brand text-lg">${calculateBreakdown.deposit.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between items-center text-sm">
-                                        <div className="flex items-center gap-2 text-gray-400 font-medium">
-                                            <CreditCard size={16} /> Pago restante en sucursal
-                                        </div>
-                                        <span className="font-black text-gray-400">${calculateBreakdown.balance.toLocaleString()}</span>
-                                    </div>
-                                    
-                                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                                        <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Total del Servicio</span>
-                                        <span className="text-2xl font-black text-gray-900">${calculateBreakdown.total.toLocaleString()}</span>
-                                    </div>
-                                </div>
                             </div>
 
                             <div className="space-y-4 mt-auto">
-                                <div className="flex items-start gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                                    <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                                    <p className="text-xs text-amber-900 leading-relaxed font-medium">
-                                        Tu pago está protegido por <b>Mercado Pago</b>. <br />
-                                        {calculateBreakdown.deposit > 0 ? "Al confirmar, serás redirigido para completar el anticipo." : "No se requiere pago previo para este servicio."}
-                                    </p>
-                                </div>
-
                                 <button
                                     onClick={handleBooking}
                                     disabled={isSubmitting}
-                                    className="w-full bg-brand text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-brand/20 active:scale-95 transition-all flex justify-center items-center gap-2"
+                                    className="w-full bg-black text-white py-5 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all flex justify-center items-center gap-2"
                                 >
-                                    {isSubmitting ? <Loader2 className="animate-spin" /> : (calculateBreakdown.deposit > 0 ? "PROCEDER AL PAGO →" : "CONFIRMAR RESERVA")}
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : "RESERVAR CITA"}
                                 </button>
                                 
                                 <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest px-4">
