@@ -65,10 +65,12 @@ const KIOSK_ALLOWED_MENU = [
 export default function Sidebar({
     role,
     tenantName = 'AgendaBarber',
+    isMainDomain = false,
     className = ""
 }: {
     role: 'owner' | 'staff' | 'admin' | 'client' | string,
     tenantName?: string,
+    isMainDomain?: boolean,
     className?: string
 }) {
     const pathname = usePathname()
@@ -189,8 +191,8 @@ export default function Sidebar({
                     ))
                 )}
 
-                {/* PLATFORM MANAGEMENT - Super Admin Only */}
-                {role === 'super_admin' && !isKioskMode && (
+                {/* PLATFORM MANAGEMENT - Super Admin Only & Main Domain Only */}
+                {role === 'super_admin' && isMainDomain && !isKioskMode && (
                     <div className="pt-4 mt-4 border-t border-gray-100">
                         <SidebarLink 
                             item={{ name: 'Platform Control', href: '/admin/platform', icon: Globe }} 

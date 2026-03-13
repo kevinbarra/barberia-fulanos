@@ -111,6 +111,11 @@ export default async function AdminLayout({
 
     // Platform route: render only children - platform has its own layout
     if (isPlatformRoute) {
+        // SECURITY: Only allow platform management from the main domain
+        if (!isOnWww) {
+            console.log('[SECURITY] Forbidden platform access from subdomain:', hostname);
+            redirect('/admin');
+        }
         return <>{children}</>;
     }
 
@@ -123,7 +128,7 @@ export default async function AdminLayout({
                 <div className="min-h-screen bg-gray-50 flex flex-row">
                     <AutoRefreshWrapper />
                     <MobileAdminNav role={userRole} tenantId={tenantId} tenantName={tenantName} />
-                    <Sidebar role={userRole} tenantName={tenantName} />
+                    <Sidebar role={userRole} tenantName={tenantName} isMainDomain={isOnWww} />
                     <div className="flex-1 flex flex-col min-h-[100dvh] relative w-full pt-16 lg:pt-0">
                         {/* Realtime notifications - Desktop only */}
                         {tenantId && (

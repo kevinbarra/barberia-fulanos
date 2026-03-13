@@ -530,7 +530,7 @@ export default function BookingWizard({
                             <h2 className="text-2xl font-black text-gray-900 mb-6">Resumen de Pago</h2>
                             
                             <div className="bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden mb-6">
-                                <div className="p-6 bg-gray-50/50 border-b border-gray-100">
+                                <div className="p-6 bg-gray-50/50 border-b border-gray-100 space-y-4">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Servicio Reservado</p>
@@ -542,6 +542,20 @@ export default function BookingWizard({
                                         <div className="text-right">
                                             <span className="font-black text-xl text-gray-900">${selectedService?.price}</span>
                                         </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tus Datos</p>
+                                            <h4 className="text-sm font-bold text-gray-900">{clientData.name}</h4>
+                                            <p className="text-xs text-gray-400 font-medium">{clientData.phone}</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setStep(4)}
+                                            className="text-[10px] font-black text-brand uppercase tracking-widest bg-brand/5 px-2 py-1 rounded-lg"
+                                        >
+                                            Editar
+                                        </button>
                                     </div>
                                 </div>
 

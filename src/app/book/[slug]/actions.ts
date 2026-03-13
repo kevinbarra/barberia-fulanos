@@ -139,6 +139,8 @@ export async function createBooking(data: {
     const timeStrFormatted = startDate.toLocaleTimeString('es-MX', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' });
 
     // 3. INSERTAR
+    const finalClientName = data.client_name?.trim() || "Cliente";
+
     const insertPayload: any = {
         tenant_id: data.tenant_id,
         service_id: data.service_id,
@@ -152,11 +154,11 @@ export async function createBooking(data: {
         service_name_at_booking: realServiceName,
         origin: data.origin || 'web',
         is_any_staff: data.is_any_staff || false,
-        guest_name: data.client_name,
+        guest_name: finalClientName,
         guest_phone: data.client_phone,
         guest_email: data.client_email || null,
         customer_id: data.customer_id || null,
-        notes: `Cliente: ${data.client_name} | Tel: ${data.client_phone} | Email: ${data.client_email}`
+        notes: `Cliente: ${finalClientName} | Tel: ${data.client_phone} | Email: ${data.client_email}`
     };
 
     const { data: newBooking, error: insertError } = await supabase
