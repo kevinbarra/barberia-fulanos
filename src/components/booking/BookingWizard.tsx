@@ -266,6 +266,14 @@ export default function BookingWizard({
         return () => { isMounted = false; if (intervalId) clearInterval(intervalId); };
     }, [selectedDate, selectedStaff, filteredStaff]);
 
+    // Auto-select if only 1 barber available (Phase 46)
+    useEffect(() => {
+        if (step === 2 && filteredStaff.length === 1 && !selectedStaff) {
+            setSelectedStaff(filteredStaff[0]);
+            setStep(3);
+        }
+    }, [step, filteredStaff, selectedStaff]);
+
     const groupedServices = useMemo(() => {
         return services.reduce((acc, service) => {
             const cat = service.category || 'Populares';
@@ -281,12 +289,10 @@ export default function BookingWizard({
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
         const now = new Date();
-        const staffToCheck = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
-        const isAnyMode = selectedStaff.id === 'any';
+        const staffToCheck = selectedStaff ? [selectedStaff] : [];
         const slotsMap = new Map<string, { label: string, value: string }>();
 
         // Collect ALL possible time slots and check availability across staff
-        // For "Any Staff": a slot appears only if ≥1 staff is free
         // For single staff: a slot appears if that staff is free
         const candidateSlots = new Map<string, { label: string; value: string; freeCount: number }>();
 
@@ -334,7 +340,6 @@ export default function BookingWizard({
         setIsSubmitting(true);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dateTime = `${dateStr}T${selectedTime}`;
-        const isAnyStaff = selectedStaff.id === 'any';
 
         const result = await createBooking({
             tenant_id: selectedService.tenant_id,
@@ -347,8 +352,8 @@ export default function BookingWizard({
             client_email: clientData.email,
             customer_id: currentUser?.id || null,
             origin: origin,
-            is_any_staff: isAnyStaff,
-            available_staff_ids: isAnyStaff ? filteredStaff.map(s => s.id) : []
+            is_any_staff: false,
+            available_staff_ids: []
         });
 
         setIsSubmitting(false);
@@ -592,15 +597,6 @@ export default function BookingWizard({
                                 <p className="text-gray-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => { setSelectedStaff({ id: 'any', full_name: 'Cualquiera', role: 'Staff', avatar_url: null }); setStep(3); }}
-                                    className="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/40 shadow-sm hover:shadow-xl transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
-                                >
-                                    <div className="w-24 h-24 rounded-full bg-amber-50/50 border-8 border-white shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                                        <Sparkles size={40} className="text-amber-500" />
-                                    </div>
-                                    <span className="font-bold text-gray-900 block group-hover:text-amber-600 transition-colors">Cualquiera</span>
-                                </button>
                                 {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
