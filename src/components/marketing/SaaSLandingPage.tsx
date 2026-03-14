@@ -303,32 +303,23 @@ export default function SaaSLandingPage() {
             </section>
 
             {/* Footer */}
-            <footer className="relative z-10 px-6 py-16 bg-white/80 backdrop-blur-xl border-t border-white">
-                <div className="max-w-6xl mx-auto flex flex-col items-center gap-10">
-                    {/* IDENTITY CARD */}
-                    <a 
-                        href="https://kevinconsulting.services" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex flex-col items-center gap-3 group transition-all duration-500"
-                    >
-                        <div className="bg-[#1A1A1A]/90 backdrop-blur-xl px-8 py-4 rounded-full border border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.08)] group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:scale-[1.02] transition-all">
-                            <span className="text-[12px] font-semibold tracking-[0.25em] uppercase text-[#F5F5F0]">KEVIN CONSULTING</span>
-                        </div>
-                        <div className="flex flex-col items-center gap-1">
-                            <span className="text-[10px] font-light tracking-[0.15em] uppercase text-[#86868B] leading-relaxed">Tecnología que profesionaliza tu negocio</span>
-                            <span className="text-[9px] font-light tracking-[0.2em] uppercase text-[#86868B]/60">Ingeniería de precisión · Sistemas de élite</span>
-                        </div>
+            <footer className="relative z-10 px-6 py-16 bg-[#F5F5F7] border-t border-gray-200/50">
+                <div className="max-w-6xl mx-auto flex flex-col items-center gap-8">
+                    {/* AUTHOR IDENTITY */}
+                    <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">Kevin Consulting</span>
+                        <span className="text-[10px] font-light tracking-widest text-zinc-400">Tecnología que profesionaliza tu negocio</span>
+                        <span className="text-[9px] font-light tracking-widest text-zinc-300">Ingeniería de precisión · Sistemas de élite</span>
                     </a>
 
                     {/* NAV + COPYRIGHT */}
                     <div className="flex flex-col items-center gap-4">
-                        <div className="flex gap-8 text-[#86868B] text-xs font-black uppercase tracking-[0.2em]">
+                        <div className="flex gap-8 text-zinc-400 text-xs font-bold uppercase tracking-[0.2em]">
                             <a href="#features" className="hover:text-black transition-colors">Funciones</a>
                             <a href="#pricing" className="hover:text-black transition-colors">Precios</a>
                             <a href="#contact" className="hover:text-black transition-colors">Contacto</a>
                         </div>
-                        <p className="text-[#86868B] text-[10px] font-light uppercase tracking-widest">
+                        <p className="text-zinc-300 text-[10px] font-light uppercase tracking-widest">
                             © {new Date().getFullYear()} AgendaBarber
                         </p>
                     </div>

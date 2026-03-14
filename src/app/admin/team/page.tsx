@@ -71,6 +71,8 @@ export default async function TeamPage() {
     const teamRoles = ['super_admin', 'owner', 'staff', 'kiosk'];
     const filteredStaff = activeStaff?.filter(s => {
         if (!teamRoles.includes(s.role)) return false;
+        // Data Guard: never render staff with null/empty names
+        if (!s.full_name?.trim()) return false;
         // Always show owners and super_admins regardless of barber status
         if (s.role === 'owner' || s.role === 'super_admin') return true;
         // Hide ghost staff (inactive barbers) from the list

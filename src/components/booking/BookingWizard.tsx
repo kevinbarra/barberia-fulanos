@@ -196,7 +196,9 @@ export default function BookingWizard({
     const staffLabel = vocabulary.staff_singular;
 
     const filteredStaff = useMemo(() => {
-        if (!selectedService) return staff;
+        // Data Guard: never render staff with null/empty names
+        const validStaff = staff.filter(s => s.full_name?.trim());
+        if (!selectedService) return validStaff;
 
         // 1. Try filtering by explicit skills
         const staffWithSkill = staff.filter(s => s.skills?.includes(selectedService.id));
@@ -621,15 +623,12 @@ export default function BookingWizard({
                 </AnimatePresence>
             </div>
 
-            {/* MINIMALIST BRANDING */}
-            <div className="py-8 flex justify-center items-center">
-                <a 
-                    href="https://kevinconsulting.services" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[10px] font-light tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors"
-                >
-                    Tecnología por kevinconsulting.services
+            {/* FOOTER — AUTHOR IDENTITY */}
+            <div className="py-10 flex flex-col justify-center items-center gap-1">
+                <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">Kevin Consulting</span>
+                    <span className="text-[9px] font-light tracking-widest text-zinc-300">Tecnología que profesionaliza tu negocio</span>
+                    <span className="text-[8px] font-light tracking-widest text-zinc-300">Ingeniería de precisión · Sistemas de élite</span>
                 </a>
             </div>
         </div>

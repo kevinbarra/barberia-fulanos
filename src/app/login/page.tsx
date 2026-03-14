@@ -221,15 +221,12 @@ export default async function LoginPage({
                     </div>
                 </div>
 
-                {/* MINIMALIST BRANDING */}
-                <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center z-10 px-6">
-                    <a 
-                        href="https://kevinconsulting.services" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-[10px] font-light tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors"
-                    >
-                        Tecnología por kevinconsulting.services
+                {/* FOOTER — AUTHOR IDENTITY */}
+                <div className="absolute bottom-8 left-0 right-0 flex flex-col justify-center items-center z-10 px-6 gap-1">
+                    <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">Kevin Consulting</span>
+                        <span className="text-[9px] font-light tracking-widest text-zinc-600">Tecnología que profesionaliza tu negocio</span>
+                        <span className="text-[8px] font-light tracking-widest text-zinc-600">Ingeniería de precisión · Sistemas de élite</span>
                     </a>
                 </div>
             </div>
