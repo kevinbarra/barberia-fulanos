@@ -119,16 +119,19 @@ export async function createBooking(data: {
         finalStaffId = selectedStaffId;
     }
 
-    // Info del Staff
     let realStaffName = "El equipo";
+    let realStaffPhone: string | null = null;
     try {
         const adminClient = createAdminClient();
         const { data: staffData } = await adminClient
             .from('profiles')
-            .select('full_name')
+            .select('full_name, phone')
             .eq('id', finalStaffId)
             .single();
-        if (staffData) realStaffName = staffData.full_name || "El equipo";
+        if (staffData) {
+            realStaffName = staffData.full_name || "El equipo";
+            realStaffPhone = staffData.phone || null;
+        }
     } catch (e) { console.error(e); }
 
     // 2. TIMEZONE
@@ -260,6 +263,7 @@ export async function createBooking(data: {
             service_price: servicePrice,
             start_time: startDate.toISOString(),
             staff_name: realStaffName,
+            staff_phone: realStaffPhone,
             date_formatted: dateStrFormatted,
             time_formatted: timeStrFormatted
         }

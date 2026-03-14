@@ -26,6 +26,7 @@ type BookingResult = {
     service_price: number;
     start_time: string;
     staff_name: string;
+    staff_phone?: string | null;
     date_formatted: string;
     time_formatted: string;
 };
@@ -330,8 +331,13 @@ export default function BookingWizard({
         return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
     };
 
-    // Resolve WhatsApp phone: staff phone > tenant phone (prop)
-    const resolvedWhatsAppPhone = selectedStaff?.phone || whatsappPhone;
+    // Resolve WhatsApp phone: bookingData.staff_phone (from server) > selectedStaff.phone > tenant phone
+    const resolvedWhatsAppPhone = (() => {
+        const staffPhone = bookingData?.staff_phone || selectedStaff?.phone;
+        if (staffPhone) return staffPhone;
+        console.error('[WhatsApp Routing] Staff phone missing for:', bookingData?.staff_name, '| selectedStaff:', selectedStaff?.full_name, '| Falling back to tenant phone:', whatsappPhone);
+        return whatsappPhone;
+    })();
 
     // --- VISTA ÉXITO – PASO FINAL (Fase 40) ---
     if (success && bookingData) {
