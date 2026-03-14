@@ -23,12 +23,21 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
 
+    // One-off time blocks for this specific date
     const { data: blocks } = await supabase
         .from('time_blocks')
         .select('start_time, end_time')
         .eq('staff_id', staffId)
+        .eq('is_recurrent', false)
         .gte('start_time', startOfDay)
         .lte('start_time', endOfDay)
+
+    // Recurrent time blocks (not date-filtered — matched by day name)
+    const { data: recurrentBlocks } = await supabase
+        .from('time_blocks')
+        .select('start_time, end_time, recurrence_rule')
+        .eq('staff_id', staffId)
+        .eq('is_recurrent', true)
 
     const busyRanges = [
         ...(bookings || []),
@@ -37,6 +46,51 @@ export async function getTakenRanges(staffId: string, dateStr: string) {
         start: new Date(item.start_time).getTime(),
         end: new Date(item.end_time).getTime()
     }));
+
+    // Process recurrent blocks: check if today's day matches the rule
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const requestedDate = new Date(dateStr + 'T12:00:00'); // noon to avoid timezone edge
+    const requestedDayName = dayNames[requestedDate.getDay()];
+
+    if (recurrentBlocks) {
+        for (const block of recurrentBlocks) {
+            const rule = typeof block.recurrence_rule === 'string'
+                ? JSON.parse(block.recurrence_rule)
+                : block.recurrence_rule;
+
+            if (!rule) continue;
+
+            // Check if the recurrence has expired
+            if (rule.until && new Date(rule.until) < requestedDate) continue;
+
+            let matches = false;
+            if (rule.type === 'daily') {
+                matches = true;
+            } else if (rule.type === 'weekly') {
+                matches = rule.days?.includes(requestedDayName) || false;
+            }
+
+            if (matches) {
+                // Project the block's TIME onto the requested DATE
+                const blockStart = new Date(block.start_time);
+                const blockEnd = new Date(block.end_time);
+
+                const projectedStart = fromZonedTime(
+                    `${dateStr} ${blockStart.toLocaleTimeString('en-US', { hour12: false, timeZone: TIMEZONE })}`,
+                    TIMEZONE
+                );
+                const projectedEnd = fromZonedTime(
+                    `${dateStr} ${blockEnd.toLocaleTimeString('en-US', { hour12: false, timeZone: TIMEZONE })}`,
+                    TIMEZONE
+                );
+
+                busyRanges.push({
+                    start: projectedStart.getTime(),
+                    end: projectedEnd.getTime()
+                });
+            }
+        }
+    }
 
     return busyRanges
 }
