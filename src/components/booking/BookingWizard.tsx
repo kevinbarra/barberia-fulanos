@@ -260,7 +260,13 @@ export default function BookingWizard({
         const dayName = format(selectedDate, 'EEEE', { locale: undefined }).toLowerCase();
         const now = new Date();
         const staffToCheck = selectedStaff.id === 'any' ? filteredStaff : [selectedStaff];
+        const isAnyMode = selectedStaff.id === 'any';
         const slotsMap = new Map<string, { label: string, value: string }>();
+
+        // Collect ALL possible time slots and check availability across staff
+        // For "Any Staff": a slot appears only if ≥1 staff is free
+        // For single staff: a slot appears if that staff is free
+        const candidateSlots = new Map<string, { label: string; value: string; freeCount: number }>();
 
         staffToCheck.forEach((member) => {
             const workSchedule = schedules.find((s) => s.staff_id === member.id && s.day === dayName && s.is_active === true);
@@ -275,15 +281,29 @@ export default function BookingWizard({
                     currentTime.setMinutes(currentTime.getMinutes() + 30);
                     continue;
                 }
+                const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
                 const isTaken = takenRanges.some(range => (slotStartMs < range.end && slotEndMs > range.start));
+
                 if (!isTaken) {
-                    const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    const timeValue = currentTime.toLocaleTimeString('en-US', { hour12: false });
-                    if (!slotsMap.has(timeValue)) slotsMap.set(timeValue, { label: timeLabel, value: timeValue });
+                    const existing = candidateSlots.get(timeValue);
+                    if (existing) {
+                        existing.freeCount++;
+                    } else {
+                        const timeLabel = currentTime.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+                        candidateSlots.set(timeValue, { label: timeLabel, value: timeValue, freeCount: 1 });
+                    }
                 }
                 currentTime.setMinutes(currentTime.getMinutes() + 30);
             }
         });
+
+        // Filter: only include slots where at least 1 staff member is free
+        for (const [key, slot] of candidateSlots) {
+            if (slot.freeCount > 0) {
+                slotsMap.set(key, { label: slot.label, value: slot.value });
+            }
+        }
+
         return Array.from(slotsMap.values()).sort((a, b) => a.value.localeCompare(b.value));
     }, [selectedDate, selectedStaff, schedules, takenRangesByStaff, selectedService, filteredStaff]);
 
