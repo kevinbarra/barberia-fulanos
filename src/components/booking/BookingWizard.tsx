@@ -122,26 +122,27 @@ function ensureMexicoPrefix(phone: string): string {
     return '52' + digits;
 }
 
-// Generate WhatsApp reminder link (Phase 40 — Robust Encoding)
+// Generate WhatsApp reminder link (Phase 40b — Sanitized Deep Link)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
     const normalizedPhone = ensureMexicoPrefix(phone);
-    const serviceName = booking.service_name;
-    const staffName = booking.staff_name;
-    const date = booking.date_formatted;
-    const time = booking.time_formatted;
-    const guestName = booking.guest_name || 'Cliente';
-    const guestPhone = booking.guest_phone || '';
+    const serviceName = (booking.service_name || '').trim();
+    const staffName = (booking.staff_name || '').trim();
+    const date = (booking.date_formatted || '').trim();
+    const time = (booking.time_formatted || '').trim();
+    const guestName = (booking.guest_name || 'Cliente').trim();
+    const guestPhone = (booking.guest_phone || '').trim();
 
-    const message = [
-        '\u00A1Hola ' + tenantName + '! \uD83D\uDC4B Acabo de agendar por la App:',
-        '\uD83D\uDC64 Cliente: ' + guestName + ' (' + guestPhone + ')',
-        '\u2702\uFE0F Servicio: ' + serviceName,
+    const lines = [
+        'Hola ' + tenantName.trim() + ', acabo de agendar por la App:',
+        'Cliente: ' + guestName + ' (' + guestPhone + ')',
+        'Servicio: ' + serviceName,
         'Atendido por: ' + staffName,
-        '\uD83D\uDCC5 Fecha: ' + date,
-        '\u23F0 Hora: ' + time,
-        '\u2705 \u00A1Conf\u00EDrmame si todo bien! Gracias.'
-    ].join('\n');
-    
+        'Fecha: ' + date,
+        'Hora: ' + time,
+        'Confirmame si todo bien. Gracias.'
+    ];
+
+    const message = lines.join('\n');
     return 'https://wa.me/' + normalizedPhone + '?text=' + encodeURIComponent(message);
 }
 
@@ -424,11 +425,11 @@ export default function BookingWizard({
                             <ChevronLeft size={20} />
                         </button>
                     ) : <div className="w-9" />}
-                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Paso {step} de 5</span>
+                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Paso {step} de 4</span>
                     <div className="w-9" />
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div className="h-full bg-brand" initial={{ width: 0 }} animate={{ width: `${(step / 5) * 100}%` }} transition={{ duration: 0.3 }} />
+                    <motion.div className="h-full bg-brand" initial={{ width: 0 }} animate={{ width: `${(step / 4) * 100}%` }} transition={{ duration: 0.3 }} />
                 </div>
             </div>
 
@@ -608,86 +609,27 @@ export default function BookingWizard({
                                 )}
                             </div>
                             <button 
-                                onClick={() => setStep(5)} 
-                                disabled={!clientData.name || clientData.phone.length !== 10} 
-                                className="w-full bg-black text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8"
+                                onClick={handleBooking} 
+                                disabled={!clientData.name || clientData.phone.length !== 10 || isSubmitting} 
+                                className="w-full bg-black text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8 flex justify-center items-center gap-2"
                             >
-                                Revisar Resumen
+                                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Reservar Cita'}
                             </button>
                         </motion.section>
                     )}
 
-                    {/* PASO 5: RESUMEN DE CITA (Fase 38 — Sin pagos) */}
-                    {step === 5 && (
-                        <motion.section key="step5" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 h-full flex flex-col">
-                            <h2 className="text-2xl font-black text-gray-900 mb-6">Confirma tu Cita</h2>
-                            
-                            <div className="bg-white/80 backdrop-blur-md rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden mb-6">
-                                <div className="p-6 space-y-4">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Servicio</p>
-                                            <h3 className="text-xl font-black text-gray-900">{selectedService?.name}</h3>
-                                            <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
-                                                <Calendar size={14} /> {selectedDate && format(selectedDate, 'dd MMMM', { locale: es })} @ {selectedTime}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-gray-100">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Atendido por</p>
-                                        <h4 className="text-sm font-bold text-gray-900">{selectedStaff?.full_name}</h4>
-                                    </div>
-
-                                    <div className="pt-4 border-t border-gray-100 flex justify-between items-center">
-                                        <div>
-                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tus Datos</p>
-                                            <h4 className="text-sm font-bold text-gray-900">{clientData.name}</h4>
-                                            <p className="text-xs text-gray-400 font-medium">{clientData.phone}</p>
-                                        </div>
-                                        <button 
-                                            onClick={() => setStep(4)}
-                                            className="text-[10px] font-black text-brand uppercase tracking-widest bg-brand/5 px-2 py-1 rounded-lg"
-                                        >
-                                            Editar
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 mt-auto">
-                                <button
-                                    onClick={handleBooking}
-                                    disabled={isSubmitting}
-                                    className="w-full bg-black text-white py-5 rounded-2xl font-black text-lg shadow-xl active:scale-95 transition-all flex justify-center items-center gap-2"
-                                >
-                                    {isSubmitting ? <Loader2 className="animate-spin" /> : "RESERVAR CITA"}
-                                </button>
-                                
-                                <p className="text-center text-[10px] text-gray-400 font-bold uppercase tracking-widest px-4">
-                                    Al continuar, aceptas nuestras políticas de cancelación.
-                                </p>
-                            </div>
-                        </motion.section>
-                    )}
                 </AnimatePresence>
             </div>
 
-            {/* KEVIN CONSULTING — IDENTITY CARD */}
-            <div className="py-12 border-t border-gray-100/30 bg-white/40 backdrop-blur-xl flex flex-col justify-center items-center">
+            {/* MINIMALIST BRANDING */}
+            <div className="py-8 flex justify-center items-center">
                 <a 
                     href="https://kevinconsulting.services" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-3 group transition-all duration-500"
+                    className="text-[10px] font-light tracking-widest text-zinc-400 hover:text-zinc-600 transition-colors"
                 >
-                    <div className="bg-[#1A1A1A]/90 backdrop-blur-xl px-6 py-4 rounded-full border border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.08)] group-hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] group-hover:scale-[1.02] transition-all">
-                        <span className="text-[11px] font-semibold tracking-[0.25em] uppercase text-[#F5F5F0]">KEVIN CONSULTING</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] font-light tracking-[0.15em] uppercase text-gray-400 leading-relaxed">Tecnología que profesionaliza tu negocio</span>
-                        <span className="text-[9px] font-light tracking-[0.2em] uppercase text-gray-300">Ingeniería de precisión · Sistemas de élite</span>
-                    </div>
+                    Tecnología por kevinconsulting.services
                 </a>
             </div>
         </div>
