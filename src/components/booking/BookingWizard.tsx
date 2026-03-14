@@ -145,6 +145,28 @@ function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantN
     return `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodeURIComponent(finalMessage)}`;
 }
 
+// Validate WhatsApp link before rendering — invalid links get logged, not shown to client
+function validateWhatsAppLink(url: string, context: { staffName?: string; phone?: string }): boolean {
+    try {
+        const parsed = new URL(url);
+        const phone = parsed.searchParams.get('phone') || '';
+        const text = parsed.searchParams.get('text') || '';
+        // Phone must be 12 digits (52 + 10), text must not be empty
+        if (!/^\d{12}$/.test(phone)) {
+            console.error('[WhatsApp INVALID] Phone format wrong:', phone, '| Staff:', context.staffName, '| Raw:', context.phone);
+            return false;
+        }
+        if (!text || text.length < 10) {
+            console.error('[WhatsApp INVALID] Message too short or empty');
+            return false;
+        }
+        return true;
+    } catch {
+        console.error('[WhatsApp INVALID] URL parse failed:', url);
+        return false;
+    }
+}
+
 export default function BookingWizard({
     services,
     staff,
@@ -398,16 +420,29 @@ export default function BookingWizard({
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 w-full">
-                    {/* MANDATORY WHATSAPP CTA */}
-                    {resolvedWhatsAppPhone && (
-                        <a 
-                            href={generateWhatsAppReminder(bookingData, resolvedWhatsAppPhone, tenantName || 'Negocio')}
-                            target="_blank"
-                            className={`flex items-center justify-center gap-3 w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200/60 transition-all hover:scale-[1.03] active:scale-95 ${!isExpired ? 'animate-pulse hover:animate-none' : ''}`}
-                        >
-                            <MessageCircle size={22} /> Confirmar por WhatsApp
-                        </a>
-                    )}
+                    {/* MANDATORY WHATSAPP CTA — Validated before render */}
+                    {(() => {
+                        if (!resolvedWhatsAppPhone) return null;
+                        const waUrl = generateWhatsAppReminder(bookingData, resolvedWhatsAppPhone, tenantName || 'Negocio');
+                        const isValid = validateWhatsAppLink(waUrl, { staffName: bookingData.staff_name, phone: resolvedWhatsAppPhone });
+                        if (!isValid) {
+                            return (
+                                <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-center">
+                                    <p className="text-red-600 font-bold text-sm">Error generando enlace de WhatsApp.</p>
+                                    <p className="text-red-400 text-xs mt-1">Contacta directamente al negocio.</p>
+                                </div>
+                            );
+                        }
+                        return (
+                            <a 
+                                href={waUrl}
+                                target="_blank"
+                                className={`flex items-center justify-center gap-3 w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200/60 transition-all hover:scale-[1.03] active:scale-95 ${!isExpired ? 'animate-pulse hover:animate-none' : ''}`}
+                            >
+                                <MessageCircle size={22} /> Confirmar por WhatsApp
+                            </a>
+                        );
+                    })()}
 
                     <p className="text-[11px] text-red-500 font-bold px-4 leading-relaxed">
                         ⚠️ Tu cita no será visible para el equipo hasta que envíes este mensaje.

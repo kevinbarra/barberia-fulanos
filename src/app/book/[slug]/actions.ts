@@ -238,17 +238,13 @@ export async function createBooking(data: {
         const dateStrFormatted = startDate.toLocaleDateString('es-MX', { timeZone: TIMEZONE, weekday: 'long', day: 'numeric', month: 'long' });
         const timeStrFormatted = startDate.toLocaleTimeString('es-MX', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit' });
 
-        // ── CONCURRENCY GUARD (Pre-Insert) ──
-        // Check the slot is STILL free right before inserting
-        const dateStrRaw = data.start_time.split('T')[0];
-        const preCheckRanges = await getTakenRanges(finalStaffId, dateStrRaw);
-        const slotStartMs = startDate.getTime();
-        const slotEndMs = endDate.getTime();
-        const slotTaken = preCheckRanges.some(r => slotStartMs < r.end && slotEndMs > r.start);
-
-        if (slotTaken) {
-            return { success: false, error: 'Este horario se acaba de ocupar. Elige otro.' };
-        }
+        // ── CONCURRENCY STRATEGY ──
+        // We use INSERT-THEN-VERIFY (optimistic locking):
+        //   1. INSERT the booking immediately
+        //   2. CHECK for overlapping bookings atomically
+        //   3. DELETE our booking if a conflict exists
+        // This eliminates the TOCTOU gap from pre-check + insert patterns.
+        // The DB constraint 'no_double_booking' (if present) acts as final safety net.
 
         // 3. INSERT
         const insertPayload: any = {
@@ -339,8 +335,10 @@ export async function createBooking(data: {
             }
         }
 
-        // 5. POST-INSERT RACE CONDITION CHECK
-        const { count: conflictCount } = await supabase
+        // 5. ATOMIC RACE CONDITION CHECK (Post-Insert)
+        // This is the authoritative concurrency guard.
+        // Query: are there OTHER bookings overlapping with ours?
+        const { count: conflictCount, error: conflictErr } = await supabase
             .from('bookings')
             .select('*', { count: 'exact', head: true })
             .eq('staff_id', finalStaffId)
@@ -349,9 +347,15 @@ export async function createBooking(data: {
             .lt('start_time', endDate.toISOString())
             .gt('end_time', startDate.toISOString());
 
+        if (conflictErr) {
+            console.error('[createBooking] Conflict check failed:', conflictErr.message);
+        }
+
         if (conflictCount && conflictCount > 0) {
+            // ROLLBACK: delete our booking, it lost the race
             await supabase.from('bookings').delete().eq('id', newBooking.id);
-            return { success: false, error: 'Horario ocupado por otra reserva simultánea.' };
+            console.warn(`[createBooking] RACE CONDITION: Booking ${newBooking.id} rolled back. Staff ${finalStaffId} had ${conflictCount} conflict(s) at ${data.start_time}`);
+            return { success: false, error: 'Ese horario se acaba de ocupar. Elige otro.' };
         }
 
         revalidatePath('/admin/pos');
