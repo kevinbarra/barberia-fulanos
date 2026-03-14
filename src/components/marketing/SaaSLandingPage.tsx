@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link"
-import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Loader2 } from "lucide-react"
+import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Loader2, ExternalLink } from "lucide-react"
 import ContactForm from "./ContactForm"
 import { PLATFORM_WHATSAPP } from '@/lib/constants'
 
@@ -281,6 +281,24 @@ export default function SaaSLandingPage() {
                     </div>
 
                     <ContactForm />
+                </div>
+            </section>
+
+            {/* ELITE CTA — PRE-FOOTER */}
+            <section className="relative z-10 py-20 px-6 bg-[#F5F5F7]">
+                <div className="max-w-2xl mx-auto text-center">
+                    <p className="text-[#1D1D1F] text-lg md:text-xl font-light leading-relaxed mb-8">
+                        Establezca un nuevo estándar de rigor con <span className="font-semibold">sistemas de élite</span> y una <span className="font-semibold">ingeniería de precisión</span> enfocada exclusivamente en resultados de alto impacto. Agende su consultoría estratégica y acceda a la estructura tecnológica que profesionalizará su operación de forma definitiva.
+                    </p>
+                    <a
+                        href="https://kevinconsulting.services"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-[#1A1A1A] text-[#F5F5F0] px-8 py-4 rounded-full font-semibold text-sm tracking-wide shadow-[0_4px_20px_rgb(0,0,0,0.15)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:scale-[1.03] transition-all duration-300"
+                    >
+                        Solicitar Auditoría de Sistemas
+                        <ExternalLink size={14} />
+                    </a>
                 </div>
             </section>
 

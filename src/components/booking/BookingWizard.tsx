@@ -114,8 +114,16 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-// Generate WhatsApp reminder link (Phase 38 — Clean)
+// Ensure Mexican country code prefix
+function ensureMexicoPrefix(phone: string): string {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.startsWith('52')) return digits;
+    return '52' + digits;
+}
+
+// Generate WhatsApp reminder link (Phase 40 — Robust Encoding)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
+    const normalizedPhone = ensureMexicoPrefix(phone);
     const serviceName = booking.service_name;
     const staffName = booking.staff_name;
     const date = booking.date_formatted;
@@ -133,7 +141,7 @@ function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantN
         '\u2705 \u00A1Conf\u00EDrmame si todo bien! Gracias.'
     ].join('\n');
     
-    return 'https://wa.me/' + phone + '?text=' + encodeURIComponent(message);
+    return 'https://wa.me/' + normalizedPhone + '?text=' + encodeURIComponent(message);
 }
 
 export default function BookingWizard({
@@ -309,15 +317,25 @@ export default function BookingWizard({
 
 
 
-    const [countdown, setCountdown] = useState(15 * 60);
+    const [countdown, setCountdown] = useState(10 * 60);
     useEffect(() => {
         if (!success) return;
         const timer = setInterval(() => setCountdown(prev => (prev <= 0 ? 0 : prev - 1)), 1000);
         return () => clearInterval(timer);
     }, [success]);
 
-    // --- VISTA ÉXITO – PASO FINAL (Fase 37b) ---
+    const formatCountdown = (s: number) => {
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    };
+
+    // Resolve WhatsApp phone: staff phone > tenant phone (prop)
+    const resolvedWhatsAppPhone = selectedStaff?.phone || whatsappPhone;
+
+    // --- VISTA ÉXITO – PASO FINAL (Fase 40) ---
     if (success && bookingData) {
+        const isExpired = countdown <= 0;
         return (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-8 flex flex-col items-center justify-center min-h-full text-center">
                 <motion.div variants={checkmarkVariants} initial="hidden" animate="visible" className="w-20 h-20 bg-amber-400 rounded-full flex items-center justify-center text-white mb-6 shadow-xl shadow-amber-100">
@@ -325,8 +343,16 @@ export default function BookingWizard({
                 </motion.div>
 
                 <h2 className="text-3xl font-black text-gray-900 mb-2">¡Casi listo!</h2>
-                <p className="text-lg font-bold text-brand mb-1">Paso Final</p>
-                <p className="text-gray-500 mb-8 text-sm max-w-xs">Envía el mensaje para que el barbero confirme tu espacio en <b>{tenantName}</b>.</p>
+                <p className="text-lg font-bold text-brand mb-4">Paso Final</p>
+
+                {/* COUNTDOWN */}
+                <div className="mb-6 px-4">
+                    <p className="text-[13px] text-gray-500 leading-relaxed max-w-xs">
+                        Tu lugar está reservado temporalmente. Envía el mensaje de WhatsApp en los próximos{' '}
+                        <span className={`font-black text-lg ${isExpired ? 'text-red-500' : 'text-brand'}`}>{formatCountdown(countdown)}</span>{' '}
+                        para confirmar tu asistencia y asegurar tu espacio en la agenda.
+                    </p>
+                </div>
 
                 <div className="w-full bg-white/80 backdrop-blur-md rounded-3xl border-2 border-gray-100 p-6 shadow-sm mb-6 space-y-4">
                     <div className="flex justify-between text-sm">
@@ -345,11 +371,11 @@ export default function BookingWizard({
 
                 <div className="grid grid-cols-1 gap-3 w-full">
                     {/* MANDATORY WHATSAPP CTA */}
-                    {whatsappPhone && (
+                    {resolvedWhatsAppPhone && (
                         <a 
-                            href={generateWhatsAppReminder(bookingData, whatsappPhone, tenantName || 'Negocio')}
+                            href={generateWhatsAppReminder(bookingData, resolvedWhatsAppPhone, tenantName || 'Negocio')}
                             target="_blank"
-                            className="flex items-center justify-center gap-3 w-full py-5 bg-green-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200 transition-all hover:scale-[1.03] active:scale-95 animate-pulse hover:animate-none"
+                            className={`flex items-center justify-center gap-3 w-full py-5 bg-green-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200 transition-all hover:scale-[1.03] active:scale-95 ${!isExpired ? 'animate-pulse hover:animate-none' : ''}`}
                         >
                             <MessageCircle size={22} /> Confirmar por WhatsApp
                         </a>
