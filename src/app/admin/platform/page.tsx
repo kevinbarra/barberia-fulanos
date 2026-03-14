@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { LayoutDashboard, Globe, Users, TrendingUp } from "lucide-react";
+import PlatformTenantList from "@/components/admin/platform/PlatformTenantList";
 
 export default async function PlatformPage() {
     const supabase = await createClient();
@@ -23,12 +24,11 @@ export default async function PlatformPage() {
     const { count: userCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
     const { count: bookingCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true });
 
-    // Fetch recent tenants
-    const { data: recentTenants } = await supabase
+    // Fetch ALL tenants with settings
+    const { data: allTenants } = await supabase
         .from('tenants')
-        .select('id, name, slug, created_at, subscription_status')
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .select('id, name, slug, created_at, subscription_status, settings')
+        .order('created_at', { ascending: false });
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -68,34 +68,9 @@ export default async function PlatformPage() {
                 </div>
             </div>
 
-            {/* Recent Tenants */}
+            {/* Tenant List with CRUD */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-50">
-                    <h3 className="font-bold text-gray-900">Negocios Recientes</h3>
-                </div>
-                <div className="divide-y divide-gray-50">
-                    {recentTenants?.map((tenant) => (
-                        <div key={tenant.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                            <div className="flex items-center gap-4">
-                                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center font-black text-gray-400 uppercase">
-                                    {tenant.name[0]}
-                                </div>
-                                <div className="min-w-0">
-                                    <p className="font-bold text-gray-900 truncate">{tenant.name}</p>
-                                    <p className="text-[10px] text-gray-400 uppercase font-bold">{tenant.slug}.agendabarber.pro</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                    tenant.subscription_status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                }`}>
-                                    {tenant.subscription_status}
-                                </span>
-                                <p className="text-xs text-gray-400 font-medium">{new Date(tenant.created_at).toLocaleDateString()}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                <PlatformTenantList tenants={allTenants || []} />
             </div>
         </div>
     )

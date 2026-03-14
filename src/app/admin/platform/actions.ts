@@ -95,7 +95,52 @@ export async function createTenant(formData: FormData) {
 }
 
 
-// Toggle tenant status (suspend/activate)
+// Delete tenant permanently — Super Admin only — requires slug confirmation
+export async function deleteTenant(tenantId: string, confirmSlug: string) {
+    const supabase = await createClient();
+
+    // Validate Super Admin
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: 'No autorizado' };
+
+    const { data: adminProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    if (adminProfile?.role !== 'super_admin') {
+        return { error: 'Permisos insuficientes. Solo Super Admin.' };
+    }
+
+    // Fetch tenant to verify slug match
+    const { data: tenant } = await supabase
+        .from('tenants')
+        .select('id, slug, name')
+        .eq('id', tenantId)
+        .single();
+
+    if (!tenant) return { error: 'Tenant no encontrado.' };
+    if (tenant.slug !== confirmSlug.trim().toLowerCase()) {
+        return { error: `El slug ingresado no coincide. Esperado: "${tenant.slug}"` };
+    }
+
+    // Cascade delete: bookings → services → staff_schedules → profiles → tenant
+    try {
+        await supabase.from('bookings').delete().eq('tenant_id', tenantId);
+        await supabase.from('services').delete().eq('tenant_id', tenantId);
+        await supabase.from('staff_schedules').delete().eq('tenant_id', tenantId);
+        await supabase.from('time_blocks').delete().eq('tenant_id', tenantId);
+        await supabase.from('profiles').update({ tenant_id: null, role: 'customer' }).eq('tenant_id', tenantId);
+        await supabase.from('tenants').delete().eq('id', tenantId);
+    } catch (err) {
+        console.error('[DELETE TENANT]', err);
+        return { error: 'Error durante la eliminación. Contacta soporte.' };
+    }
+
+    revalidatePath('/admin/platform');
+    return { success: true, message: `Negocio "${tenant.name}" eliminado permanentemente.` };
+}
 export async function toggleTenantStatus(tenantId: string, newStatus: 'active' | 'suspended') {
     const supabase = await createClient();
 

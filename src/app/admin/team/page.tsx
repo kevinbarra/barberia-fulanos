@@ -67,9 +67,16 @@ export default async function TeamPage() {
 
     const businessType = (tenant?.settings as any)?.business_type || 'barber';
 
-    // Filter to team roles (exclude customers)
+    // Filter to team roles (exclude customers) and hide inactive ghosts
     const teamRoles = ['super_admin', 'owner', 'staff', 'kiosk'];
-    const filteredStaff = activeStaff?.filter(s => teamRoles.includes(s.role)) || [];
+    const filteredStaff = activeStaff?.filter(s => {
+        if (!teamRoles.includes(s.role)) return false;
+        // Always show owners and super_admins regardless of barber status
+        if (s.role === 'owner' || s.role === 'super_admin') return true;
+        // Hide ghost staff (inactive barbers) from the list
+        if (!s.is_active_barber) return false;
+        return true;
+    }) || [];
 
     let pendingInvites: { id: string; email: string; created_at: string }[] = [];
 
