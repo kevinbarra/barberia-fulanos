@@ -115,14 +115,18 @@ function generateWhatsAppConfirmation(booking: BookingResult, phone: string, ten
     return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
 
-// Ensure Mexican country code prefix
+// Ensure Mexican country code prefix (Phase 42 — Sanitized)
 function ensureMexicoPrefix(phone: string): string {
-    const digits = phone.replace(/\D/g, '');
-    if (digits.startsWith('52')) return digits;
-    return '52' + digits;
+    const cleanNumber = phone.replace(/\D/g, '');
+    // 10-digit local number → prepend 52
+    if (cleanNumber.length === 10) return '52' + cleanNumber;
+    // Already has country code (12+ digits starting with 52)
+    if (cleanNumber.startsWith('52')) return cleanNumber;
+    // Fallback: prepend 52
+    return '52' + cleanNumber;
 }
 
-// Generate WhatsApp reminder link (Phase 41b — Approved Template Restored)
+// Generate WhatsApp reminder link (Phase 42 — api.whatsapp.com/send)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
     const normalizedPhone = ensureMexicoPrefix(phone);
     
@@ -138,7 +142,7 @@ function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantN
     // Build the full message as a single template string
     const finalMessage = `\u00a1Hola ${tenant}! \uD83D\uDC4B Acabo de agendar por la App:\n\uD83D\uDC64 Cliente: ${name} (${gPhone})\n\u2702\uFE0F Servicio: ${service}\nAtendido por: ${staffName}\n\uD83D\uDCC5 Fecha: ${date}\n\u23F0 Hora: ${time}\n\u2705 \u00a1Conf\u00edrmame si todo bien! Gracias.`;
 
-    return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(finalMessage)}`;
+    return `https://api.whatsapp.com/send?phone=${normalizedPhone}&text=${encodeURIComponent(finalMessage)}`;
 }
 
 export default function BookingWizard({
@@ -379,7 +383,7 @@ export default function BookingWizard({
                         <a 
                             href={generateWhatsAppReminder(bookingData, resolvedWhatsAppPhone, tenantName || 'Negocio')}
                             target="_blank"
-                            className={`flex items-center justify-center gap-3 w-full py-5 bg-green-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200 transition-all hover:scale-[1.03] active:scale-95 ${!isExpired ? 'animate-pulse hover:animate-none' : ''}`}
+                            className={`flex items-center justify-center gap-3 w-full py-5 bg-[#25D366] text-white rounded-2xl font-black text-lg shadow-xl shadow-green-200/60 transition-all hover:scale-[1.03] active:scale-95 ${!isExpired ? 'animate-pulse hover:animate-none' : ''}`}
                         >
                             <MessageCircle size={22} /> Confirmar por WhatsApp
                         </a>
@@ -388,6 +392,16 @@ export default function BookingWizard({
                     <p className="text-[11px] text-red-500 font-bold px-4 leading-relaxed">
                         ⚠️ Tu cita no será visible para el equipo hasta que envíes este mensaje.
                     </p>
+
+                    {resolvedWhatsAppPhone && (
+                        <a
+                            href={generateWhatsAppReminder(bookingData, resolvedWhatsAppPhone, tenantName || 'Negocio')}
+                            target="_blank"
+                            className="text-[11px] text-green-600 font-bold underline underline-offset-2"
+                        >
+                            ¿No se abre? Toca aquí para reintentar
+                        </a>
+                    )}
                     
                     <div className="pt-4 border-t border-gray-100">
                         <a 
