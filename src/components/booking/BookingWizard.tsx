@@ -122,28 +122,23 @@ function ensureMexicoPrefix(phone: string): string {
     return '52' + digits;
 }
 
-// Generate WhatsApp reminder link (Phase 40b — Sanitized Deep Link)
+// Generate WhatsApp reminder link (Phase 41b — Approved Template Restored)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
     const normalizedPhone = ensureMexicoPrefix(phone);
-    const serviceName = (booking.service_name || '').trim();
+    
+    // Sanitize each variable individually
+    const tenant = (tenantName || 'Negocio').trim();
+    const name = (booking.guest_name || 'Cliente').trim();
+    const gPhone = (booking.guest_phone || '').trim();
+    const service = (booking.service_name || '').trim();
     const staffName = (booking.staff_name || '').trim();
     const date = (booking.date_formatted || '').trim();
     const time = (booking.time_formatted || '').trim();
-    const guestName = (booking.guest_name || 'Cliente').trim();
-    const guestPhone = (booking.guest_phone || '').trim();
 
-    const lines = [
-        'Hola ' + tenantName.trim() + ', acabo de agendar por la App:',
-        'Cliente: ' + guestName + ' (' + guestPhone + ')',
-        'Servicio: ' + serviceName,
-        'Atendido por: ' + staffName,
-        'Fecha: ' + date,
-        'Hora: ' + time,
-        'Confirmame si todo bien. Gracias.'
-    ];
+    // Build the full message as a single template string
+    const finalMessage = `\u00a1Hola ${tenant}! \uD83D\uDC4B Acabo de agendar por la App:\n\uD83D\uDC64 Cliente: ${name} (${gPhone})\n\u2702\uFE0F Servicio: ${service}\nAtendido por: ${staffName}\n\uD83D\uDCC5 Fecha: ${date}\n\u23F0 Hora: ${time}\n\u2705 \u00a1Conf\u00edrmame si todo bien! Gracias.`;
 
-    const message = lines.join('\n');
-    return 'https://wa.me/' + normalizedPhone + '?text=' + encodeURIComponent(message);
+    return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(finalMessage)}`;
 }
 
 export default function BookingWizard({
