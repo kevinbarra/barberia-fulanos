@@ -10,6 +10,7 @@ import { es } from "date-fns/locale";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useVocabulary } from "@/providers/BusinessVocabularyProvider";
+import { toast } from "sonner";
 
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string };
@@ -189,6 +190,7 @@ export default function BookingWizard({
     // Hooks
     const searchParams = useSearchParams();
     const origin = searchParams.get('source') || 'web';
+    const USE_FAST_BOOKING = true;
 
     const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -337,6 +339,16 @@ export default function BookingWizard({
 
     const handleBooking = async () => {
         if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) return;
+
+        // --- PRE-FLIGHT VALIDATION (Phase 47) ---
+        // Ensure staff or tenant has a valid phone before hitting the DB
+        const preFlightPhone = selectedStaff.phone || whatsappPhone;
+        if (!preFlightPhone || preFlightPhone.replace(/\D/g, '').length < 10) {
+            toast.error(`El ${staffLabel.toLowerCase()} no tiene un teléfono de contacto válido configurado.`);
+            console.error('[Pre-Flight] Aborting booking due to invalid staff/tenant phone:', preFlightPhone);
+            return;
+        }
+
         setIsSubmitting(true);
         const dateStr = format(selectedDate, 'yyyy-MM-dd');
         const dateTime = `${dateStr}T${selectedTime}`;
@@ -357,11 +369,22 @@ export default function BookingWizard({
         });
 
         setIsSubmitting(false);
+
         if (result.success && result.booking) {
-            setBookingData(result.booking);
-            setSuccess(true);
+            // Determine WhatsApp URL immediately
+            const resolvedPhone = result.booking.staff_phone || selectedStaff.phone || whatsappPhone || '';
+            const waUrl = generateWhatsAppReminder(result.booking, resolvedPhone, tenantName || 'Negocio');
+
+            if (USE_FAST_BOOKING) {
+                // REDIRECCIÓN DIRECTA (Elimina fricción)
+                window.location.assign(waUrl);
+            } else {
+                // FLUJO LEGACY (Muestra Success Screen integrada)
+                setBookingData(result.booking);
+                setSuccess(true);
+            }
         } else {
-            alert(result.error || "Error al reservar");
+            toast.error(result.error || "Error al reservar");
         }
     };
 
