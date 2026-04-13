@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import LoginForm from "@/components/login/LoginForm";
 import { getTenantSlug } from "@/lib/tenant";
 import { Scissors, Lock } from "lucide-react";
-import { ROOT_DOMAIN, isRootDomain as isRootDomainCheck } from "@/lib/constants";
+import { ROOT_DOMAIN, isRootDomain as isRootDomainCheck, GLOBAL_BRANDING } from "@/lib/constants";
 
 export default async function LoginPage({
     searchParams,
@@ -222,11 +222,14 @@ export default async function LoginPage({
                 </div>
 
                 {/* FOOTER — AUTHOR IDENTITY */}
-                <div className="absolute bottom-8 left-0 right-0 flex flex-col justify-center items-center z-10 px-6 gap-1">
-                    <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">Kevin Consulting</span>
-                        <span className="text-[9px] font-light tracking-widest text-zinc-600">Tecnología que profesionaliza tu negocio</span>
-                        <span className="text-[8px] font-light tracking-widest text-zinc-600">Ingeniería de precisión · Sistemas de élite</span>
+                <div className="absolute bottom-6 left-0 right-0 flex flex-col justify-center items-center z-10 px-6 gap-1">
+                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                            {GLOBAL_BRANDING.COMPANY_NAME}
+                        </span>
+                        <span className="text-[9px] font-light tracking-widest text-zinc-600">
+                            {GLOBAL_BRANDING.SLOGAN}
+                        </span>
                     </a>
                 </div>
             </div>

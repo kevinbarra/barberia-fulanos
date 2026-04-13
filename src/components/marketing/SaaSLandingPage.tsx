@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link"
 import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Loader2, ExternalLink } from "lucide-react"
 import ContactForm from "./ContactForm"
-import { PLATFORM_WHATSAPP } from '@/lib/constants'
+import { PLATFORM_WHATSAPP, GLOBAL_BRANDING } from '@/lib/constants'
 
 // --- SKELETON COMPONENTS ---
 const Skeleton = ({ className }: { className?: string }) => (
@@ -291,12 +291,12 @@ export default function SaaSLandingPage() {
                         Establezca un nuevo estándar de rigor con <span className="font-semibold">sistemas de élite</span> y una <span className="font-semibold">ingeniería de precisión</span> enfocada exclusivamente en resultados de alto impacto. Agende su consultoría estratégica y acceda a la estructura tecnológica que profesionalizará su operación de forma definitiva.
                     </p>
                     <a
-                        href="https://kevinconsulting.services"
+                        href={GLOBAL_BRANDING.SERVICES_URL}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 bg-[#1A1A1A] text-[#F5F5F0] px-8 py-4 rounded-full font-semibold text-sm tracking-wide shadow-[0_4px_20px_rgb(0,0,0,0.15)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:scale-[1.03] transition-all duration-300"
                     >
-                        Solicitar Auditoría de Sistemas
+                        {GLOBAL_BRANDING.CTA_TEXT}
                         <ExternalLink size={14} />
                     </a>
                 </div>
@@ -306,10 +306,9 @@ export default function SaaSLandingPage() {
             <footer className="relative z-10 px-6 py-16 bg-[#F5F5F7] border-t border-gray-200/50">
                 <div className="max-w-6xl mx-auto flex flex-col items-center gap-8">
                     {/* AUTHOR IDENTITY */}
-                    <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">Kevin Consulting</span>
-                        <span className="text-[10px] font-light tracking-widest text-zinc-400">Tecnología que profesionaliza tu negocio</span>
-                        <span className="text-[9px] font-light tracking-widest text-zinc-300">Ingeniería de precisión · Sistemas de élite</span>
+                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">{GLOBAL_BRANDING.COMPANY_NAME}</span>
+                        <span className="text-[10px] font-light tracking-widest text-zinc-400">{GLOBAL_BRANDING.SLOGAN}</span>
                     </a>
 
                     {/* NAV + COPYRIGHT */}

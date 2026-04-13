@@ -11,6 +11,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useVocabulary } from "@/providers/BusinessVocabularyProvider";
 import { toast } from "sonner";
+import { GLOBAL_BRANDING } from "@/lib/constants";
 
 // --- TIPOS ---
 type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string; category_order?: number; order?: number };
@@ -721,10 +722,22 @@ export default function BookingWizard({
 
             {/* FOOTER — AUTHOR IDENTITY */}
             <div className="py-10 flex flex-col justify-center items-center gap-1">
-                <a href="https://kevinconsulting.services" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">Kevin Consulting</span>
-                    <span className="text-[9px] font-light tracking-widest text-zinc-300">Tecnología que profesionaliza tu negocio</span>
-                    <span className="text-[8px] font-light tracking-widest text-zinc-300">Ingeniería de precisión · Sistemas de élite</span>
+                <span className="text-[8px] font-bold tracking-[0.2em] uppercase text-zinc-400 mb-1">{GLOBAL_BRANDING.FOOTER_QUESTION}</span>
+                <a 
+                    href={GLOBAL_BRANDING.SERVICES_URL} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex flex-col items-center gap-1 group"
+                >
+                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                        {GLOBAL_BRANDING.COMPANY_NAME}
+                    </span>
+                    <span className="text-[9px] font-light tracking-widest text-zinc-300">
+                        {GLOBAL_BRANDING.SLOGAN}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-500 group-hover:underline transition-all mt-1">
+                        {GLOBAL_BRANDING.CTA_TEXT}
+                    </span>
                 </a>
             </div>
         </div>

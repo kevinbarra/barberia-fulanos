@@ -38,6 +38,15 @@ export const MASTER_ADMIN_EMAIL = process.env.MASTER_ADMIN_EMAIL || 'admin@agend
 // Platform-level WhatsApp for sales/support (used in SaaS landing & suspended screen)
 export const PLATFORM_WHATSAPP = process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP || '522291589149';
 
+// ==================== GLOBAL BRANDING ====================
+export const GLOBAL_BRANDING = {
+    COMPANY_NAME: 'KEVIN CONSULTING',
+    SLOGAN: 'Tecnología que profesionaliza tu negocio',
+    FOOTER_QUESTION: '¿TE GUSTA ESTA PLATAFORMA?',
+    CTA_TEXT: 'Haz clic aquí para obtener una igual',
+    SERVICES_URL: 'https://kevinconsulting.services'
+} as const;
+
 // ==================== HELPER FUNCTIONS ====================
 /**
  * Build a full subdomain URL

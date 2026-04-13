@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SaaSLandingPage from "@/components/marketing/SaaSLandingPage";
 import { headers } from "next/headers";
+import { GLOBAL_BRANDING } from "@/lib/constants";
 
 /**
  * Root page — serves either:
@@ -78,12 +79,12 @@ export default async function HomePage() {
           © {new Date().getFullYear()} Barbería {slug}
         </p>
         <a 
-          href="https://kevinconsulting.services" 
+          href={GLOBAL_BRANDING.SERVICES_URL} 
           target="_blank" 
           rel="noopener noreferrer"
           className="text-zinc-600 text-[10px] font-medium hover:text-white transition-colors"
         >
-          Tecnología que profesionaliza tu negocio | kevinconsulting.services
+          {GLOBAL_BRANDING.SLOGAN} | {GLOBAL_BRANDING.COMPANY_NAME.toLowerCase()}.services
         </a>
       </footer>
 
