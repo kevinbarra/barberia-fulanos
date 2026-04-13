@@ -128,6 +128,12 @@ function ensureMexicoPrefix(phone: string): string {
     return '52' + cleanNumber;
 }
 
+// Helper to remove emojis for a high-end alphanumeric look (Phase 49b)
+const stripEmojis = (str: string) => {
+    if (!str) return '';
+    return str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F191}-\u{1F19A}\u{1F1E6}-\u{1F1FF}]/gu, '').trim();
+};
+
 // Generate WhatsApp reminder link (Phase 42 — api.whatsapp.com/send)
 function generateWhatsAppReminder(booking: BookingResult, phone: string, tenantName: string): string {
     const normalizedPhone = ensureMexicoPrefix(phone);
@@ -592,7 +598,7 @@ export default function BookingWizard({
                                                     </div>
                                                     <div className="flex flex-col items-center relative z-10">
                                                         <span className={`font-black text-lg tracking-tighter uppercase leading-none ${theme.nameClass}`}>
-                                                            {category}
+                                                            {stripEmojis(category)}
                                                         </span>
                                                     </div>
                                                 </button>
@@ -610,7 +616,7 @@ export default function BookingWizard({
                                             >
                                                 <ChevronLeft size={14} /> Volver a categorías
                                             </button>
-                                            <h2 className="text-2xl font-black text-gray-900 leading-tight">{selectedCategory}</h2>
+                                            <h2 className="text-2xl font-black text-gray-900 leading-tight">{stripEmojis(selectedCategory || '')}</h2>
                                         </div>
                                     </div>
                                     <div className="space-y-4">
