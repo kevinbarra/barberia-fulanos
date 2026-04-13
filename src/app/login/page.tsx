@@ -223,8 +223,8 @@ export default async function LoginPage({
 
                 {/* FOOTER — AUTHOR IDENTITY */}
                 <div className="absolute bottom-6 left-0 right-0 flex flex-col justify-center items-center z-10 px-6 gap-1">
-                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group leading-relaxed">
+                        <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-600 transition-colors">
                             {GLOBAL_BRANDING.COMPANY_NAME}
                         </span>
                         <span className="text-[9px] font-light tracking-widest text-zinc-600">

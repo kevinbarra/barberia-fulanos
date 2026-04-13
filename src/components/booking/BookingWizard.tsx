@@ -722,20 +722,20 @@ export default function BookingWizard({
 
             {/* FOOTER — AUTHOR IDENTITY */}
             <div className="py-10 flex flex-col justify-center items-center gap-1">
-                <span className="text-[8px] font-bold tracking-[0.2em] uppercase text-zinc-400 mb-1">{GLOBAL_BRANDING.FOOTER_QUESTION}</span>
+                <span className="text-[8px] font-bold tracking-[0.2em] uppercase text-zinc-500 mb-1">{GLOBAL_BRANDING.FOOTER_QUESTION}</span>
                 <a 
                     href={GLOBAL_BRANDING.SERVICES_URL} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="flex flex-col items-center gap-1 group"
+                    className="flex flex-col items-center gap-1 group leading-relaxed"
                 >
-                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">
+                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-600 transition-colors">
                         {GLOBAL_BRANDING.COMPANY_NAME}
                     </span>
-                    <span className="text-[9px] font-light tracking-widest text-zinc-300">
+                    <span className="text-[9px] font-light tracking-widest text-zinc-600">
                         {GLOBAL_BRANDING.SLOGAN}
                     </span>
-                    <span className="text-[10px] font-medium text-zinc-900 group-hover:underline transition-all mt-1">
+                    <span className="text-[10px] font-semibold text-zinc-900 group-hover:underline transition-all mt-1">
                         {GLOBAL_BRANDING.CTA_TEXT}
                     </span>
                 </a>

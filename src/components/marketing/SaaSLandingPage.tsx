@@ -306,9 +306,9 @@ export default function SaaSLandingPage() {
             <footer className="relative z-10 px-6 py-16 bg-[#F5F5F7] border-t border-gray-200/50">
                 <div className="max-w-6xl mx-auto flex flex-col items-center gap-8">
                     {/* AUTHOR IDENTITY */}
-                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-400 group-hover:text-zinc-600 transition-colors">{GLOBAL_BRANDING.COMPANY_NAME}</span>
-                        <span className="text-[10px] font-light tracking-widest text-zinc-400">{GLOBAL_BRANDING.SLOGAN}</span>
+                    <a href={GLOBAL_BRANDING.SERVICES_URL} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group leading-relaxed">
+                        <span className="text-[11px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-600 transition-colors">{GLOBAL_BRANDING.COMPANY_NAME}</span>
+                        <span className="text-[10px] font-light tracking-widest text-zinc-600">{GLOBAL_BRANDING.SLOGAN}</span>
                     </a>
 
                     {/* NAV + COPYRIGHT */}

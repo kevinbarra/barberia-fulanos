@@ -82,7 +82,7 @@ export default async function HomePage() {
           href={GLOBAL_BRANDING.SERVICES_URL} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="text-zinc-600 text-[10px] font-medium hover:text-white transition-colors"
+          className="text-zinc-600 text-[10px] font-medium hover:text-white transition-colors leading-relaxed"
         >
           {GLOBAL_BRANDING.SLOGAN} | {GLOBAL_BRANDING.COMPANY_NAME.toLowerCase()}.services
         </a>
