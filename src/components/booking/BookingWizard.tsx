@@ -547,32 +547,54 @@ export default function BookingWizard({
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         {categoryOrder.map(category => {
-                                            // Dynamic Icon Mapping for Industry Parity
-                                            const iconMap: Record<string, { icon: any, color: string }> = {
-                                                'Cortes': { icon: Scissors, color: 'bg-blue-500/10 text-blue-600' },
-                                                'Barba': { icon: Sparkles, color: 'bg-amber-500/10 text-amber-600' },
-                                                'Cabello': { icon: Wind, color: 'bg-purple-500/10 text-purple-600' },
-                                                'Uñas': { icon: Hand, color: 'bg-pink-500/10 text-pink-600' },
-                                                'Tintes': { icon: Palette, color: 'bg-indigo-500/10 text-indigo-600' },
-                                                'Masajes': { icon: Heart, color: 'bg-rose-500/10 text-rose-600' },
-                                                'Extras': { icon: Star, color: 'bg-orange-500/10 text-orange-600' },
-                                                'Combos': { icon: Gem, color: 'bg-emerald-500/10 text-emerald-600' },
-                                                'General': { icon: LayoutGrid, color: 'bg-gray-500/10 text-gray-600' }
+                                            const normalized = category.toLowerCase();
+                                            
+                                            // --- THEME LOGIC (Phase 49: High-End UI) ---
+                                            let theme = {
+                                                container: "bg-white border-[0.5px] border-zinc-200 shadow-sm",
+                                                icon: LayoutGrid,
+                                                iconBg: "bg-zinc-50",
+                                                iconColor: "text-zinc-400",
+                                                stroke: 1.5,
+                                                nameClass: "text-zinc-900"
                                             };
-                                            const config = iconMap[category] || iconMap['General'];
-                                            const CategoryIcon = config.icon;
+
+                                            if (normalized.includes('ritual')) {
+                                                theme = {
+                                                    container: "bg-zinc-900 text-white shadow-xl",
+                                                    icon: Gem,
+                                                    iconBg: "bg-white/10",
+                                                    iconColor: "text-white",
+                                                    stroke: 1.5,
+                                                    nameClass: "text-white"
+                                                };
+                                            } else if (normalized.includes('esencial') || normalized.includes('menu') || normalized.includes('menú')) {
+                                                theme = {
+                                                    container: "bg-white text-zinc-900 border-[0.5px] border-zinc-200 shadow-sm",
+                                                    icon: Scissors,
+                                                    iconBg: "bg-zinc-50",
+                                                    iconColor: "text-zinc-900",
+                                                    stroke: 1.5,
+                                                    nameClass: "text-zinc-900"
+                                                };
+                                            }
+
+                                            const CategoryIcon = theme.icon;
 
                                             return (
                                                 <button 
                                                     key={category} 
                                                     onClick={() => setSelectedCategory(category)}
-                                                    className="group relative bg-white/70 backdrop-blur-md p-6 rounded-[2rem] border border-white/40 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden"
+                                                    className={`group relative ${theme.container} p-6 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden`}
                                                 >
-                                                    <div className={`w-16 h-16 rounded-full ${config.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-500 relative z-10`}>
-                                                        <CategoryIcon size={32} />
+                                                    <div className={`w-14 h-14 rounded-full ${theme.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-500 relative z-10`}>
+                                                        <CategoryIcon size={28} strokeWidth={theme.stroke} className={theme.iconColor} />
                                                     </div>
-                                                    <span className="font-black text-gray-900 text-sm uppercase tracking-tight relative z-10">{category}</span>
-                                                    <div className="absolute inset-0 bg-gradient-to-br from-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                    <div className="flex flex-col items-center relative z-10">
+                                                        <span className={`font-black text-lg tracking-tighter uppercase leading-none ${theme.nameClass}`}>
+                                                            {category}
+                                                        </span>
+                                                    </div>
                                                 </button>
                                             );
                                         })}
