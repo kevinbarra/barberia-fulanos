@@ -482,7 +482,8 @@ export async function markNoShow(bookingId: string) {
 export async function rescheduleBooking(
     bookingId: string,
     newStartTime: string, // ISO string in CDMX timezone e.g. "2026-02-28T10:00"
-    newStaffId?: string
+    newStaffId?: string,
+    newServiceId?: string
 ) {
     const TIMEZONE = DEFAULT_TIMEZONE
     const supabase = await createClient()
@@ -494,25 +495,43 @@ export async function rescheduleBooking(
     // 2. Get current booking
     const { data: booking, error: fetchError } = await supabase
         .from('bookings')
-        .select('*, services(duration_min, name)')
+        .select('*, services(duration_min, name, price)')
         .eq('id', bookingId)
         .single()
 
     if (fetchError || !booking) return { error: 'Cita no encontrada.' }
 
-    // 3. Only allow rescheduling confirmed/pending bookings
-    if (!['confirmed', 'pending'].includes(booking.status)) {
-        return { error: 'Solo se pueden reprogramar citas confirmadas o pendientes.' }
+    // 3. Only allow rescheduling confirmed/pending/seated bookings
+    if (!['confirmed', 'pending', 'seated'].includes(booking.status)) {
+        return { error: 'Solo se pueden editar citas confirmadas, pendientes o en silla.' }
     }
 
-    // 4. Calculate new times
-    const durationMin = booking.services?.duration_min || 30
+    // 4. Resolve Service & Duration
+    let durationMin = booking.services?.duration_min || 30
+    let servicePrice = booking.price_at_booking
+    let serviceName = booking.service_name_at_booking
+
+    if (newServiceId && newServiceId !== booking.service_id) {
+        const { data: newService } = await supabase
+            .from('services')
+            .select('duration_min, price, name')
+            .eq('id', newServiceId)
+            .single()
+
+        if (newService) {
+            durationMin = newService.duration_min
+            servicePrice = newService.price
+            serviceName = newService.name
+        }
+    }
+
+    // 5. Calculate new times
     const staffId = newStaffId || booking.staff_id
     const newStart = fromZonedTime(newStartTime, TIMEZONE)
     const newEnd = new Date(newStart.getTime() + durationMin * 60000)
 
-    // Prevent scheduling in the past
-    if (isBefore(newStart, new Date())) {
+    // Prevent scheduling in the past (only for non-seated bookings)
+    if (booking.status !== 'seated' && isBefore(newStart, new Date())) {
         return { error: 'No se puede agendar en el pasado.' }
     }
 
@@ -597,6 +616,9 @@ export async function rescheduleBooking(
             start_time: newStart.toISOString(),
             end_time: newEnd.toISOString(),
             staff_id: staffId,
+            service_id: newServiceId || booking.service_id,
+            price_at_booking: servicePrice,
+            service_name_at_booking: serviceName
         })
         .eq('id', bookingId)
 
@@ -618,6 +640,8 @@ export async function rescheduleBooking(
             newStartTime: newStart.toISOString(),
             oldStaffId,
             newStaffId: staffId,
+            oldServiceId: booking.service_id,
+            newServiceId: newServiceId || booking.service_id
         }
     })
 

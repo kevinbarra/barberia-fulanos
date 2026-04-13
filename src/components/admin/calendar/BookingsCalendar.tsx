@@ -690,11 +690,12 @@ export default function BookingsCalendar({
                     currentDate={editBooking.start_time}
                     currentStaffId={editBooking.staff_id}
                     currentStaffName={editBooking.profiles?.full_name || 'Staff'}
-                    serviceName={editBooking.services?.name || 'Servicio'}
                     clientName={getClientInfo(editBooking).clientName}
                     clientPhone={getClientInfo(editBooking).clientPhone}
                     staff={staff}
+                    services={services}
                     staffSchedules={staffSchedules}
+                    currentServiceId={editBooking.service_id}
                     onSuccess={(df, tf) => handleEditSuccess(editBooking, df, tf)}
                 />
             )}

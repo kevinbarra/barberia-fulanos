@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { X, Calendar, Clock, User, Loader2, AlertTriangle, MessageCircle } from 'lucide-react';
+import { X, Calendar, Clock, User, Loader2, AlertTriangle, MessageCircle, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { rescheduleBooking } from '@/app/admin/bookings/actions';
@@ -23,6 +23,13 @@ type StaffMember = {
     full_name: string;
 };
 
+type Service = {
+    id: string;
+    name: string;
+    duration_min: number;
+    price?: number | null;
+};
+
 type EditBookingModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -30,10 +37,11 @@ type EditBookingModalProps = {
     currentDate: string; // ISO string
     currentStaffId: string;
     currentStaffName: string;
-    serviceName: string;
+    currentServiceId: string;
     clientName: string;
     clientPhone?: string | null;
     staff: StaffMember[];
+    services: Service[];
     staffSchedules?: StaffSchedule[];
     onSuccess: (dateFormatted: string, timeFormatted: string) => void;
 };
@@ -56,10 +64,11 @@ export default function EditBookingModal({
     currentDate,
     currentStaffId,
     currentStaffName,
-    serviceName,
+    currentServiceId,
     clientName,
     clientPhone,
     staff,
+    services,
     staffSchedules = [],
     onSuccess,
 }: EditBookingModalProps) {
@@ -72,6 +81,7 @@ export default function EditBookingModal({
     const [selectedDate, setSelectedDate] = useState(dateDefault);
     const [selectedTime, setSelectedTime] = useState(timeDefault);
     const [selectedStaffId, setSelectedStaffId] = useState(currentStaffId);
+    const [selectedServiceId, setSelectedServiceId] = useState(currentServiceId);
     const [isSubmitting, setIsSubmitting] = useState(false);
     // Track if user has changed anything — don't show warnings on initial load
     const [userHasChangedDate, setUserHasChangedDate] = useState(false);
@@ -153,8 +163,9 @@ export default function EditBookingModal({
         // Build CDMX local datetime string
         const newStartTime = `${selectedDate}T${selectedTime}`;
         const newStaffId = selectedStaffId !== currentStaffId ? selectedStaffId : undefined;
+        const newServiceId = selectedServiceId !== currentServiceId ? selectedServiceId : undefined;
 
-        const result = await rescheduleBooking(bookingId, newStartTime, newStaffId);
+        const result = await rescheduleBooking(bookingId, newStartTime, newStaffId, newServiceId);
 
         setIsSubmitting(false);
 
@@ -168,7 +179,10 @@ export default function EditBookingModal({
         onSuccess(result.dateFormatted || '', result.timeFormatted || '');
     };
 
-    const hasChanges = selectedDate !== dateDefault || selectedTime !== timeDefault || selectedStaffId !== currentStaffId;
+    const hasChanges = selectedDate !== dateDefault || 
+                       selectedTime !== timeDefault || 
+                       selectedStaffId !== currentStaffId ||
+                       selectedServiceId !== currentServiceId;
 
     const waLink = clientPhone ? `https://wa.me/${cleanPhoneForWa(clientPhone)}` : null;
 
@@ -193,8 +207,8 @@ export default function EditBookingModal({
                     <div className="p-5 border-b border-gray-100">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <h3 className="text-lg font-black text-gray-900">Reprogramar Cita</h3>
-                                <p className="text-xs text-gray-500 mt-0.5">{serviceName}</p>
+                                <h3 className="text-lg font-black text-gray-900">Modificar Cita</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Ajusta los detalles de la reserva</p>
                             </div>
                             <button
                                 onClick={onClose}
@@ -283,6 +297,48 @@ export default function EditBookingModal({
                                 </p>
                             </div>
                         )}
+
+                        {/* Service Picker */}
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
+                                Servicio Solicitado
+                            </label>
+                            <div className="max-h-[160px] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/50 p-1.5 space-y-1.5">
+                                {services.map(s => (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        onClick={() => setSelectedServiceId(s.id)}
+                                        className={`
+                                            w-full p-2.5 rounded-lg border text-left transition-all
+                                            flex justify-between items-center gap-3
+                                            ${selectedServiceId === s.id
+                                                ? 'border-black bg-white shadow-sm ring-1 ring-black'
+                                                : 'border-transparent bg-white/50 hover:bg-white hover:border-gray-200'
+                                            }
+                                        `}
+                                    >
+                                        <div className="flex-1 min-w-0">
+                                            <span className="font-bold text-gray-900 block text-xs truncate">
+                                                {s.name}
+                                            </span>
+                                            <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                                <Clock size={10} />
+                                                {s.duration_min} min
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                                            <span className="font-black text-gray-900 text-xs">${s.price ?? 0}</span>
+                                            {selectedServiceId === s.id && (
+                                                <div className="w-4 h-4 bg-black rounded-full flex items-center justify-center">
+                                                    <Check size={10} className="text-white" strokeWidth={4} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
                         {/* Time Picker — only show valid slots */}
                         {!(userHasChangedDate && isDayOff) && (

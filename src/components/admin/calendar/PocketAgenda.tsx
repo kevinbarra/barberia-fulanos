@@ -585,10 +585,11 @@ export default function PocketAgenda({ bookings, staff, services, tenantId, bloc
                     currentDate={editBooking.start_time}
                     currentStaffId={editBooking.staff_id}
                     currentStaffName={editBooking.profiles?.full_name || 'Staff'}
-                    serviceName={editBooking.services?.name || 'Servicio'}
+                    currentServiceId={editBooking.service_id}
                     clientName={getClientInfo(editBooking).clientName}
                     clientPhone={getClientInfo(editBooking).clientPhone}
                     staff={staff}
+                    services={services}
                     onSuccess={(df, tf) => handleEditSuccess(editBooking, df, tf)}
                 />
             )}
