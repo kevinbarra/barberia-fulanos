@@ -48,6 +48,7 @@ export default async function ServicesPage() {
         `)
         .eq("tenant_id", tenantId)
         .order("is_active", { ascending: false })
+        .order("order", { ascending: true })
         .order("name", { ascending: true });
 
     return (

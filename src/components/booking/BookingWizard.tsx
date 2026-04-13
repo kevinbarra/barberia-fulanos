@@ -13,7 +13,7 @@ import { useVocabulary } from "@/providers/BusinessVocabularyProvider";
 import { toast } from "sonner";
 
 // --- TIPOS ---
-type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string };
+type Service = { id: string; name: string; price: number; duration_min: number; tenant_id: string; category?: string; description?: string; category_id?: string; category_order?: number; order?: number };
 type Staff = { id: string; full_name: string; role: string; avatar_url: string | null; phone?: string | null; services?: string[]; skills?: string[]; staff_category?: string; role_alias?: string | null };
 type Schedule = { staff_id: string; day: string; start_time: string; end_time: string; is_active: boolean };
 type CurrentUser = { id: string; full_name: string; email: string; phone: string | null } | null;
@@ -284,7 +284,13 @@ export default function BookingWizard({
             return acc;
         }, {} as Record<string, Service[]>);
     }, [services]);
-    const categoryOrder = Object.keys(groupedServices).sort();
+    const categoryOrder = useMemo(() => {
+        const categories = Object.keys(groupedServices).map(name => ({
+            name,
+            order: groupedServices[name][0]?.category_order || 0
+        }));
+        return categories.sort((a, b) => a.order - b.order).map(c => c.name);
+    }, [groupedServices]);
 
     const slots = useMemo(() => {
         if (!selectedDate || !selectedStaff) return [];
@@ -585,7 +591,14 @@ export default function BookingWizard({
                                         </div>
                                     </div>
                                     <div className="space-y-4">
-                                        {groupedServices[selectedCategory].map((service) => (
+                                        {groupedServices[selectedCategory]
+                                            .sort((a, b) => {
+                                                const orderA = a.order || 99;
+                                                const orderB = b.order || 99;
+                                                if (orderA !== orderB) return orderA - orderB;
+                                                return a.name.localeCompare(b.name);
+                                            })
+                                            .map((service) => (
                                             <button 
                                                 key={service.id} 
                                                 onClick={() => { setSelectedService(service); setStep(2); }} 

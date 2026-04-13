@@ -14,6 +14,7 @@ type Service = {
     category_id?: string
     service_categories?: { id: string, name: string } | null
     description?: string
+    order?: number
 }
 
 export default function ServiceList({
@@ -92,6 +93,27 @@ export default function ServiceList({
                                     <input name="duration" type="number" defaultValue={service.duration_min} className="p-2 border rounded-lg w-full" />
                                     <span className="absolute right-2 top-8 text-gray-400 text-xs">min</span>
                                 </div>
+                            </div>
+
+                            {/* Descripción en Edición */}
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Descripción</label>
+                                <textarea
+                                    name="description"
+                                    defaultValue={service.description}
+                                    className="p-2 border rounded-lg w-full text-sm min-h-[60px] resize-none"
+                                />
+                            </div>
+
+                            {/* Orden en Edición */}
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Orden (Posición)</label>
+                                <input
+                                    name="order"
+                                    type="number"
+                                    defaultValue={service.order || 0}
+                                    className="p-2 border rounded-lg w-full text-sm"
+                                />
                             </div>
 
                             <div className="flex gap-2 mt-2 justify-end">

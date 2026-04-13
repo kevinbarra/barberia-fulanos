@@ -97,9 +97,10 @@ export default async function BookingPage({
     // Fetch categories first to join with services (or select services with categories)
     const { data: services } = await supabase
         .from("services")
-        .select("*, service_categories(name)")
+        .select("*, service_categories(*)")
         .eq("tenant_id", tenant.id)
         .eq("is_active", true)
+        .order("order", { ascending: true })
         .order("name");
 
     const { data: staff } = await supabase
@@ -116,10 +117,12 @@ export default async function BookingPage({
         .eq("tenant_id", tenant.id)
         .eq("is_active", true);
 
-    // Transform services to include the category name from the relationship
+    // Transform services to include the category name and order from the relationship
     const transformedServices = services?.map(s => ({
         ...s,
-        category: (s as any).service_categories?.name || s.category // Fallback to old string if needed
+        category: (s as any).service_categories?.name || s.category, // Fallback to old string if needed
+        category_order: (s as any).service_categories?.order || 0,
+        order: (s as any).order || 0
     })) || [];
 
     // Transform staff to include flat arrays of service_ids and skills

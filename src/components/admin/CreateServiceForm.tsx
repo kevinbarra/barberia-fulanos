@@ -102,6 +102,28 @@ export default function CreateServiceForm({
                     </div>
                 </div>
 
+                {/* DESCRIPCIÓN */}
+                <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Descripción</label>
+                    <textarea
+                        name="description"
+                        placeholder="Ej. Corte con tijera y acabado con navaja..."
+                        className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium resize-none min-h-[80px]"
+                    />
+                </div>
+
+                {/* ORDEN */}
+                <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Orden (Posición)</label>
+                    <input
+                        name="order"
+                        type="number"
+                        placeholder="0"
+                        defaultValue="0"
+                        className="w-full mt-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all font-medium"
+                    />
+                </div>
+
                 <button
                     type="submit"
                     disabled={isSubmitting}

@@ -46,17 +46,21 @@ export async function createService(formData: FormData) {
     const name = formData.get('name') as string
     const price = formData.get('price') as string
     const duration = formData.get('duration') as string
-    const categoryId = formData.get('category_id') as string // Cambio: usar category_id
+    const categoryId = formData.get('category_id') as string
+    const description = formData.get('description') as string
+    const order = parseInt(formData.get('order') as string || '0')
     const formTenantId = formData.get('tenant_id') as string
 
     // Security: Use validated tenantId, not form input
     const { data: newService, error: insertError } = await supabase.from('services').insert({
         name,
+        description: description || null,
         price: parseFloat(price),
         duration_min: parseInt(duration),
         category_id: categoryId || null,
         tenant_id: formTenantId || tenantId, // Fallback to validated tenant
-        is_active: true
+        is_active: true,
+        order
     }).select('id').single()
 
     if (insertError) return { error: 'Error al crear servicio' }
@@ -90,6 +94,8 @@ export async function updateService(formData: FormData) {
     const price = parseFloat(formData.get('price') as string)
     const duration = parseInt(formData.get('duration') as string)
     const categoryId = formData.get('category_id') as string
+    const description = formData.get('description') as string
+    const order = parseInt(formData.get('order') as string || '0')
 
     // Fetch OLD values for audit (CRITICAL for price tracking)
     const { data: oldService } = await supabase
@@ -103,6 +109,8 @@ export async function updateService(formData: FormData) {
         .from('services')
         .update({
             name,
+            description: description || null,
+            order,
             price,
             duration_min: duration,
             category_id: categoryId || null
