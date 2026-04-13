@@ -735,7 +735,7 @@ export default function BookingWizard({
                     <span className="text-[9px] font-light tracking-widest text-zinc-300">
                         {GLOBAL_BRANDING.SLOGAN}
                     </span>
-                    <span className="text-[10px] font-bold text-blue-500 group-hover:underline transition-all mt-1">
+                    <span className="text-[10px] font-medium text-zinc-900 group-hover:underline transition-all mt-1">
                         {GLOBAL_BRANDING.CTA_TEXT}
                     </span>
                 </a>

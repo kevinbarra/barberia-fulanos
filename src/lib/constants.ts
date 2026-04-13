@@ -42,8 +42,8 @@ export const PLATFORM_WHATSAPP = process.env.NEXT_PUBLIC_PLATFORM_WHATSAPP || '5
 export const GLOBAL_BRANDING = {
     COMPANY_NAME: 'KEVIN CONSULTING',
     SLOGAN: 'Tecnología que profesionaliza tu negocio',
-    FOOTER_QUESTION: '¿TE GUSTA ESTA PLATAFORMA?',
-    CTA_TEXT: 'Haz clic aquí para obtener una igual',
+    FOOTER_QUESTION: '¿TE GUSTA ESTA EXPERIENCIA?',
+    CTA_TEXT: 'Potencia tu negocio con esta tecnología',
     SERVICES_URL: 'https://kevinconsulting.services'
 } as const;
 
