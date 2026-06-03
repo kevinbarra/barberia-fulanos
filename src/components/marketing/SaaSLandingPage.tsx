@@ -1,22 +1,6 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import Link from "next/link"
-import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Loader2, ExternalLink } from "lucide-react"
+import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, ExternalLink } from "lucide-react"
 import { PLATFORM_WHATSAPP, GLOBAL_BRANDING } from '@/lib/constants'
-
-// --- SKELETON COMPONENTS ---
-const Skeleton = ({ className }: { className?: string }) => (
-    <div className={`animate-pulse bg-zinc-200 rounded-xl ${className}`} />
-);
-
-const FeatureSkeleton = () => (
-    <div className="bg-white/70 backdrop-blur-md border border-white p-6 rounded-2xl shadow-sm">
-        <Skeleton className="w-12 h-12 mb-4" />
-        <Skeleton className="h-6 w-3/4 mb-2" />
-        <Skeleton className="h-4 w-full" />
-    </div>
-);
 
 const plans = [
     {
@@ -92,14 +76,18 @@ const features = [
     }
 ]
 
+/**
+ * SaaS Landing Page — Server Component
+ * 
+ * ⚡ PERF: This is a pure Server Component with ZERO client JavaScript.
+ * All content is rendered as static HTML on the server and sent immediately.
+ * No skeletons, no loading states, no hydration delay.
+ * 
+ * Previously this was a "use client" component with an artificial 800ms
+ * setTimeout that showed skeleton placeholders before revealing content.
+ * That pattern added ~1-3s of perceived load time (JS download + hydration + 800ms timer).
+ */
 export default function SaaSLandingPage() {
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 800);
-        return () => clearTimeout(timer);
-    }, []);
-
     return (
         <div 
             style={{ '--brand-color': '#2563eb' } as React.CSSProperties}
@@ -139,46 +127,36 @@ export default function SaaSLandingPage() {
                 </div>
             </nav>
 
-            {/* Hero Section */}
+            {/* Hero Section — Rendered immediately, no skeleton */}
             <section className="relative z-10 px-6 pt-24 pb-32 max-w-6xl mx-auto text-center">
-                {isLoading ? (
-                    <div className="space-y-6">
-                        <Skeleton className="h-10 w-48 mx-auto rounded-full" />
-                        <Skeleton className="h-20 w-3/4 mx-auto" />
-                        <Skeleton className="h-12 w-2/3 mx-auto" />
-                    </div>
-                ) : (
-                    <>
-                        <div className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-md border border-white rounded-full px-5 py-2 mb-10 shadow-sm">
-                            <Star className="w-4 h-4 text-brand fill-brand" />
-                            <span className="text-xs font-black uppercase tracking-[0.2em] text-[#86868B]">El Estándar Premium de Puebla</span>
-                        </div>
+                <div className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-md border border-white rounded-full px-5 py-2 mb-10 shadow-sm">
+                    <Star className="w-4 h-4 text-brand fill-brand" />
+                    <span className="text-xs font-black uppercase tracking-[0.2em] text-[#86868B]">El Estándar Premium de Puebla</span>
+                </div>
 
-                        <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black">
-                            Domina tu agenda.<br />
-                            <span className="bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent">Sin esfuerzo.</span>
-                        </h1>
+                <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black">
+                    Domina tu agenda.<br />
+                    <span className="bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent">Sin esfuerzo.</span>
+                </h1>
 
-                        <p className="text-xl sm:text-2xl text-[#86868B] max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-                            Olvídate del caos. Sistema 360° con reservas online, POS y lealtad diseñado para las mejores barberías.
-                        </p>
+                <p className="text-xl sm:text-2xl text-[#86868B] max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
+                    Olvídate del caos. Sistema 360° con reservas online, POS y lealtad diseñado para las mejores barberías.
+                </p>
 
-                        <div className="flex flex-col sm:flex-row gap-5 justify-center">
-                            <a
-                                href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="group bg-black hover:bg-zinc-800 text-white font-black px-10 py-5 rounded-[2rem] text-xl transition-all hover:scale-105 shadow-2xl shadow-black/20 flex items-center justify-center gap-3"
-                            >
-                                Iniciar ahora
-                                <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
-                            </a>
-                        </div>
-                    </>
-                )}
+                <div className="flex flex-col sm:flex-row gap-5 justify-center">
+                    <a
+                        href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group bg-black hover:bg-zinc-800 text-white font-black px-10 py-5 rounded-[2rem] text-xl transition-all hover:scale-105 shadow-2xl shadow-black/20 flex items-center justify-center gap-3"
+                    >
+                        Iniciar ahora
+                        <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+                    </a>
+                </div>
             </section>
 
-            {/* Features Section */}
+            {/* Features Section — Rendered immediately, no skeleton */}
             <section id="features" className="relative z-10 px-6 py-32 bg-white/40 backdrop-blur-md border-y border-white">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20 text-black">
@@ -189,22 +167,18 @@ export default function SaaSLandingPage() {
                     </div>
 
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {isLoading ? (
-                            Array(6).fill(0).map((_, i) => <FeatureSkeleton key={i} />)
-                        ) : (
-                            features.map((feature, i) => (
-                                <div
-                                    key={i}
-                                    className="bg-white/70 backdrop-blur-md border border-white rounded-[2.5rem] p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group shadow-sm"
-                                >
-                                    <div className="w-16 h-16 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-brand group-hover:text-white transition-all">
-                                        <feature.icon className="w-8 h-8 text-brand group-hover:text-white transition-colors" />
-                                    </div>
-                                    <h3 className="font-black text-xl mb-3 text-black">{feature.title}</h3>
-                                    <p className="text-[#86868B] text-base leading-relaxed font-medium">{feature.description}</p>
+                        {features.map((feature, i) => (
+                            <div
+                                key={i}
+                                className="bg-white/70 backdrop-blur-md border border-white rounded-[2.5rem] p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group shadow-sm"
+                            >
+                                <div className="w-16 h-16 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-brand group-hover:text-white transition-all">
+                                    <feature.icon className="w-8 h-8 text-brand group-hover:text-white transition-colors" />
                                 </div>
-                            ))
-                        )}
+                                <h3 className="font-black text-xl mb-3 text-black">{feature.title}</h3>
+                                <p className="text-[#86868B] text-base leading-relaxed font-medium">{feature.description}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
