@@ -3,7 +3,7 @@ import BookingWizard from "@/components/booking/BookingWizard";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, User } from "lucide-react";
 import { Metadata } from "next";
 
 export async function generateMetadata({
@@ -140,13 +140,18 @@ export default async function BookingPage({
         >
             <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 px-4">
 
-                {/* HEADER DE NAVEGACIÓN */}
-                <div className="w-full max-w-md mb-6 flex items-center relative">
-                    <Link href="/app" className="absolute left-0 p-2 bg-white rounded-full shadow-sm text-gray-600 hover:bg-gray-100">
-                        <ChevronLeft size={24} />
+                {/* HEADER DE NAVEGACIÓN PREMIUM */}
+                <div className="w-full max-w-md mb-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                    <Link 
+                        href="/app" 
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white rounded-xl hover:bg-zinc-800 transition-all text-xs font-bold shadow-sm"
+                    >
+                        <User size={14} className="text-amber-400" />
+                        <span>Mis Puntos 🏆</span>
                     </Link>
-                    <div className="w-full text-center">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Reservando en</span>
+                    <div className="text-right pr-2">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block leading-none">Reservando en</span>
+                        <span className="text-xs font-black text-gray-900 block mt-0.5">{tenant.name}</span>
                     </div>
                 </div>
 
