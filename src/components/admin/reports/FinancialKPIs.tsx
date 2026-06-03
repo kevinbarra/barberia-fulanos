@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart, Percent, Check, Clock } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Percent, Check, Clock } from 'lucide-react';
 
 interface FinancialKPIsProps {
     data: {
@@ -12,6 +12,13 @@ interface FinancialKPIsProps {
         growth_rate: number;
     };
 }
+
+const colorMap: Record<string, { bg: string; text: string }> = {
+    blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
+    green: { bg: 'bg-green-100', text: 'text-green-600' },
+    amber: { bg: 'bg-amber-100', text: 'text-amber-600' },
+    purple: { bg: 'bg-purple-100', text: 'text-purple-600' },
+};
 
 export default function FinancialKPIs({ data }: FinancialKPIsProps) {
     const kpis = [
@@ -50,6 +57,7 @@ export default function FinancialKPIs({ data }: FinancialKPIsProps) {
             {kpis.map((kpi) => {
                 const Icon = kpi.icon;
                 const isPositive = kpi.change !== null && kpi.change >= 0;
+                const colors = colorMap[kpi.color] || { bg: 'bg-gray-100', text: 'text-gray-600' };
 
                 return (
                     <div
@@ -57,10 +65,10 @@ export default function FinancialKPIs({ data }: FinancialKPIsProps) {
                         className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
                     >
                         <div className="flex items-center justify-between mb-4">
-                            <div className={`w-12 h-12 rounded-lg bg-${kpi.color}-100 flex items-center justify-center`}>
-                                <Icon className={`w-6 h-6 text-${kpi.color}-600`} />
+                            <div className={`w-12 h-12 rounded-lg ${colors.bg} flex items-center justify-center`}>
+                                <Icon className={`w-6 h-6 ${colors.text}`} />
                             </div>
-                            {kpi.change !== null && (
+                            {kpi.change !== null && kpi.change !== 0 && (
                                 <div className={`flex items-center gap-1 text-sm font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
                                     {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                                     {Math.abs(kpi.change).toFixed(1)}%

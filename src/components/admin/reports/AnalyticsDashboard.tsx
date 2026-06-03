@@ -1,12 +1,10 @@
 'use client'
 
-import { useSearchParams } from 'next/navigation'
 import { useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
 import { useAnalyticsData, AnalyticsClientData } from '@/hooks/useAnalyticsData'
 import { FileDown, Loader2 } from 'lucide-react'
-import { format, parseISO, isSameDay } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { format } from 'date-fns'
 import { useVocabulary } from '@/providers/BusinessVocabularyProvider'
 
 // Import all report components
@@ -21,6 +19,7 @@ import ExpensesAuditTable from '@/components/admin/reports/ExpensesAuditTable'
 import StaffFinanceTable from '@/components/admin/reports/StaffFinanceTable'
 import PrintableReport from '@/components/admin/reports/PrintableReport'
 import PaymentMethodsChart from '@/components/admin/reports/PaymentMethodsChart'
+import DailyRevenueChart from '@/components/admin/reports/DailyRevenueChart'
 import ErrorBoundary from '@/components/ErrorBoundary'
 
 // ==================== TYPES ====================
@@ -62,6 +61,13 @@ export interface FullReportData extends ServerSideData {
 
 interface AnalyticsDashboardProps extends ServerSideData {
     tenantName: string
+    startDateStr: string
+    endDateStr: string
+    startISOStr: string
+    endISOStr: string
+    dateRangeLabel: string
+    activePreset: string
+    dailyRevenueData: Array<{ day: string; revenue: number; bookings: number }>
 }
 
 // ==================== COMPONENT ====================
@@ -71,37 +77,24 @@ export default function AnalyticsDashboard({
     retention,
     weekdayTrends,
     hourlyData,
-    tenantName
+    tenantName,
+    startDateStr,
+    endDateStr,
+    startISOStr,
+    endISOStr,
+    dateRangeLabel,
+    activePreset,
+    dailyRevenueData
 }: AnalyticsDashboardProps) {
-    const searchParams = useSearchParams()
     const componentRef = useRef<HTMLDivElement>(null)
     const { vocabulary } = useVocabulary()
 
-    // Get date params from URL
-    const startISO = searchParams.get('startISO')
-    const endISO = searchParams.get('endISO')
-    const startDate = searchParams.get('startDate')
-    const endDate = searchParams.get('endDate')
-
-    // Calculate date range label for PDF
-    const getDateRangeLabel = (): string => {
-        if (startDate && endDate) {
-            const start = parseISO(startDate)
-            const end = parseISO(endDate)
-            if (isSameDay(start, end)) {
-                return format(start, "d 'de' MMMM yyyy", { locale: es })
-            }
-            return `${format(start, "d MMM", { locale: es })} - ${format(end, "d MMM yyyy", { locale: es })}`
-        }
-        return format(new Date(), "d 'de' MMMM yyyy", { locale: es })
-    }
-
-    // Fetch client-side data using centralized hook
+    // Fetch client-side data using centralized hook synced with server dates
     const { data: clientData, isLoading, refresh } = useAnalyticsData({
-        startISO,
-        endISO,
-        startDate,
-        endDate
+        startISO: startISOStr,
+        endISO: endISOStr,
+        startDate: startDateStr,
+        endDate: endDateStr
     })
 
     // Combined data object for PDF export
@@ -114,11 +107,11 @@ export default function AnalyticsDashboard({
         tenantName
     }
 
-    // Generate smart filename for PDF (sanitize tenant name for filename safety)
+    // Generate smart filename for PDF
     const getSmartFilename = (): string => {
         const safeName = tenantName.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_')
-        if (startDate && endDate) {
-            return `Reporte_${safeName}_${startDate}_al_${endDate}`
+        if (startDateStr && endDateStr) {
+            return `Reporte_${safeName}_${startDateStr}_al_${endDateStr}`
         }
         const today = format(new Date(), 'yyyy-MM-dd')
         return `Reporte_${safeName}_${today}`
@@ -131,13 +124,13 @@ export default function AnalyticsDashboard({
     })
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 animate-in fade-in duration-300">
             {/* Download PDF Button */}
             <div className="flex justify-end">
                 <button
                     onClick={() => handlePrint()}
                     disabled={isLoading}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2.5 bg-gray-950 text-white rounded-xl font-bold hover:bg-gray-800 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm border border-gray-800"
                 >
                     {isLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -153,13 +146,30 @@ export default function AnalyticsDashboard({
                 <PrintableReport
                     ref={componentRef}
                     data={fullReportData}
-                    dateRange={getDateRangeLabel()}
+                    dateRange={dateRangeLabel}
                 />
+            </div>
+
+            {/* KPIs Principales */}
+            <FinancialKPIs data={financialKPIs} />
+
+            {/* Gráfico de Ventas Diarias & Métodos de Pago */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <ErrorBoundary fallbackTitle="Error en Tendencia de Ventas" fallbackMessage="No se pudo cargar el gráfico de ventas.">
+                        <DailyRevenueChart data={dailyRevenueData} />
+                    </ErrorBoundary>
+                </div>
+                <div className="lg:col-span-1">
+                    <ErrorBoundary fallbackTitle="Error en Métodos de Pago" fallbackMessage="No se pudo cargar el gráfico de métodos de pago.">
+                        <PaymentMethodsChart data={financialKPIs.payment_methods || []} />
+                    </ErrorBoundary>
+                </div>
             </div>
 
             {/* Corte de Caja - Financial Summary */}
             <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2 tracking-tight">
                     <span className="text-green-600">💰</span>
                     Corte de Caja
                 </h2>
@@ -182,7 +192,7 @@ export default function AnalyticsDashboard({
 
             {/* Staff Financial Breakdown */}
             <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2 tracking-tight">
                     <span className="text-violet-600">✂️</span>
                     Corte por {vocabulary.staff_plural}
                 </h2>
@@ -195,21 +205,21 @@ export default function AnalyticsDashboard({
                 </ErrorBoundary>
             </div>
 
-            {/* Gráficas Financieras */}
+            {/* Gráficas de Rendimiento de Staff & Servicios */}
             <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2 tracking-tight">
                     <span className="text-blue-600">📊</span>
-                    Desempeño Financiero
+                    Desempeño de Personal y Catálogo
                 </h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ErrorBoundary fallbackTitle="Error en Gráfico" fallbackMessage="No se pudo cargar.">
+                    <ErrorBoundary fallbackTitle="Error en Gráfico de Personal" fallbackMessage="No se pudo cargar el gráfico de personal.">
                         <StaffRevenueChart
                             data={clientData.staffRevenue}
                             isLoading={isLoading}
                             onRefresh={refresh}
                         />
                     </ErrorBoundary>
-                    <ErrorBoundary fallbackTitle="Error en Servicios" fallbackMessage="No se pudo cargar.">
+                    <ErrorBoundary fallbackTitle="Error en Servicios" fallbackMessage="No se pudo cargar el gráfico de servicios.">
                         <TopServicesChart
                             data={clientData.topServices}
                             isLoading={isLoading}
@@ -219,34 +229,9 @@ export default function AnalyticsDashboard({
                 </div>
             </div>
 
-            {/* Métodos de Pago */}
-            <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <span className="text-emerald-600">💳</span>
-                    Flujo de Efectivo por Método
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1">
-                        <PaymentMethodsChart data={financialKPIs.payment_methods || []} />
-                    </div>
-                    <div className="lg:col-span-2">
-                        <ErrorBoundary fallbackTitle="Error en Gráfico" fallbackMessage="No se pudo cargar.">
-                            <StaffRevenueChart
-                                data={clientData.staffRevenue}
-                                isLoading={isLoading}
-                                onRefresh={refresh}
-                            />
-                        </ErrorBoundary>
-                    </div>
-                </div>
-            </div>
-
-            {/* KPIs Principales */}
-            <FinancialKPIs data={financialKPIs} />
-
             {/* Sección Operativa */}
             <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-black text-gray-900 mb-4 flex items-center gap-2 tracking-tight">
                     <span className="text-purple-600">⚡</span>
                     Métricas Operativas
                 </h2>
@@ -258,10 +243,9 @@ export default function AnalyticsDashboard({
 
             {/* Retención de Clientes */}
             <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Retención y Lealtad</h2>
+                <h2 className="text-xl font-black text-gray-900 mb-4 tracking-tight">Retención y Lealtad</h2>
                 <RetentionChart data={retention} />
             </div>
         </div>
     )
 }
-
