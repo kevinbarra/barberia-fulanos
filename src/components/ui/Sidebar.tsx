@@ -39,6 +39,7 @@ const ADMIN_GROUPS = [
         name: 'Configuración',
         items: [
             { name: 'Perfil', href: '/admin/profile', icon: User },
+            { name: 'Servicios', href: '/admin/services', icon: Scissors },
             { name: 'Vocabulario', href: '/admin/settings/vocabulary', icon: Type },
             { name: 'Branding / Logo', href: '/admin/settings/branding', icon: Palette },
             { name: 'Ajustes App', href: '/admin/settings', icon: Settings },
