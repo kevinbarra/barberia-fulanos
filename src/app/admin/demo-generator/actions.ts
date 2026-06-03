@@ -117,7 +117,11 @@ export async function seedTenantWithTemplate(tenantId: string, slug: string, bus
 
     // 3. Insert Staff (Auth + Profile + linkage)
     for (const st of template.staff) {
-        const fakeEmail = `${st.name.toLowerCase()}.${slug}@fulanosdemo.com`
+        const cleanStaffName = st.name.toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // remove accents
+            .replace(/[^a-z0-9]/g, "")      // remove spaces/special characters
+        const fakeEmail = `${cleanStaffName}.${slug}@fulanosdemo.com`
 
         // Create in Auth
         const { data: authUser, error: authError } = await adminSupabase.auth.admin.createUser({
