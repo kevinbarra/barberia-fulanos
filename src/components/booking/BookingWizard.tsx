@@ -523,24 +523,25 @@ export default function BookingWizard({
     }
 
     return (
-        <div className="flex flex-col h-full bg-white overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
             {/* PROGRESS HEADER */}
-            <div className="px-6 pt-6 pb-2 bg-white sticky top-0 z-20 border-b border-zinc-100">
+            <div className="px-6 pt-6 pb-3 sticky top-0 z-20 border-b border-zinc-800/60">
                 <div className="flex justify-between items-center mb-4">
                     {step > 1 ? (
-                        <button onClick={() => setStep(s => s - 1)} className="p-2 -ml-2 hover:bg-zinc-100 rounded-full transition-colors">
-                            <ChevronLeft size={20} className="text-zinc-600" />
+                        <button onClick={() => setStep(s => s - 1)} className="p-2 -ml-2 hover:bg-zinc-800/50 rounded-full transition-colors">
+                            <ChevronLeft size={20} className="text-zinc-400" />
                         </button>
                     ) : <div className="w-9" />}
-                    <span className="text-xs font-bold text-zinc-400 tracking-widest uppercase">Paso {step} de 4</span>
+                    <span className="text-[10px] font-bold text-zinc-500 tracking-[0.2em] uppercase">Paso {step} de 4</span>
                     <div className="w-9" />
                 </div>
-                <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
                     <motion.div 
-                        className="h-full bg-[var(--brand-color)]" 
+                        className="h-full rounded-full" 
+                        style={{ background: `linear-gradient(90deg, var(--brand-color), var(--brand-color-secondary))` }}
                         initial={{ width: 0 }} 
                         animate={{ width: `${(step / 4) * 100}%` }} 
-                        transition={{ duration: 0.3 }} 
+                        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }} 
                     />
                 </div>
             </div>
@@ -553,34 +554,42 @@ export default function BookingWizard({
                             {!selectedCategory ? (
                                 <>
                                     <div className="px-1">
-                                        <h2 className="text-2xl font-black text-zinc-900 leading-tight">¿Qué estás<br />buscando?</h2>
-                                        <p className="text-zinc-500 text-sm mt-1">Elige una categoría para ver los servicios.</p>
+                                        <h2 className="text-2xl font-black text-white leading-tight">¿Qué estás<br />buscando?</h2>
+                                        <p className="text-zinc-500 text-sm mt-1.5 font-medium">Elige una categoría para comenzar.</p>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-3">
                                         {categoryOrder.map(category => {
                                             const normalized = category.toLowerCase();
                                             let CategoryIcon = LayoutGrid;
+                                            let subtitle = "Ver servicios";
                                             
                                             if (normalized.includes('ritual')) {
                                                 CategoryIcon = Gem;
+                                                subtitle = "Experiencia premium";
                                             } else if (normalized.includes('esencial') || normalized.includes('menu') || normalized.includes('menú')) {
                                                 CategoryIcon = Scissors;
+                                                subtitle = "Servicios clásicos";
                                             }
 
                                             return (
                                                 <button 
                                                     key={category} 
                                                     onClick={() => setSelectedCategory(category)}
-                                                    className="group relative bg-zinc-50/50 hover:bg-zinc-100/50 border border-zinc-100 hover:border-zinc-200/85 shadow-sm p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden cursor-pointer"
+                                                    className="group relative w-full bg-zinc-800/50 hover:bg-zinc-800/80 border border-zinc-700/50 hover:border-zinc-600/80 p-5 rounded-2xl transition-all duration-300 text-left flex items-center gap-4 cursor-pointer overflow-hidden"
                                                 >
-                                                    <div className="w-14 h-14 rounded-2xl bg-[var(--brand-color-10)] text-[var(--brand-color)] flex items-center justify-center group-hover:scale-105 transition-transform duration-500 relative z-10">
-                                                        <CategoryIcon size={26} strokeWidth={1.75} />
+                                                    {/* Subtle gradient glow on hover */}
+                                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-r from-[var(--brand-color)]/5 via-transparent to-[var(--brand-color-secondary)]/5 pointer-events-none" />
+                                                    
+                                                    <div className="w-12 h-12 rounded-xl bg-[var(--brand-color)]/10 text-[var(--brand-color)] flex items-center justify-center group-hover:scale-105 group-hover:bg-[var(--brand-color)]/15 transition-all duration-300 relative z-10 shrink-0">
+                                                        <CategoryIcon size={22} strokeWidth={1.75} />
                                                     </div>
-                                                    <div className="flex flex-col items-center relative z-10">
-                                                        <span className="font-extrabold text-sm tracking-tight text-zinc-800 uppercase leading-none">
+                                                    <div className="flex flex-col gap-0.5 relative z-10 flex-1 min-w-0">
+                                                        <span className="font-bold text-white text-[15px] tracking-tight leading-tight truncate">
                                                             {stripEmojis(category)}
                                                         </span>
+                                                        <span className="text-[11px] text-zinc-500 font-medium">{subtitle}</span>
                                                     </div>
+                                                    <ChevronRight size={16} className="text-zinc-600 group-hover:text-[var(--brand-color)] transition-colors shrink-0 relative z-10" />
                                                 </button>
                                             );
                                         })}
@@ -592,14 +601,14 @@ export default function BookingWizard({
                                         <div>
                                             <button 
                                                 onClick={() => setSelectedCategory(null)}
-                                                className="flex items-center gap-1 text-[10px] font-extrabold text-[var(--brand-color)] uppercase tracking-widest mb-2"
+                                                className="flex items-center gap-1 text-[10px] font-extrabold text-[var(--brand-color)] uppercase tracking-widest mb-2 hover:opacity-80 transition-opacity"
                                             >
-                                                <ChevronLeft size={12} /> Volver a categorías
+                                                <ChevronLeft size={12} /> Volver
                                             </button>
-                                            <h2 className="text-2xl font-black text-zinc-900 leading-tight">{stripEmojis(selectedCategory || '')}</h2>
+                                            <h2 className="text-2xl font-black text-white leading-tight">{stripEmojis(selectedCategory || '')}</h2>
                                         </div>
                                     </div>
-                                    <div className="space-y-3.5">
+                                    <div className="space-y-2.5">
                                         {groupedServices[selectedCategory]
                                             .sort((a, b) => {
                                                 const orderA = a.order || 99;
@@ -611,20 +620,18 @@ export default function BookingWizard({
                                             <button 
                                                 key={service.id} 
                                                 onClick={() => { setSelectedService(service); setStep(2); }} 
-                                                className="w-full bg-white p-5 rounded-2xl border border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200/80 hover:-translate-y-0.5 transition-all duration-300 text-left group"
+                                                className="w-full bg-zinc-800/40 hover:bg-zinc-800/70 p-4 rounded-2xl border border-zinc-700/40 hover:border-zinc-600/60 transition-all duration-300 text-left group"
                                             >
-                                                <div className="flex justify-between items-start gap-4">
-                                                    <div className="flex-1">
-                                                        <span className="font-bold text-zinc-900 text-base block group-hover:text-[var(--brand-color)] transition-colors">{service.name}</span>
-                                                        {service.description && <p className="text-sm text-zinc-500 mt-1.5 leading-relaxed font-medium">{service.description}</p>}
-                                                        <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5 mt-4">
-                                                            <div className="p-1.5 bg-zinc-50 rounded-lg group-hover:bg-[var(--brand-color-10)] group-hover:text-[var(--brand-color)] transition-colors">
-                                                                <Clock size={12} />
-                                                            </div>
+                                                <div className="flex justify-between items-center gap-3">
+                                                    <div className="flex-1 min-w-0">
+                                                        <span className="font-bold text-white text-sm block group-hover:text-[var(--brand-color)] transition-colors truncate">{service.name}</span>
+                                                        {service.description && <p className="text-[12px] text-zinc-500 mt-1 leading-relaxed font-medium truncate">{service.description}</p>}
+                                                        <span className="text-[11px] text-zinc-600 font-medium flex items-center gap-1.5 mt-2">
+                                                            <Clock size={11} className="text-zinc-600" />
                                                             {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-[var(--brand-color)] bg-[var(--brand-color-5)] border border-[var(--brand-color-10)] px-4 py-2 rounded-xl transition-all group-hover:bg-[var(--brand-color)] group-hover:text-white group-hover:border-transparent shadow-sm text-sm">${service.price}</span>
+                                                    <span className="font-black text-[var(--brand-color)] bg-[var(--brand-color)]/10 px-3.5 py-1.5 rounded-xl text-sm shrink-0 border border-[var(--brand-color)]/15 group-hover:bg-[var(--brand-color)] group-hover:text-white group-hover:border-transparent transition-all">${service.price}</span>
                                                 </div>
                                             </button>
                                         ))}
@@ -638,26 +645,26 @@ export default function BookingWizard({
                     {step === 2 && (
                         <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-5">
                             <div className="px-1 mb-6">
-                                <h2 className="text-2xl font-black text-zinc-900">¿Con quién?</h2>
-                                <p className="text-zinc-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
+                                <h2 className="text-2xl font-black text-white">¿Con quién?</h2>
+                                <p className="text-zinc-500 text-sm font-medium">Selecciona a tu {staffLabel.toLowerCase()}.</p>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-3">
                                 {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
                                         onClick={() => { setSelectedStaff(member); setStep(3); }}
-                                        className="bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200/80 transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group cursor-pointer"
+                                        className="bg-zinc-800/40 hover:bg-zinc-800/70 p-5 rounded-2xl border border-zinc-700/40 hover:border-zinc-600/60 transition-all text-center flex flex-col items-center gap-3 aspect-square justify-center group cursor-pointer"
                                     >
-                                        <div className="w-24 h-24 rounded-full overflow-hidden relative border-[4px] border-zinc-50 shadow-md bg-zinc-100 group-hover:scale-105 transition-transform duration-300 ring-2 ring-transparent group-hover:ring-[var(--brand-color)]">
+                                        <div className="w-20 h-20 rounded-full overflow-hidden relative border-[3px] border-zinc-700/50 shadow-lg bg-zinc-800 group-hover:scale-105 transition-transform duration-300 ring-2 ring-transparent group-hover:ring-[var(--brand-color)] group-hover:border-zinc-600">
                                             {member.avatar_url ? (
                                                 <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
                                             ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-zinc-300 bg-zinc-50 font-bold text-2xl">
+                                                <div className="w-full h-full flex items-center justify-center text-zinc-500 bg-zinc-800 font-bold text-xl">
                                                     {member.full_name[0]}
                                                 </div>
                                             )}
                                         </div>
-                                        <span className="font-bold text-zinc-800 block truncate w-full px-2 group-hover:text-[var(--brand-color)] transition-colors text-sm">
+                                        <span className="font-bold text-zinc-300 block truncate w-full px-2 group-hover:text-white transition-colors text-sm">
                                             {member.full_name.split(' ')[0]}
                                         </span>
                                     </button>
@@ -669,39 +676,39 @@ export default function BookingWizard({
                     {/* PASO 3: FECHA */}
                     {step === 3 && (
                         <motion.section key="step3" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="flex flex-col h-full">
-                            <div className="p-6 pb-2">
-                                <h2 className="text-2xl font-black text-zinc-900">Agenda</h2>
-                                <p className="text-zinc-500 text-sm">Busca un hueco disponible.</p>
+                            <div className="p-5 pb-2">
+                                <h2 className="text-2xl font-black text-white">Agenda</h2>
+                                <p className="text-zinc-500 text-sm font-medium">Busca un hueco disponible.</p>
                             </div>
-                            <div className="pl-6 py-4 overflow-x-auto hide-scrollbar flex gap-3">
+                            <div className="pl-5 py-4 overflow-x-auto hide-scrollbar flex gap-2.5">
                                 {dates.map((date, i) => {
                                     const isSelected = selectedDate && isSameDay(date, selectedDate);
                                     return (
                                         <button 
                                             key={i} 
                                             onClick={() => { setSelectedDate(date); setSelectedTime(""); }} 
-                                            className={`min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_8px_20px_var(--brand-color-secondary-20)] scale-105" : "bg-zinc-50 text-zinc-400 border-zinc-100 hover:bg-zinc-100/50 hover:border-zinc-200"}`}
+                                            className={`min-w-[64px] flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all ${isSelected ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_6px_20px_var(--brand-color-secondary-20)] scale-105" : "bg-zinc-800/40 text-zinc-500 border-zinc-700/40 hover:bg-zinc-800/60 hover:border-zinc-600/50 hover:text-zinc-300"}`}
                                         >
-                                            <span className="text-[10px] font-bold uppercase mb-1">{format(date, 'EEE', { locale: es })}</span>
-                                            <span className="text-lg font-black">{format(date, 'd')}</span>
+                                            <span className="text-[9px] font-bold uppercase mb-0.5">{format(date, 'EEE', { locale: es })}</span>
+                                            <span className="text-base font-black">{format(date, 'd')}</span>
                                         </button>
                                     )
                                 })}
                             </div>
-                            <div className="flex-1 p-6 bg-white rounded-t-[32px] shadow-sm border-t border-zinc-100 overflow-y-auto min-h-[220px]">
+                            <div className="flex-1 p-5 pt-4 overflow-y-auto min-h-[200px]">
                                 {!selectedDate ? (
-                                    <div className="text-center py-10 text-zinc-300 font-medium">Selecciona un día</div>
+                                    <div className="text-center py-10 text-zinc-600 font-medium text-sm">Selecciona un día</div>
                                 ) : isLoadingSlots ? (
-                                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-color)]" /></div>
+                                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-color)]" size={22} /></div>
                                 ) : slots.length === 0 ? (
-                                    <div className="text-center py-10 text-zinc-400 font-bold">No hay horarios disponibles</div>
+                                    <div className="text-center py-10 text-zinc-500 font-bold text-sm">No hay horarios disponibles</div>
                                 ) : (
-                                    <div className="grid grid-cols-3 gap-2.5">
+                                    <div className="grid grid-cols-3 gap-2">
                                         {slots.map((s: any) => (
                                             <button 
                                                 key={s.value} 
                                                 onClick={() => setSelectedTime(s.value)} 
-                                                className={`py-3 rounded-xl text-xs font-bold border transition-all ${selectedTime === s.value ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_6px_15px_var(--brand-color-secondary-20)]" : "bg-zinc-50/50 text-zinc-700 border-zinc-100 hover:border-zinc-200/80 hover:bg-zinc-50 hover:shadow-sm"}`}
+                                                className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${selectedTime === s.value ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_4px_12px_var(--brand-color-secondary-20)]" : "bg-zinc-800/30 text-zinc-400 border-zinc-700/30 hover:border-zinc-600/50 hover:bg-zinc-800/50 hover:text-zinc-300"}`}
                                             >
                                                 {s.label}
                                             </button>
@@ -710,10 +717,11 @@ export default function BookingWizard({
                                 )}
                             </div>
                             {selectedTime && (
-                                <div className="p-4 bg-white border-t border-zinc-100 sticky bottom-0 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+                                <div className="p-4 border-t border-zinc-800/60 sticky bottom-0 z-10">
                                     <button 
                                         onClick={() => setStep(4)} 
-                                        className="w-full bg-[var(--brand-color)] text-white py-4 rounded-2xl font-bold shadow-[0_8px_25px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95"
+                                        className="w-full py-3.5 rounded-xl font-bold text-white text-sm shadow-[0_6px_20px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95"
+                                        style={{ background: `linear-gradient(135deg, var(--brand-color), var(--brand-color-secondary))` }}
                                     >
                                         Continuar
                                     </button>
@@ -724,36 +732,36 @@ export default function BookingWizard({
 
                     {/* PASO 4: DATOS CLIENTE */}
                     {step === 4 && (
-                        <motion.section key="step4" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 flex flex-col">
-                            <h2 className="text-2xl font-black text-zinc-900 mb-6">Tus Datos</h2>
-                            <div className="space-y-4 flex-1">
+                        <motion.section key="step4" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-5 flex flex-col">
+                            <h2 className="text-2xl font-black text-white mb-6">Tus Datos</h2>
+                            <div className="space-y-3 flex-1">
                                 <div className="relative">
-                                    <User size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                    <User size={17} className="absolute left-4 top-[15px] text-zinc-600" />
                                     <input 
                                         type="text" 
                                         value={clientData.name} 
-                                        className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                        className="w-full pl-11 p-3.5 bg-zinc-800/50 rounded-xl font-bold outline-none border border-zinc-700/40 focus:bg-zinc-800/80 focus:border-[var(--brand-color)]/50 transition-all text-white placeholder-zinc-600 text-sm" 
                                         placeholder="Nombre completo" 
                                         onChange={(e) => setClientData({ ...clientData, name: e.target.value })} 
                                     />
                                 </div>
                                 <div className="relative">
-                                    <Phone size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                    <Phone size={17} className="absolute left-4 top-[15px] text-zinc-600" />
                                     <input 
                                         type="tel" 
                                         value={clientData.phone} 
-                                        className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                        className="w-full pl-11 p-3.5 bg-zinc-800/50 rounded-xl font-bold outline-none border border-zinc-700/40 focus:bg-zinc-800/80 focus:border-[var(--brand-color)]/50 transition-all text-white placeholder-zinc-600 text-sm" 
                                         placeholder="WhatsApp (10 dígitos)" 
                                         onChange={(e) => setClientData({ ...clientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} 
                                     />
                                 </div>
                                 {!currentUser && (
                                     <div className="relative">
-                                        <Mail size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                        <Mail size={17} className="absolute left-4 top-[15px] text-zinc-600" />
                                         <input 
                                             type="email" 
                                             value={clientData.email} 
-                                            className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                            className="w-full pl-11 p-3.5 bg-zinc-800/50 rounded-xl font-bold outline-none border border-zinc-700/40 focus:bg-zinc-800/80 focus:border-[var(--brand-color)]/50 transition-all text-white placeholder-zinc-600 text-sm" 
                                             placeholder="Email (opcional)" 
                                             onChange={(e) => setClientData({ ...clientData, email: e.target.value })} 
                                         />
@@ -763,9 +771,10 @@ export default function BookingWizard({
                             <button 
                                 onClick={handleBooking} 
                                 disabled={!clientData.name || clientData.phone.length !== 10 || isSubmitting} 
-                                className="w-full bg-[var(--brand-color)] text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8 flex justify-center items-center gap-2 shadow-[0_8px_25px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95 cursor-pointer"
+                                className="w-full py-3.5 rounded-xl font-bold text-white text-sm disabled:opacity-30 mt-6 flex justify-center items-center gap-2 shadow-[0_6px_20px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95 cursor-pointer"
+                                style={{ background: `linear-gradient(135deg, var(--brand-color), var(--brand-color-secondary))` }}
                             >
-                                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Reservar Cita'}
+                                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Reservar Cita'}
                             </button>
                         </motion.section>
                     )}
@@ -774,16 +783,16 @@ export default function BookingWizard({
             </div>
 
             {/* FOOTER — AUTHOR IDENTITY */}
-            <div className="py-6 border-t border-zinc-100 bg-zinc-50/50 flex justify-center items-center">
+            <div className="py-4 border-t border-zinc-800/50 flex justify-center items-center">
                 <a 
                     href={GLOBAL_BRANDING.SERVICES_URL} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="text-[10px] font-medium tracking-wider text-zinc-500 hover:text-[var(--brand-color)] transition-colors flex items-center gap-1.5"
+                    className="text-[9px] font-medium tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors flex items-center gap-1.5"
                 >
                     <span>Desarrollado por</span>
-                    <span className="font-extrabold uppercase text-zinc-700 hover:text-[var(--brand-color)] transition-colors">KEVIN CONSULTING</span>
-                    <span className="text-zinc-300">•</span>
+                    <span className="font-extrabold uppercase text-zinc-500">KEVIN CONSULTING</span>
+                    <span className="text-zinc-700">•</span>
                     <span>Potencia tu negocio</span>
                 </a>
             </div>

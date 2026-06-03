@@ -357,7 +357,7 @@ export default async function BookingPage({
 
                     {/* RIGHT PANEL: Booking Card */}
                     <div className="w-full max-w-md flex flex-col">
-                        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex-1 flex flex-col justify-between">
+                        <div className="bg-zinc-900/60 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-zinc-800/80 flex-1 flex flex-col justify-between">
                             <BookingWizard
                                 services={transformedServices}
                                 staff={transformedStaff}
