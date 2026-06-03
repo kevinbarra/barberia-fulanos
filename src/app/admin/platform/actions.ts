@@ -264,81 +264,88 @@ export async function getPlatformStats() {
     const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    // Total tenants
-    const { count: totalTenants } = await supabase
-        .from('tenants')
-        .select('*', { count: 'exact', head: true });
+    // Parallel execution of batch queries (Total: 3 queries instead of 13)
+    const [tenantsRes, bookingsRes, transactionsRes] = await Promise.all([
+        supabase.from('tenants').select('subscription_status'),
+        supabase.from('bookings').select('created_at').gte('created_at', startOfLastMonth.toISOString()),
+        supabase.from('transactions').select('total, created_at').gte('created_at', startOfLastMonth.toISOString())
+    ]);
 
-    // Active tenants
-    const { count: activeTenants } = await supabase
-        .from('tenants')
-        .select('*', { count: 'exact', head: true })
-        .eq('subscription_status', 'active');
+    // Handle tenant metrics
+    const tenantsList = tenantsRes.data || [];
+    const totalTenants = tenantsList.length;
+    const activeTenants = tenantsList.filter(t => t.subscription_status === 'active').length;
+    const suspendedTenants = totalTenants - activeTenants;
 
-    // Suspended tenants
-    const suspendedTenants = (totalTenants || 0) - (activeTenants || 0);
+    // Handle bookings metrics
+    const bookingsList = bookingsRes.data || [];
+    const monthlyBookings = bookingsList.filter(b => new Date(b.created_at) >= startOfMonth).length;
+    const lastMonthBookings = bookingsList.filter(b => {
+        const d = new Date(b.created_at);
+        return d >= startOfLastMonth && d <= endOfLastMonth;
+    }).length;
 
-    // Current month bookings
-    const { count: monthlyBookings } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', startOfMonth.toISOString());
+    // Handle revenue metrics
+    const transactionsList = transactionsRes.data || [];
+    const monthlyRevenue = transactionsList
+        .filter(t => new Date(t.created_at) >= startOfMonth)
+        .reduce((sum, t) => sum + (t.total || 0), 0);
+    const lastMonthRevenue = transactionsList
+        .filter(t => {
+            const d = new Date(t.created_at);
+            return d >= startOfLastMonth && d <= endOfLastMonth;
+        })
+        .reduce((sum, t) => sum + (t.total || 0), 0);
 
-    // Last month bookings (for trend)
-    const { count: lastMonthBookings } = await supabase
-        .from('bookings')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', startOfLastMonth.toISOString())
-        .lte('created_at', endOfLastMonth.toISOString());
-
-    // Current month revenue
-    const { data: revenueData } = await supabase
-        .from('transactions')
-        .select('total')
-        .gte('created_at', startOfMonth.toISOString());
-
-    const monthlyRevenue = revenueData?.reduce((sum, t) => sum + (t.total || 0), 0) || 0;
-
-    // Last month revenue (for trend)
-    const { data: lastRevenueData } = await supabase
-        .from('transactions')
-        .select('total')
-        .gte('created_at', startOfLastMonth.toISOString())
-        .lte('created_at', endOfLastMonth.toISOString());
-
-    const lastMonthRevenue = lastRevenueData?.reduce((sum, t) => sum + (t.total || 0), 0) || 0;
-
-    // Daily bookings for last 7 days (for chart)
+    // Group last 7 days of bookings in-memory
     const last7Days: { day: string; count: number }[] = [];
+    const countsMap: Record<string, number> = {};
+
+    // Initialize map
     for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-        const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toLocaleDateString('es-MX', { weekday: 'short' });
+        countsMap[key] = 0;
+    }
 
-        const { count } = await supabase
-            .from('bookings')
-            .select('*', { count: 'exact', head: true })
-            .gte('created_at', dayStart.toISOString())
-            .lt('created_at', dayEnd.toISOString());
+    // Filter to last 7 days starting point
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
 
+    const bookingsLast7Days = bookingsList.filter(b => new Date(b.created_at) >= sevenDaysAgo);
+
+    // Populate map
+    bookingsLast7Days.forEach(b => {
+        const key = new Date(b.created_at).toLocaleDateString('es-MX', { weekday: 'short' });
+        if (countsMap[key] !== undefined) {
+            countsMap[key]++;
+        }
+    });
+
+    // Build the ordered array
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toLocaleDateString('es-MX', { weekday: 'short' });
         last7Days.push({
-            day: dayStart.toLocaleDateString('es-MX', { weekday: 'short' }),
-            count: count || 0
+            day: key,
+            count: countsMap[key] || 0
         });
     }
 
     // Calculate trends
     const bookingTrend = lastMonthBookings ?
-        Math.round(((monthlyBookings || 0) - lastMonthBookings) / lastMonthBookings * 100) : 0;
+        Math.round(((monthlyBookings - lastMonthBookings) / lastMonthBookings) * 100) : 0;
     const revenueTrend = lastMonthRevenue ?
-        Math.round((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue * 100) : 0;
+        Math.round(((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) : 0;
 
     return {
-        totalTenants: totalTenants || 0,
-        activeTenants: activeTenants || 0,
+        totalTenants,
+        activeTenants,
         suspendedTenants,
-        monthlyBookings: monthlyBookings || 0,
+        monthlyBookings,
         monthlyRevenue,
         bookingTrend,
         revenueTrend,
