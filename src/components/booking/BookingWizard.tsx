@@ -708,8 +708,8 @@ export default function BookingWizard({
                                 )}
                             </div>
                             {selectedTime && (
-                                <div className="p-4 bg-white border-t border-gray-50">
-                                    <button onClick={() => setStep(4)} className="w-full bg-black text-white py-4 rounded-2xl font-bold">Continuar</button>
+                                <div className="p-4 bg-white border-t border-gray-50 sticky bottom-0 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                                    <button onClick={() => setStep(4)} className="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] transition-transform active:scale-95">Continuar</button>
                                 </div>
                             )}
                         </motion.section>

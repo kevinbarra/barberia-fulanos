@@ -40,7 +40,7 @@ function projectTimeOntoDate(utcTimestamp: string, targetDateStr: string): Date 
 // A parsing error in ANY block is logged and skipped — never crashes.
 export async function getTakenRanges(staffId: string, dateStr: string) {
     try {
-        const supabase = await createClient()
+        const supabase = createAdminClient()
 
         const startOfDay = fromZonedTime(`${dateStr} 00:00:00`, TIMEZONE).toISOString()
         const endOfDay = fromZonedTime(`${dateStr} 23:59:59`, TIMEZONE).toISOString()
@@ -141,7 +141,7 @@ export async function createBooking(data: {
     available_staff_ids?: string[];
 }) {
     try {
-        const supabase = await createClient()
+        const supabase = createAdminClient()
 
         // ── INPUT VALIDATION ──
         const trimmedName = (data.client_name || '').trim();

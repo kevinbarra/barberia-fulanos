@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link"
 import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, Loader2, ExternalLink } from "lucide-react"
-import ContactForm from "./ContactForm"
 import { PLATFORM_WHATSAPP, GLOBAL_BRANDING } from '@/lib/constants'
 
 // --- SKELETON COMPONENTS ---
@@ -102,7 +101,10 @@ export default function SaaSLandingPage() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden selection:bg-brand selection:text-white">
+        <div 
+            style={{ '--brand-color': '#2563eb' } as React.CSSProperties}
+            className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden selection:bg-brand selection:text-white"
+        >
             {/* Background gradients (Subtle) */}
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-brand/5 blur-[150px] rounded-full" />
@@ -256,7 +258,9 @@ export default function SaaSLandingPage() {
                                 </ul>
 
                                 <a
-                                    href={plan.href}
+                                    href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent(`Hola, me interesa el plan ${plan.name} de AgendaBarber para mi negocio`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                     className={`w-full py-5 rounded-[2rem] font-black text-lg text-center block transition-all hover:scale-105 shadow-xl ${plan.popular
                                         ? 'bg-brand text-white shadow-brand/20'
                                         : 'bg-zinc-100 text-black hover:bg-zinc-200 shadow-zinc-200/50'
@@ -273,14 +277,24 @@ export default function SaaSLandingPage() {
             {/* Contact Section */}
             <section id="contact" className="relative z-10 px-6 py-32 bg-white/40 backdrop-blur-md border-y border-white">
                 <div className="max-w-4xl mx-auto">
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl md:text-5xl font-black mb-6 text-black tracking-tight">Hablemos de tu éxito</h2>
-                        <p className="text-[#86868B] font-medium text-lg">
-                            Cuéntanos sobre tu negocio y un experto te contactará en minutos.
+                    <div className="bg-white/70 backdrop-blur-md border border-white rounded-[3rem] p-10 md:p-16 shadow-xl text-center max-w-2xl mx-auto">
+                        <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8">
+                            <Smartphone className="w-10 h-10" />
+                        </div>
+                        <h2 className="text-3xl sm:text-4xl font-black text-black mb-4 tracking-tight">¿Listo para transformar tu negocio?</h2>
+                        <p className="text-[#86868B] text-lg font-medium mb-8 leading-relaxed">
+                            Olvídate de los correos. Escríbenos directamente por WhatsApp y te daremos atención personalizada en minutos. Te ayudamos con la instalación, dudas de precios o una demo guiada de tu nueva agenda.
                         </p>
+                        <a
+                            href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi negocio. Quisiera más información.')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black px-10 py-5 rounded-[2rem] text-xl transition-all hover:scale-105 shadow-2xl shadow-emerald-500/20"
+                        >
+                            Chatear por WhatsApp
+                            <ArrowRight className="w-6 h-6" />
+                        </a>
                     </div>
-
-                    <ContactForm />
                 </div>
             </section>
 
