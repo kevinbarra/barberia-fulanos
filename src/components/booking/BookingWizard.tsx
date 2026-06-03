@@ -517,26 +517,31 @@ export default function BookingWizard({
                             <CalendarPlus size={20} />
                         </a>
                     </div>
-                </div>
+                    </div>
             </motion.div>
         );
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
+        <div className="flex flex-col h-full bg-white overflow-hidden">
             {/* PROGRESS HEADER */}
-            <div className="px-6 pt-6 pb-2 bg-white sticky top-0 z-20 border-b border-gray-100">
+            <div className="px-6 pt-6 pb-2 bg-white sticky top-0 z-20 border-b border-zinc-100">
                 <div className="flex justify-between items-center mb-4">
                     {step > 1 ? (
-                        <button onClick={() => setStep(s => s - 1)} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
-                            <ChevronLeft size={20} />
+                        <button onClick={() => setStep(s => s - 1)} className="p-2 -ml-2 hover:bg-zinc-100 rounded-full transition-colors">
+                            <ChevronLeft size={20} className="text-zinc-600" />
                         </button>
                     ) : <div className="w-9" />}
-                    <span className="text-xs font-bold text-gray-400 tracking-widest uppercase">Paso {step} de 4</span>
+                    <span className="text-xs font-bold text-zinc-400 tracking-widest uppercase">Paso {step} de 4</span>
                     <div className="w-9" />
                 </div>
-                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div className="h-full bg-brand" initial={{ width: 0 }} animate={{ width: `${(step / 4) * 100}%` }} transition={{ duration: 0.3 }} />
+                <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                    <motion.div 
+                        className="h-full bg-[var(--brand-color)]" 
+                        initial={{ width: 0 }} 
+                        animate={{ width: `${(step / 4) * 100}%` }} 
+                        transition={{ duration: 0.3 }} 
+                    />
                 </div>
             </div>
 
@@ -544,60 +549,35 @@ export default function BookingWizard({
                 <AnimatePresence mode="wait">
                     {/* PASO 1: CATEGORÍAS Y SERVICIOS */}
                     {step === 1 && (
-                        <motion.section key="step1" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4 space-y-8 pb-24">
+                        <motion.section key="step1" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-5 space-y-6 pb-24">
                             {!selectedCategory ? (
                                 <>
-                                    <div className="px-2">
-                                        <h2 className="text-2xl font-black text-gray-900 leading-tight">¿Qué estas<br />buscando?</h2>
-                                        <p className="text-gray-500 text-sm mt-1">Elige una categoría para ver los servicios.</p>
+                                    <div className="px-1">
+                                        <h2 className="text-2xl font-black text-zinc-900 leading-tight">¿Qué estás<br />buscando?</h2>
+                                        <p className="text-zinc-500 text-sm mt-1">Elige una categoría para ver los servicios.</p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         {categoryOrder.map(category => {
                                             const normalized = category.toLowerCase();
+                                            let CategoryIcon = LayoutGrid;
                                             
-                                            // --- THEME LOGIC (Phase 49: High-End UI) ---
-                                            let theme = {
-                                                container: "bg-white border-[0.5px] border-zinc-200 shadow-sm",
-                                                icon: LayoutGrid,
-                                                iconBg: "bg-zinc-50",
-                                                iconColor: "text-zinc-400",
-                                                stroke: 1.5,
-                                                nameClass: "text-zinc-900"
-                                            };
-
                                             if (normalized.includes('ritual')) {
-                                                theme = {
-                                                    container: "bg-zinc-900 text-white shadow-xl",
-                                                    icon: Gem,
-                                                    iconBg: "bg-white/10",
-                                                    iconColor: "text-white",
-                                                    stroke: 1.5,
-                                                    nameClass: "text-white"
-                                                };
+                                                CategoryIcon = Gem;
                                             } else if (normalized.includes('esencial') || normalized.includes('menu') || normalized.includes('menú')) {
-                                                theme = {
-                                                    container: "bg-white text-zinc-900 border-[0.5px] border-zinc-200 shadow-sm",
-                                                    icon: Scissors,
-                                                    iconBg: "bg-zinc-50",
-                                                    iconColor: "text-zinc-900",
-                                                    stroke: 1.5,
-                                                    nameClass: "text-zinc-900"
-                                                };
+                                                CategoryIcon = Scissors;
                                             }
-
-                                            const CategoryIcon = theme.icon;
 
                                             return (
                                                 <button 
                                                     key={category} 
                                                     onClick={() => setSelectedCategory(category)}
-                                                    className={`group relative ${theme.container} p-6 rounded-[2.5rem] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden`}
+                                                    className="group relative bg-zinc-50/50 hover:bg-zinc-100/50 border border-zinc-100 hover:border-zinc-200/85 shadow-sm p-6 rounded-3xl hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 text-center flex flex-col items-center gap-4 aspect-square justify-center overflow-hidden cursor-pointer"
                                                 >
-                                                    <div className={`w-14 h-14 rounded-full ${theme.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform duration-500 relative z-10`}>
-                                                        <CategoryIcon size={28} strokeWidth={theme.stroke} className={theme.iconColor} />
+                                                    <div className="w-14 h-14 rounded-2xl bg-[var(--brand-color-10)] text-[var(--brand-color)] flex items-center justify-center group-hover:scale-105 transition-transform duration-500 relative z-10">
+                                                        <CategoryIcon size={26} strokeWidth={1.75} />
                                                     </div>
                                                     <div className="flex flex-col items-center relative z-10">
-                                                        <span className={`font-black text-lg tracking-tighter uppercase leading-none ${theme.nameClass}`}>
+                                                        <span className="font-extrabold text-sm tracking-tight text-zinc-800 uppercase leading-none">
                                                             {stripEmojis(category)}
                                                         </span>
                                                     </div>
@@ -608,18 +588,18 @@ export default function BookingWizard({
                                 </>
                             ) : (
                                 <>
-                                    <div className="px-2 flex items-center justify-between">
+                                    <div className="px-1 flex items-center justify-between">
                                         <div>
                                             <button 
                                                 onClick={() => setSelectedCategory(null)}
-                                                className="flex items-center gap-1 text-xs font-bold text-brand uppercase tracking-widest mb-2"
+                                                className="flex items-center gap-1 text-[10px] font-extrabold text-[var(--brand-color)] uppercase tracking-widest mb-2"
                                             >
-                                                <ChevronLeft size={14} /> Volver a categorías
+                                                <ChevronLeft size={12} /> Volver a categorías
                                             </button>
-                                            <h2 className="text-2xl font-black text-gray-900 leading-tight">{stripEmojis(selectedCategory || '')}</h2>
+                                            <h2 className="text-2xl font-black text-zinc-900 leading-tight">{stripEmojis(selectedCategory || '')}</h2>
                                         </div>
                                     </div>
-                                    <div className="space-y-4">
+                                    <div className="space-y-3.5">
                                         {groupedServices[selectedCategory]
                                             .sort((a, b) => {
                                                 const orderA = a.order || 99;
@@ -631,20 +611,20 @@ export default function BookingWizard({
                                             <button 
                                                 key={service.id} 
                                                 onClick={() => { setSelectedService(service); setStep(2); }} 
-                                                className="w-full bg-white/80 backdrop-blur-sm p-6 rounded-[2rem] border border-white/40 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 text-left group"
+                                                className="w-full bg-white p-5 rounded-2xl border border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200/80 hover:-translate-y-0.5 transition-all duration-300 text-left group"
                                             >
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div className="flex-1">
-                                                        <span className="font-bold text-gray-900 text-lg block group-hover:text-brand transition-colors">{service.name}</span>
-                                                        {service.description && <p className="text-sm text-gray-500 mt-1">{service.description}</p>}
-                                                        <span className="text-xs text-gray-400 font-medium flex items-center gap-1 mt-3">
-                                                            <div className="p-1.5 bg-gray-50 rounded-lg group-hover:bg-brand/10 group-hover:text-brand transition-colors">
+                                                        <span className="font-bold text-zinc-900 text-base block group-hover:text-[var(--brand-color)] transition-colors">{service.name}</span>
+                                                        {service.description && <p className="text-sm text-zinc-500 mt-1.5 leading-relaxed font-medium">{service.description}</p>}
+                                                        <span className="text-xs text-zinc-400 font-medium flex items-center gap-1.5 mt-4">
+                                                            <div className="p-1.5 bg-zinc-50 rounded-lg group-hover:bg-[var(--brand-color-10)] group-hover:text-[var(--brand-color)] transition-colors">
                                                                 <Clock size={12} />
                                                             </div>
                                                             {service.duration_min} min
                                                         </span>
                                                     </div>
-                                                    <span className="font-black text-brand bg-brand/5 px-4 py-2 rounded-2xl transition-all group-hover:bg-brand group-hover:text-white shadow-sm ring-1 ring-brand/10">${service.price}</span>
+                                                    <span className="font-black text-[var(--brand-color)] bg-[var(--brand-color-5)] border border-[var(--brand-color-10)] px-4 py-2 rounded-xl transition-all group-hover:bg-[var(--brand-color)] group-hover:text-white group-hover:border-transparent shadow-sm text-sm">${service.price}</span>
                                                 </div>
                                             </button>
                                         ))}
@@ -656,22 +636,30 @@ export default function BookingWizard({
 
                     {/* PASO 2: STAFF */}
                     {step === 2 && (
-                        <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-4">
-                            <div className="px-2 mb-6">
-                                <h2 className="text-2xl font-black text-gray-900">¿Con quién?</h2>
-                                <p className="text-gray-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
+                        <motion.section key="step2" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-5">
+                            <div className="px-1 mb-6">
+                                <h2 className="text-2xl font-black text-zinc-900">¿Con quién?</h2>
+                                <p className="text-zinc-500 text-sm">Selecciona a tu {staffLabel.toLowerCase()}.</p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 {filteredStaff.map((member) => (
                                     <button
                                         key={member.id}
                                         onClick={() => { setSelectedStaff(member); setStep(3); }}
-                                        className="bg-white/80 backdrop-blur-md p-4 rounded-[2.5rem] border border-white/40 shadow-sm hover:shadow-xl transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group"
+                                        className="bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm hover:shadow-md hover:border-zinc-200/80 transition-all text-center flex flex-col items-center gap-4 aspect-square justify-center group cursor-pointer"
                                     >
-                                        <div className="w-24 h-24 rounded-full overflow-hidden relative border-8 border-white shadow-lg bg-gray-100 group-hover:scale-110 transition-transform duration-500">
-                                            {member.avatar_url ? <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 font-bold text-2xl">{member.full_name[0]}</div>}
+                                        <div className="w-24 h-24 rounded-full overflow-hidden relative border-[4px] border-zinc-50 shadow-md bg-zinc-100 group-hover:scale-105 transition-transform duration-300 ring-2 ring-transparent group-hover:ring-[var(--brand-color)]">
+                                            {member.avatar_url ? (
+                                                <Image src={member.avatar_url} alt={member.full_name} fill className="object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-zinc-300 bg-zinc-50 font-bold text-2xl">
+                                                    {member.full_name[0]}
+                                                </div>
+                                            )}
                                         </div>
-                                        <span className="font-bold text-gray-900 block truncate w-full px-2 group-hover:text-brand transition-colors">{member.full_name.split(' ')[0]}</span>
+                                        <span className="font-bold text-zinc-800 block truncate w-full px-2 group-hover:text-[var(--brand-color)] transition-colors text-sm">
+                                            {member.full_name.split(' ')[0]}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -682,25 +670,39 @@ export default function BookingWizard({
                     {step === 3 && (
                         <motion.section key="step3" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="flex flex-col h-full">
                             <div className="p-6 pb-2">
-                                <h2 className="text-2xl font-black text-gray-900">Agenda</h2>
-                                <p className="text-gray-500 text-sm">Busca un hueco disponible.</p>
+                                <h2 className="text-2xl font-black text-zinc-900">Agenda</h2>
+                                <p className="text-zinc-500 text-sm">Busca un hueco disponible.</p>
                             </div>
                             <div className="pl-6 py-4 overflow-x-auto hide-scrollbar flex gap-3">
                                 {dates.map((date, i) => {
                                     const isSelected = selectedDate && isSameDay(date, selectedDate);
                                     return (
-                                        <button key={i} onClick={() => { setSelectedDate(date); setSelectedTime(""); }} className={`min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected ? "bg-brand text-white border-brand shadow-lg scale-105" : "bg-white text-gray-400 border-gray-100"}`}>
+                                        <button 
+                                            key={i} 
+                                            onClick={() => { setSelectedDate(date); setSelectedTime(""); }} 
+                                            className={`min-w-[70px] flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${isSelected ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_8px_20px_var(--brand-color-secondary-20)] scale-105" : "bg-zinc-50 text-zinc-400 border-zinc-100 hover:bg-zinc-100/50 hover:border-zinc-200"}`}
+                                        >
                                             <span className="text-[10px] font-bold uppercase mb-1">{format(date, 'EEE', { locale: es })}</span>
-                                            <span className="text-xl font-black">{format(date, 'd')}</span>
+                                            <span className="text-lg font-black">{format(date, 'd')}</span>
                                         </button>
                                     )
                                 })}
                             </div>
-                            <div className="flex-1 p-6 bg-white rounded-t-[32px] shadow-sm border-t border-gray-50 overflow-y-auto">
-                                {!selectedDate ? <div className="text-center py-10 text-gray-300">Selecciona un día</div> : isLoadingSlots ? <div className="flex justify-center py-10"><Loader2 className="animate-spin" /></div> : slots.length === 0 ? <div className="text-center py-10 text-gray-500 font-bold">No hay horarios disponibles</div> : (
-                                    <div className="grid grid-cols-3 gap-3">
+                            <div className="flex-1 p-6 bg-white rounded-t-[32px] shadow-sm border-t border-zinc-100 overflow-y-auto min-h-[220px]">
+                                {!selectedDate ? (
+                                    <div className="text-center py-10 text-zinc-300 font-medium">Selecciona un día</div>
+                                ) : isLoadingSlots ? (
+                                    <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[var(--brand-color)]" /></div>
+                                ) : slots.length === 0 ? (
+                                    <div className="text-center py-10 text-zinc-400 font-bold">No hay horarios disponibles</div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-2.5">
                                         {slots.map((s: any) => (
-                                            <button key={s.value} onClick={() => setSelectedTime(s.value)} className={`py-3 rounded-xl text-sm font-bold border-2 transition-all ${selectedTime === s.value ? "bg-black text-white border-black shadow-md" : "bg-white text-gray-700 border-gray-50 hover:border-gray-200"}`}>
+                                            <button 
+                                                key={s.value} 
+                                                onClick={() => setSelectedTime(s.value)} 
+                                                className={`py-3 rounded-xl text-xs font-bold border transition-all ${selectedTime === s.value ? "bg-[var(--brand-color)] text-white border-[var(--brand-color)] shadow-[0_6px_15px_var(--brand-color-secondary-20)]" : "bg-zinc-50/50 text-zinc-700 border-zinc-100 hover:border-zinc-200/80 hover:bg-zinc-50 hover:shadow-sm"}`}
+                                            >
                                                 {s.label}
                                             </button>
                                         ))}
@@ -708,8 +710,13 @@ export default function BookingWizard({
                                 )}
                             </div>
                             {selectedTime && (
-                                <div className="p-4 bg-white border-t border-gray-50 sticky bottom-0 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-                                    <button onClick={() => setStep(4)} className="w-full bg-black text-white py-4 rounded-2xl font-bold shadow-lg hover:scale-[1.02] transition-transform active:scale-95">Continuar</button>
+                                <div className="p-4 bg-white border-t border-zinc-100 sticky bottom-0 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+                                    <button 
+                                        onClick={() => setStep(4)} 
+                                        className="w-full bg-[var(--brand-color)] text-white py-4 rounded-2xl font-bold shadow-[0_8px_25px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95"
+                                    >
+                                        Continuar
+                                    </button>
                                 </div>
                             )}
                         </motion.section>
@@ -718,27 +725,45 @@ export default function BookingWizard({
                     {/* PASO 4: DATOS CLIENTE */}
                     {step === 4 && (
                         <motion.section key="step4" variants={containerVariants} initial="hidden" animate="visible" exit="exit" className="p-6 flex flex-col">
-                            <h2 className="text-2xl font-black text-gray-900 mb-6">Tus Datos</h2>
+                            <h2 className="text-2xl font-black text-zinc-900 mb-6">Tus Datos</h2>
                             <div className="space-y-4 flex-1">
                                 <div className="relative">
-                                    <User size={18} className="absolute left-4 top-4 text-gray-400" />
-                                    <input type="text" value={clientData.name} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="Nombre completo" onChange={(e) => setClientData({ ...clientData, name: e.target.value })} />
+                                    <User size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                    <input 
+                                        type="text" 
+                                        value={clientData.name} 
+                                        className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                        placeholder="Nombre completo" 
+                                        onChange={(e) => setClientData({ ...clientData, name: e.target.value })} 
+                                    />
                                 </div>
                                 <div className="relative">
-                                    <Phone size={18} className="absolute left-4 top-4 text-gray-400" />
-                                    <input type="tel" value={clientData.phone} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="WhatsApp (10 dígitos)" onChange={(e) => setClientData({ ...clientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
+                                    <Phone size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                    <input 
+                                        type="tel" 
+                                        value={clientData.phone} 
+                                        className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                        placeholder="WhatsApp (10 dígitos)" 
+                                        onChange={(e) => setClientData({ ...clientData, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} 
+                                    />
                                 </div>
                                 {!currentUser && (
                                     <div className="relative">
-                                        <Mail size={18} className="absolute left-4 top-4 text-gray-400" />
-                                        <input type="email" value={clientData.email} className="w-full pl-12 p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-black transition-all" placeholder="Email (opcional)" onChange={(e) => setClientData({ ...clientData, email: e.target.value })} />
+                                        <Mail size={18} className="absolute left-4 top-4 text-zinc-450" />
+                                        <input 
+                                            type="email" 
+                                            value={clientData.email} 
+                                            className="w-full pl-12 p-4 bg-zinc-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:bg-white focus:border-[var(--brand-color)] transition-all text-zinc-800 placeholder-zinc-400" 
+                                            placeholder="Email (opcional)" 
+                                            onChange={(e) => setClientData({ ...clientData, email: e.target.value })} 
+                                        />
                                     </div>
                                 )}
                             </div>
                             <button 
                                 onClick={handleBooking} 
                                 disabled={!clientData.name || clientData.phone.length !== 10 || isSubmitting} 
-                                className="w-full bg-black text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8 flex justify-center items-center gap-2"
+                                className="w-full bg-[var(--brand-color)] text-white py-4 rounded-2xl font-bold disabled:opacity-30 mt-8 flex justify-center items-center gap-2 shadow-[0_8px_25px_var(--brand-color-secondary-20)] hover:scale-[1.01] transition-transform active:scale-95 cursor-pointer"
                             >
                                 {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : 'Reservar Cita'}
                             </button>
@@ -749,23 +774,17 @@ export default function BookingWizard({
             </div>
 
             {/* FOOTER — AUTHOR IDENTITY */}
-            <div className="py-10 flex flex-col justify-center items-center gap-1">
-                <span className="text-[8px] font-bold tracking-[0.2em] uppercase text-zinc-500 mb-1">{GLOBAL_BRANDING.FOOTER_QUESTION}</span>
+            <div className="py-6 border-t border-zinc-100 bg-zinc-50/50 flex justify-center items-center">
                 <a 
                     href={GLOBAL_BRANDING.SERVICES_URL} 
                     target="_blank" 
                     rel="noopener noreferrer" 
-                    className="flex flex-col items-center gap-1 group leading-relaxed"
+                    className="text-[10px] font-medium tracking-wider text-zinc-500 hover:text-[var(--brand-color)] transition-colors flex items-center gap-1.5"
                 >
-                    <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-zinc-500 group-hover:text-zinc-600 transition-colors">
-                        {GLOBAL_BRANDING.COMPANY_NAME}
-                    </span>
-                    <span className="text-[9px] font-light tracking-widest text-zinc-600">
-                        {GLOBAL_BRANDING.SLOGAN}
-                    </span>
-                    <span className="text-[10px] font-semibold text-zinc-900 group-hover:underline transition-all mt-1">
-                        {GLOBAL_BRANDING.CTA_TEXT}
-                    </span>
+                    <span>Desarrollado por</span>
+                    <span className="font-extrabold uppercase text-zinc-700 hover:text-[var(--brand-color)] transition-colors">KEVIN CONSULTING</span>
+                    <span className="text-zinc-300">•</span>
+                    <span>Potencia tu negocio</span>
                 </a>
             </div>
         </div>
