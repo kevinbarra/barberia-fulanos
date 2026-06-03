@@ -15,6 +15,7 @@ export type CashDrawerData = {
     cashIncome: number
     cardIncome: number
     transferIncome: number
+    unregisteredIncome: number
     totalIncome: number
     cashExpenses: number
     totalExpenses: number
@@ -30,12 +31,13 @@ export type StaffBreakdownItem = {
     cash: number
     card: number
     transfer: number
+    unregistered: number
     total: number
 }
 
 export type StaffBreakdownData = {
     breakdown: StaffBreakdownItem[]
-    totals: { cash: number; card: number; transfer: number; total: number }
+    totals: { cash: number; card: number; transfer: number; unregistered: number; total: number }
 }
 
 export type ExpenseItem = {
@@ -140,7 +142,7 @@ export function useAnalyticsData({
                 cashDrawer: cashDrawerResult.success ? cashDrawerResult.summary || null : null,
                 staffBreakdown: staffBreakdownResult.success ? {
                     breakdown: staffBreakdownResult.breakdown || [],
-                    totals: staffBreakdownResult.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
+                    totals: staffBreakdownResult.totals || { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }
                 } : null,
                 expenses: expensesResult.success ? (expensesResult.expenses as unknown as ExpenseItem[]) || [] : [],
                 staffRevenue: staffRevenueResult.success ? staffRevenueResult.data || [] : [],

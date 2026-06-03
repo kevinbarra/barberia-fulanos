@@ -17,7 +17,8 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
         const { vocabulary } = useVocabulary()
         const { financialKPIs, clientData, tenantName } = data
         const staffBreakdown = clientData.staffBreakdown?.breakdown || []
-        const staffTotals = clientData.staffBreakdown?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
+        const staffTotals = clientData.staffBreakdown?.totals || { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }
+        const hasUnregistered = staffBreakdown.some(s => (s.unregistered || 0) > 0)
         const topServices = clientData.topServices || []
         const staffRevenue = clientData.staffRevenue || []
 
@@ -99,6 +100,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Efectivo</th>
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Tarjeta</th>
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Transferencia</th>
+                                {hasUnregistered && (
+                                    <th className="border border-gray-300 px-3 py-2 text-right font-bold">No Reg.</th>
+                                )}
                                 <th className="border border-gray-300 px-3 py-2 text-right font-bold">Total</th>
                             </tr>
                         </thead>
@@ -109,6 +113,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                     <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staff.cash.toLocaleString()}</td>
                                     <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staff.card.toLocaleString()}</td>
                                     <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staff.transfer.toLocaleString()}</td>
+                                    {hasUnregistered && (
+                                        <td className="border border-gray-300 px-3 py-2 text-right font-mono">${(staff.unregistered || 0).toLocaleString()}</td>
+                                    )}
                                     <td className="border border-gray-300 px-3 py-2 text-right font-mono font-bold">${staff.total.toLocaleString()}</td>
                                 </tr>
                             ))}
@@ -119,6 +126,9 @@ const PrintableReport = forwardRef<HTMLDivElement, PrintableReportProps>(
                                 <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staffTotals.cash.toLocaleString()}</td>
                                 <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staffTotals.card.toLocaleString()}</td>
                                 <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staffTotals.transfer.toLocaleString()}</td>
+                                {hasUnregistered && (
+                                    <td className="border border-gray-300 px-3 py-2 text-right font-mono">${(staffTotals.unregistered || 0).toLocaleString()}</td>
+                                )}
                                 <td className="border border-gray-300 px-3 py-2 text-right font-mono">${staffTotals.total.toLocaleString()}</td>
                             </tr>
                         </tfoot>

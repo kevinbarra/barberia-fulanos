@@ -126,6 +126,17 @@ export default function CashDrawerSummary({
                             <p className="text-xs text-gray-500">Transfer</p>
                         </div>
                     </div>
+                    {summary.unregisteredIncome !== undefined && summary.unregisteredIncome > 0 && (
+                        <div className="mt-3 bg-amber-50/70 border border-amber-100 rounded-xl p-3 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-2 text-amber-800 font-medium">
+                                <span className="flex h-2 w-2 rounded-full bg-amber-500"></span>
+                                Citas Sin Registrar (Cobro Estimado)
+                            </div>
+                            <span className="font-mono font-semibold text-amber-950">
+                                +${summary.unregisteredIncome.toLocaleString()}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Expenses */}

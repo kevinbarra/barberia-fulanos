@@ -17,7 +17,8 @@ export default function StaffFinanceTable({
 }: StaffFinanceTableProps) {
     const { vocabulary } = useVocabulary()
     const breakdown = data?.breakdown || []
-    const totals = data?.totals || { cash: 0, card: 0, transfer: 0, total: 0 }
+    const totals = data?.totals || { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }
+    const hasUnregistered = breakdown.some(s => (s.unregistered || 0) > 0)
 
     // Loading State
     if (isLoading) {
@@ -96,6 +97,14 @@ export default function StaffFinanceTable({
                                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Transfer</span>
                                 </div>
                             </th>
+                            {hasUnregistered && (
+                                <th className="text-right px-4 py-3">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                        <span className="flex h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">No Reg.</span>
+                                    </div>
+                                </th>
+                            )}
                             <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                 Total
                             </th>
@@ -129,6 +138,13 @@ export default function StaffFinanceTable({
                                         ${staff.transfer.toLocaleString()}
                                     </span>
                                 </td>
+                                {hasUnregistered && (
+                                    <td className="text-right px-4 py-4">
+                                        <span className={`font-mono font-medium ${staff.unregistered > 0 ? 'text-amber-700 bg-amber-50 px-2 py-1 rounded' : 'text-gray-400'}`}>
+                                            ${staff.unregistered.toLocaleString()}
+                                        </span>
+                                    </td>
+                                )}
                                 <td className="text-right px-6 py-4">
                                     <span className="font-mono font-bold text-gray-900">
                                         ${staff.total.toLocaleString()}
@@ -158,6 +174,13 @@ export default function StaffFinanceTable({
                                     ${totals.transfer.toLocaleString()}
                                 </span>
                             </td>
+                            {hasUnregistered && (
+                                <td className="text-right px-4 py-4">
+                                    <span className="font-mono font-bold text-amber-300">
+                                        ${(totals.unregistered || 0).toLocaleString()}
+                                    </span>
+                                </td>
+                            )}
                             <td className="text-right px-6 py-4">
                                 <span className="font-mono font-bold text-xl">
                                     ${totals.total.toLocaleString()}

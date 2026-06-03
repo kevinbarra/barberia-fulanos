@@ -1,10 +1,9 @@
 'use server'
 
 import { createClient } from '@/utils/supabase/server';
-// import { redirect } from 'next/navigation'; // Not strictly used in the functions below, but good to have if needed for auth checks later. 
-// User provided code imports it, so I will include it.
-
+import { createAdminClient } from '@/utils/supabase/admin';
 import { headers } from 'next/headers';
+import { toZonedTime } from 'date-fns-tz';
 
 // Helper para obtener y validar el tenant del usuario actual de forma segura
 // Soporta "Context Switching" dinámico para Super Admins basado en URL
@@ -76,37 +75,113 @@ async function getMyTenantId() {
 export async function getFinancialDashboard(startDate?: string, endDate?: string) {
     try {
         const supabase = await createClient();
+        const adminClient = createAdminClient();
         const tenantId = await getMyTenantId();
 
-        // Fechas por defecto: Últimos 30 días si no vienen en la URL
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const end = endDate || new Date().toISOString().split('T')[0];
 
-        // Llamada RPC (Funciona porque el SQL tiene SECURITY DEFINER y permisos GRANT)
-        const { data, error } = await supabase.rpc('get_financial_metrics', {
-            p_tenant_id: tenantId,
-            p_start_date: start,
-            p_end_date: end
+        // 1. Query transactions
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select('amount, payment_method, booking_id')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', `${start}T00:00:00-06:00`)
+            .lte('created_at', `${end}T23:59:59-06:00`);
+
+        if (txError) throw txError;
+
+        // 2. Query bookings
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, end_time, status, price_at_booking, services(price), customer_id')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', `${start}T00:00:00-06:00`)
+            .lte('start_time', `${end}T23:59:59-06:00`);
+
+        if (bkError) throw bkError;
+
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
+
+        let totalRevenue = 0;
+        let totalCollected = 0;
+        let totalPending = 0;
+        let totalTransactions = 0;
+        const uniqueClients = new Set<string>();
+        const paymentMethodsMap: Record<string, number> = { cash: 0, card: 0, transfer: 0, unregistered: 0 };
+
+        // Process actual completed checkouts from transactions
+        (transactions || []).forEach(t => {
+            const amount = Number(t.amount) || 0;
+            const method = t.payment_method || 'cash';
+            totalRevenue += amount;
+            totalCollected += amount;
+            totalTransactions++;
+
+            if (paymentMethodsMap[method] !== undefined) {
+                paymentMethodsMap[method] += amount;
+            } else {
+                paymentMethodsMap.cash += amount;
+            }
         });
 
-        if (error) throw error;
-        
-        // Data is already correctly shaped by the RPC, but we normalize it
+        // Process bookings
+        const now = new Date();
+        (bookings || []).forEach(b => {
+            const endTime = new Date(b.end_time);
+            const isEffective = b.status === 'completed' || endTime < now;
+
+            if (isEffective) {
+                if (b.customer_id) {
+                    uniqueClients.add(b.customer_id);
+                }
+
+                // If this booking has no transaction recorded, it is unregistered income
+                if (!txBookingIds.has(b.id)) {
+                    const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+                    totalRevenue += price;
+                    totalCollected += price; // Treat as collected under virtual category
+                    totalTransactions++;
+                    paymentMethodsMap.unregistered += price;
+                }
+            } else {
+                // If it is pending/confirmed in the future, count as pending revenue
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+                totalPending += price;
+            }
+        });
+
+        const avg_transaction_value = totalTransactions > 0 ? ROUND_DECIMAL(totalRevenue / totalTransactions, 2) : 0;
+
+        const payment_methods = [
+            { method: 'Efectivo', amount: paymentMethodsMap.cash },
+            { method: 'Tarjeta', amount: paymentMethodsMap.card },
+            { method: 'Transferencia', amount: paymentMethodsMap.transfer },
+            { method: 'No Registrado', amount: paymentMethodsMap.unregistered }
+        ].filter(pm => pm.amount > 0);
+
         return {
-            ...data,
-            total_revenue: Number(data?.total_revenue || 0),
-            total_collected: Number(data?.total_collected || 0),
-            total_pending: Number(data?.total_pending || 0),
-            total_transactions: Number(data?.total_transactions || 0),
-            avg_transaction_value: Number(data?.avg_transaction_value || 0),
-            unique_clients: Number(data?.unique_clients || 0),
-            payment_methods: data?.payment_methods || [],
-            growth_rate: Number(data?.growth_rate || 0)
+            total_revenue: totalRevenue,
+            total_collected: totalCollected,
+            total_pending: totalPending,
+            total_transactions: totalTransactions,
+            avg_transaction_value,
+            unique_clients: uniqueClients.size,
+            payment_methods,
+            previous_revenue: 0,
+            growth_rate: 0
         };
     } catch (error) {
         console.error('[Reports] Critical Error in Dashboard:', error);
         return null;
     }
+}
+
+function ROUND_DECIMAL(val: number, decimals: number): number {
+    const factor = Math.pow(10, decimals);
+    return Math.round(val * factor) / factor;
 }
 
 export async function getRevenueByWeekday(startDate?: string, endDate?: string) {
@@ -125,9 +200,9 @@ export async function getRevenueByWeekday(startDate?: string, endDate?: string) 
 
         const { data: bookings, error } = await supabase
             .from('bookings')
-            .select('start_time, price_at_booking, services(price)')
+            .select('start_time, end_time, status, price_at_booking, services(price)')
             .eq('tenant_id', tenantId)
-            .eq('status', 'completed')
+            .neq('status', 'cancelled')
             .gte('start_time', `${startDate}T00:00:00-06:00`)
             .lte('start_time', `${endDate}T23:59:59-06:00`);
 
@@ -138,10 +213,20 @@ export async function getRevenueByWeekday(startDate?: string, endDate?: string) 
         const dateSum: Record<string, number> = {};
         const dateWeekday: Record<string, string> = {};
 
+        const now = new Date();
         (bookings || []).forEach(b => {
+            const endTime = new Date(b.end_time);
+            const isEffective = b.status === 'completed' || endTime < now;
+
+            if (!isEffective) return;
+
             const date = new Date(b.start_time);
-            const dateStr = date.toISOString().split('T')[0];
-            const weekdayNum = date.getDay();
+            const zoned = toZonedTime(date, 'America/Mexico_City');
+            const year = zoned.getFullYear();
+            const month = String(zoned.getMonth() + 1).padStart(2, '0');
+            const day = String(zoned.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+            const weekdayNum = zoned.getDay();
             const weekdayName = weekdayNames[weekdayNum];
 
             const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
@@ -190,19 +275,92 @@ export async function getRevenueByWeekday(startDate?: string, endDate?: string) 
 export async function getRevenueByDay(startDate?: string, endDate?: string) {
     try {
         const supabase = await createClient();
+        const adminClient = createAdminClient();
         const tenantId = await getMyTenantId();
 
         const start = startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const end = endDate || new Date().toISOString().split('T')[0];
 
-        const { data, error } = await supabase.rpc('get_revenue_by_day', {
-            p_tenant_id: tenantId,
-            p_start_date: start,
-            p_end_date: end
+        // 1. Query transactions
+        const { data: transactions, error: txError } = await adminClient
+            .from('transactions')
+            .select('amount, created_at, booking_id')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('created_at', `${start}T00:00:00-06:00`)
+            .lte('created_at', `${end}T23:59:59-06:00`);
+
+        if (txError) throw txError;
+
+        // 2. Query bookings
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, start_time, end_time, status, price_at_booking, services(price)')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', `${start}T00:00:00-06:00`)
+            .lte('start_time', `${end}T23:59:59-06:00`);
+
+        if (bkError) throw bkError;
+
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
+        const dailyMap: Record<string, { revenue: number; bookings: number }> = {};
+
+        // Helper to format local Mexico City date
+        const toLocalDateStr = (dateStr: string) => {
+            const zoned = toZonedTime(new Date(dateStr), 'America/Mexico_City');
+            const year = zoned.getFullYear();
+            const month = String(zoned.getMonth() + 1).padStart(2, '0');
+            const day = String(zoned.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        // Populate days range
+        let current = new Date(start);
+        const limitDate = new Date(end);
+        while (current <= limitDate) {
+            const dayStr = current.toISOString().split('T')[0];
+            dailyMap[dayStr] = { revenue: 0, bookings: 0 };
+            current.setDate(current.getDate() + 1);
+        }
+
+        // Process transactions
+        (transactions || []).forEach(t => {
+            const dayStr = toLocalDateStr(t.created_at);
+            const amount = Number(t.amount) || 0;
+            if (!dailyMap[dayStr]) {
+                dailyMap[dayStr] = { revenue: 0, bookings: 0 };
+            }
+            dailyMap[dayStr].revenue += amount;
+            dailyMap[dayStr].bookings++;
         });
 
-        if (error) throw error;
-        return data;
+        // Process bookings (unregistered effective bookings)
+        const now = new Date();
+        (bookings || []).forEach(b => {
+            const endTime = new Date(b.end_time);
+            const isEffective = b.status === 'completed' || endTime < now;
+
+            if (isEffective && !txBookingIds.has(b.id)) {
+                const dayStr = toLocalDateStr(b.start_time);
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+
+                if (!dailyMap[dayStr]) {
+                    dailyMap[dayStr] = { revenue: 0, bookings: 0 };
+                }
+                dailyMap[dayStr].revenue += price;
+                dailyMap[dayStr].bookings++;
+            }
+        });
+
+        return Object.keys(dailyMap)
+            .sort()
+            .map(day => ({
+                day,
+                revenue: ROUND_DECIMAL(dailyMap[day].revenue, 2),
+                bookings: dailyMap[day].bookings
+            }));
+
     } catch (error) {
         console.error('[Reports] Error fetching daily revenue:', error);
         return [];
@@ -225,9 +383,9 @@ export async function getHourlyRevenue(startDate?: string, endDate?: string) {
 
         const { data: bookings, error } = await supabase
             .from('bookings')
-            .select('start_time, price_at_booking, services(price)')
+            .select('start_time, end_time, status, price_at_booking, services(price)')
             .eq('tenant_id', tenantId)
-            .eq('status', 'completed')
+            .neq('status', 'cancelled')
             .gte('start_time', `${startDate}T00:00:00-06:00`)
             .lte('start_time', `${endDate}T23:59:59-06:00`);
 
@@ -238,23 +396,37 @@ export async function getHourlyRevenue(startDate?: string, endDate?: string) {
             hourlyMap[h] = { totalRevenue: 0, count: 0 };
         }
 
+        const now = new Date();
         (bookings || []).forEach(b => {
+            const endTime = new Date(b.end_time);
+            const isEffective = b.status === 'completed' || endTime < now;
+
+            if (!isEffective) return;
+
             const date = new Date(b.start_time);
-            const hour = date.getHours(); // Local hour
+            const zoned = toZonedTime(date, 'America/Mexico_City');
+            const hour = zoned.getHours(); // Zoned hour matching owner's timezone
             const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
             
             hourlyMap[hour].totalRevenue += price;
             hourlyMap[hour].count++;
         });
 
-        const uniqueDays = new Set((bookings || []).map(b => b.start_time.split('T')[0])).size || 1;
+        // Unique days count in range based on zoned representation
+        const uniqueZonedDays = new Set((bookings || []).map(b => {
+            const zoned = toZonedTime(new Date(b.start_time), 'America/Mexico_City');
+            const y = zoned.getFullYear();
+            const m = String(zoned.getMonth() + 1).padStart(2, '0');
+            const d = String(zoned.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        })).size || 1;
 
         return Object.keys(hourlyMap).map(hKey => {
             const hour = Number(hKey);
             const data = hourlyMap[hour];
             return {
                 hour,
-                avg_revenue: Math.round((data.totalRevenue / uniqueDays) * 100) / 100,
+                avg_revenue: Math.round((data.totalRevenue / uniqueZonedDays) * 100) / 100,
                 transaction_count: data.count
             };
         });

@@ -334,10 +334,10 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
 
         const adminClient = createAdminClient()
 
-        // Get transactions (income)
+        // 1. Get transactions (income)
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('amount, payment_method')
+            .select('amount, payment_method, booking_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -348,7 +348,21 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
             return { error: 'Error al obtener transacciones' }
         }
 
-        // Get expenses
+        // 2. Get bookings (for unregistered checkouts)
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, end_time, status, price_at_booking, services(price)')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', dateStart.toISOString())
+            .lte('start_time', dateEnd.toISOString())
+
+        if (bkError) {
+            console.error('[getCashDrawerByDateRange] Bookings error:', bkError)
+            return { error: 'Error al obtener citas' }
+        }
+
+        // 3. Get expenses
         const { data: expenses, error: expError } = await adminClient
             .from('expenses')
             .select('amount, payment_method')
@@ -370,14 +384,33 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
             return filtered.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
         }
 
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
+
         const cashIncome = safeSum(transactions, t => t.payment_method === 'cash')
         const cardIncome = safeSum(transactions, t => t.payment_method === 'card')
         const transferIncome = safeSum(transactions, t => t.payment_method === 'transfer')
-        const totalIncome = cashIncome + cardIncome + transferIncome
+
+        // Process unregistered past bookings
+        const now = new Date();
+        let unregisteredIncome = 0;
+        let unregisteredCount = 0;
+        (bookings || []).forEach(b => {
+            const endTime = new Date(b.end_time);
+            const isEffective = b.status === 'completed' || endTime < now;
+
+            if (isEffective && !txBookingIds.has(b.id)) {
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+                unregisteredIncome += price;
+                unregisteredCount++;
+            }
+        });
+
+        const totalIncome = cashIncome + cardIncome + transferIncome + unregisteredIncome;
 
         const cashExpenses = safeSum(expenses, e => e.payment_method === 'cash')
         const totalExpenses = safeSum(expenses)
 
+        // Physical cash in drawer remains actual cash transactions minus cash expenses
         const cashInDrawer = cashIncome - cashExpenses
         const netBalance = totalIncome - totalExpenses
 
@@ -387,12 +420,13 @@ export async function getCashDrawerByDateRange(startISO?: string, endISO?: strin
                 cashIncome,
                 cardIncome,
                 transferIncome,
+                unregisteredIncome, // virtual income
                 totalIncome,
                 cashExpenses,
                 totalExpenses,
                 cashInDrawer,
                 netBalance,
-                transactionCount: transactions?.length || 0,
+                transactionCount: (transactions?.length || 0) + unregisteredCount,
                 expenseCount: expenses?.length || 0,
                 dateRange: dateLabel
             }
@@ -411,7 +445,7 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         if (authError || !tenantId) {
             console.error('[getStaffFinancialBreakdown] Auth error:', authError)
-            return { success: false, error: authError || 'No autorizado', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+            return { success: false, error: authError || 'No autorizado', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }, staffCount: 0 }
         }
 
         // If no dates provided, default to today in Mexico City
@@ -437,10 +471,10 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         const adminClient = createAdminClient()
 
-        // SIMPLIFIED: Get transactions with direct staff_id column
+        // 1. Get transactions (completed)
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, payment_method, staff_id')
+            .select('id, amount, payment_method, staff_id, booking_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -448,18 +482,34 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
 
         if (txError) {
             console.error('[getStaffFinancialBreakdown] Transaction query error:', txError)
-            return { success: false, error: `Error en transacciones: ${txError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+            return { success: false, error: `Error en transacciones: ${txError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }, staffCount: 0 }
         }
 
-        if (!transactions || transactions.length === 0) {
-            console.log('[getStaffFinancialBreakdown] No transactions found')
-            return { success: true, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+        // 2. Get bookings
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, end_time, status, price_at_booking, services(price), staff_id')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', dateStart.toISOString())
+            .lte('start_time', dateEnd.toISOString())
+
+        if (bkError) {
+            console.error('[getStaffFinancialBreakdown] Booking query error:', bkError)
+            return { success: false, error: `Error en citas: ${bkError.message}`, breakdown: [], totals: { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }, staffCount: 0 }
         }
 
-        // Get unique staff IDs directly from transactions
-        const staffIds = [...new Set(transactions.map(t => t.staff_id).filter(Boolean))]
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
 
-        // Get staff names AND emails to identify kiosk user
+        // Get unique staff IDs from both transactions and bookings
+        const staffIds = [
+            ...new Set([
+                ...(transactions || []).map(t => t.staff_id),
+                ...(bookings || []).map(b => b.staff_id)
+            ].filter(Boolean))
+        ]
+
+        // Get staff profiles
         const { data: staffProfiles } = staffIds.length > 0
             ? await adminClient
                 .from('profiles')
@@ -467,7 +517,6 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
                 .in('id', staffIds)
             : { data: [] }
 
-        // Build lookup maps and identify kiosk user to exclude
         const KIOSK_EMAIL = MASTER_ADMIN_EMAIL
         const staffNames = new Map<string, string>()
         const staffToExclude = new Set<string>()
@@ -479,38 +528,39 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             }
         }
 
-        // Group by staff member - exclude kiosk user
         type StaffBreakdown = {
             staffId: string
             staffName: string
             cash: number
             card: number
             transfer: number
+            unregistered: number
             total: number
         }
 
         const staffMap = new Map<string, StaffBreakdown>()
 
-        for (const tx of transactions) {
-            const staffId = tx.staff_id
-
-            // Skip if no staff_id or if it's the kiosk user
-            if (!staffId || staffToExclude.has(staffId)) continue
-
-            const staffName = staffNames.get(staffId) || 'Sin nombre'
-
+        const getOrCreateStaffData = (staffId: string): StaffBreakdown => {
             if (!staffMap.has(staffId)) {
                 staffMap.set(staffId, {
                     staffId,
-                    staffName,
+                    staffName: staffNames.get(staffId) || 'Sin nombre',
                     cash: 0,
                     card: 0,
                     transfer: 0,
+                    unregistered: 0,
                     total: 0
                 })
             }
+            return staffMap.get(staffId)!
+        }
 
-            const staffData = staffMap.get(staffId)!
+        // Process transactions
+        for (const tx of transactions || []) {
+            const staffId = tx.staff_id
+            if (!staffId || staffToExclude.has(staffId)) continue
+
+            const staffData = getOrCreateStaffData(staffId)
             const amount = Number(tx.amount) || 0
             const paymentMethod = tx.payment_method || 'cash'
 
@@ -522,6 +572,24 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             staffData.total += amount
         }
 
+        // Process bookings (unregistered completed bookings)
+        const now = new Date()
+        for (const b of bookings || []) {
+            const staffId = b.staff_id
+            if (!staffId || staffToExclude.has(staffId)) continue
+
+            const endTime = new Date(b.end_time)
+            const isEffective = b.status === 'completed' || endTime < now
+
+            if (isEffective && !txBookingIds.has(b.id)) {
+                const staffData = getOrCreateStaffData(staffId)
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0)
+
+                staffData.unregistered += price
+                staffData.total += price
+            }
+        }
+
         const breakdown = Array.from(staffMap.values()).sort((a, b) => b.total - a.total)
 
         // Calculate totals
@@ -529,8 +597,9 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
             cash: acc.cash + staff.cash,
             card: acc.card + staff.card,
             transfer: acc.transfer + staff.transfer,
+            unregistered: acc.unregistered + staff.unregistered,
             total: acc.total + staff.total
-        }), { cash: 0, card: 0, transfer: 0, total: 0 })
+        }), { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 })
 
         console.log('[getStaffFinancialBreakdown] Success:', { staffCount: breakdown.length, totalRevenue: totals.total })
 
@@ -542,7 +611,7 @@ export async function getStaffFinancialBreakdown(startISO?: string, endISO?: str
         }
     } catch (err) {
         console.error('[getStaffFinancialBreakdown] Unexpected error:', err)
-        return { success: false, error: 'Error del servidor', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, total: 0 }, staffCount: 0 }
+        return { success: false, error: 'Error del servidor', breakdown: [], totals: { cash: 0, card: 0, transfer: 0, unregistered: 0, total: 0 }, staffCount: 0 }
     }
 }
 
@@ -574,10 +643,10 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
 
         const adminClient = createAdminClient()
 
-        // SIMPLIFIED: Get transactions with direct staff_id column
+        // 1. Get transactions (completed)
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, staff_id')
+            .select('id, amount, staff_id, booking_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -588,14 +657,31 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
             return { success: false, error: txError.message, data: [] }
         }
 
-        if (!transactions || transactions.length === 0) {
-            return { success: true, data: [] }
+        // 2. Get bookings
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, end_time, status, price_at_booking, services(price), staff_id')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', dateStart.toISOString())
+            .lte('start_time', dateEnd.toISOString())
+
+        if (bkError) {
+            console.error('[getDynamicStaffRevenue] Booking error:', bkError)
+            return { success: false, error: bkError.message, data: [] }
         }
 
-        // Get all unique staff IDs directly from transactions
-        const staffIds = [...new Set(transactions.map(t => t.staff_id).filter(Boolean))]
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
 
-        // Get staff names AND emails to identify kiosk user
+        // Get unique staff IDs from both transactions and bookings
+        const staffIds = [
+            ...new Set([
+                ...(transactions || []).map(t => t.staff_id),
+                ...(bookings || []).map(b => b.staff_id)
+            ].filter(Boolean))
+        ]
+
+        // Get staff profiles
         const { data: staffProfiles } = staffIds.length > 0
             ? await adminClient
                 .from('profiles')
@@ -618,19 +704,39 @@ export async function getDynamicStaffRevenue(startISO?: string, endISO?: string)
         // Aggregate by staff - exclude kiosk user
         const staffMap = new Map<string, { revenue: number; services: number }>()
 
-        for (const tx of transactions) {
-            const staffId = tx.staff_id
-
-            // Skip if no staff_id or if it's the kiosk user
-            if (!staffId || staffToExclude.has(staffId)) continue
-
+        const getOrCreateStaffData = (staffId: string) => {
             if (!staffMap.has(staffId)) {
                 staffMap.set(staffId, { revenue: 0, services: 0 })
             }
+            return staffMap.get(staffId)!
+        }
 
-            const data = staffMap.get(staffId)!
+        // Process transactions
+        for (const tx of transactions || []) {
+            const staffId = tx.staff_id
+            if (!staffId || staffToExclude.has(staffId)) continue
+
+            const data = getOrCreateStaffData(staffId)
             data.revenue += Number(tx.amount) || 0
             data.services += 1
+        }
+
+        // Process bookings
+        const now = new Date()
+        for (const b of bookings || []) {
+            const staffId = b.staff_id
+            if (!staffId || staffToExclude.has(staffId)) continue
+
+            const endTime = new Date(b.end_time)
+            const isEffective = b.status === 'completed' || endTime < now
+
+            if (isEffective && !txBookingIds.has(b.id)) {
+                const data = getOrCreateStaffData(staffId)
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0)
+
+                data.revenue += price
+                data.services += 1
+            }
         }
 
         const result = Array.from(staffMap.entries())
@@ -677,10 +783,10 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
 
         const adminClient = createAdminClient()
 
-        // SIMPLIFIED: Get transactions with direct service_id column
+        // 1. Get transactions (completed)
         const { data: transactions, error: txError } = await adminClient
             .from('transactions')
-            .select('id, amount, service_id')
+            .select('id, amount, service_id, booking_id')
             .eq('tenant_id', tenantId)
             .eq('status', 'completed')
             .gte('created_at', dateStart.toISOString())
@@ -691,12 +797,29 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
             return { success: false, error: txError.message, data: [] }
         }
 
-        if (!transactions || transactions.length === 0) {
-            return { success: true, data: [] }
+        // 2. Get bookings
+        const { data: bookings, error: bkError } = await adminClient
+            .from('bookings')
+            .select('id, end_time, status, price_at_booking, services(price), service_id')
+            .eq('tenant_id', tenantId)
+            .neq('status', 'cancelled')
+            .gte('start_time', dateStart.toISOString())
+            .lte('start_time', dateEnd.toISOString())
+
+        if (bkError) {
+            console.error('[getDynamicTopServices] Booking error:', bkError)
+            return { success: false, error: bkError.message, data: [] }
         }
 
-        // Get all unique service IDs directly from transactions
-        const serviceIds = [...new Set(transactions.map(t => t.service_id).filter(Boolean))]
+        const txBookingIds = new Set((transactions || []).map(t => t.booking_id).filter(Boolean));
+
+        // Get all unique service IDs from both transactions and bookings
+        const serviceIds = [
+            ...new Set([
+                ...(transactions || []).map(t => t.service_id),
+                ...(bookings || []).map(b => b.service_id)
+            ].filter(Boolean))
+        ]
 
         // Get service names
         const { data: services } = serviceIds.length > 0
@@ -711,19 +834,37 @@ export async function getDynamicTopServices(startISO?: string, endISO?: string) 
             if (s.id && s.name) serviceNames.set(s.id, s.name)
         }
 
-        // Aggregate by service - service_id is always present
         const serviceMap = new Map<string, { revenue: number; count: number }>()
 
-        for (const tx of transactions) {
-            const serviceId = tx.service_id || '__UNKNOWN__'
-
+        const getOrCreateServiceData = (serviceId: string) => {
             if (!serviceMap.has(serviceId)) {
                 serviceMap.set(serviceId, { revenue: 0, count: 0 })
             }
+            return serviceMap.get(serviceId)!
+        }
 
-            const data = serviceMap.get(serviceId)!
+        // Process transactions
+        for (const tx of transactions || []) {
+            const serviceId = tx.service_id || '__UNKNOWN__'
+            const data = getOrCreateServiceData(serviceId)
             data.revenue += Number(tx.amount) || 0
             data.count += 1
+        }
+
+        // Process bookings
+        const now = new Date()
+        for (const b of bookings || []) {
+            const serviceId = b.service_id || '__UNKNOWN__'
+            const endTime = new Date(b.end_time)
+            const isEffective = b.status === 'completed' || endTime < now
+
+            if (isEffective && !txBookingIds.has(b.id)) {
+                const data = getOrCreateServiceData(serviceId)
+                const price = Number(b.price_at_booking || (b.services as any)?.price || 0)
+
+                data.revenue += price
+                data.count += 1
+            }
         }
 
         const result = Array.from(serviceMap.entries())
