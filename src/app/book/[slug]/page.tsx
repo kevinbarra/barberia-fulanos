@@ -3,7 +3,7 @@ import BookingWizard from "@/components/booking/BookingWizard";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, User } from "lucide-react";
+import { ChevronLeft, User, MapPin, Phone, Award, Clock, Star, Gift } from "lucide-react";
 import { Metadata } from "next";
 
 export async function generateMetadata({
@@ -87,6 +87,7 @@ export default async function BookingPage({
     const tenantSettings = tenant.settings as any; // Using any or casting to TenantSettings
     const isGuestCheckoutEnabled = tenantSettings?.guest_checkout_enabled !== false; // Default: true
     const whatsappPhone = tenantSettings?.whatsapp_phone || null;
+    const tenantAddress = tenantSettings?.address || null;
 
     // If guest checkout is DISABLED and user is NOT logged in, redirect to login
     if (!isGuestCheckoutEnabled && !user) {
@@ -135,53 +136,148 @@ export default async function BookingPage({
     return (
         <div
             style={{
-                '--brand-color': tenant.brand_color || '#18181b',
+                '--brand-color': tenant.brand_color || '#ea2707',
             } as React.CSSProperties}
+            className="relative min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden selection:bg-amber-500/30 selection:text-white"
         >
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center py-6 px-4">
+            {/* Background glowing auroras and grid */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div 
+                    className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-25"
+                    style={{ backgroundColor: tenant.brand_color || '#ea2707' }}
+                />
+                <div 
+                    className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-15"
+                    style={{ backgroundColor: '#edd06c' }}
+                />
+                <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] [background-size:16px_16px] opacity-80" />
+            </div>
 
-                {/* HEADER DE NAVEGACIÓN PREMIUM */}
-                <div className="w-full max-w-md mb-6 flex justify-between items-center bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+            {/* Content Wrapper */}
+            <div className="relative z-10 min-h-screen flex flex-col items-center py-6 px-4 lg:py-12 max-w-6xl mx-auto justify-center">
+                
+                {/* MOBILE COMPACT HEADER (Visible on mobile/tablet, hidden on desktop) */}
+                <div className="w-full max-w-md lg:hidden mb-6 flex justify-between items-center bg-zinc-900/90 backdrop-blur-xl p-3.5 rounded-[2rem] border border-zinc-800/80 shadow-2xl">
+                    <div className="flex items-center gap-3 pl-1">
+                        <div className="w-10 h-10 rounded-full bg-zinc-800 border-[2px] border-zinc-700 overflow-hidden relative flex-shrink-0 shadow-md">
+                            {tenant.logo_url ? (
+                                <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
+                            ) : (
+                                <div className="w-full h-full flex items-center justify-center text-sm font-black text-zinc-400">
+                                    {tenant.name.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest leading-none">Reservando en</span>
+                            <span className="text-xs font-black text-white truncate max-w-[150px] leading-tight mt-1">{tenant.name}</span>
+                        </div>
+                    </div>
+                    
                     <Link 
                         href="/app" 
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white rounded-xl hover:bg-zinc-800 transition-all text-xs font-bold shadow-sm"
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-zinc-200 text-black rounded-xl transition-all text-xs font-black shadow-lg active:scale-95"
                     >
-                        <User size={14} className="text-amber-400" />
+                        <User size={13} className="text-zinc-900" />
                         <span>Mis Puntos 🏆</span>
                     </Link>
-                    <div className="text-right pr-2">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block leading-none">Reservando en</span>
-                        <span className="text-xs font-black text-gray-900 block mt-0.5">{tenant.name}</span>
-                    </div>
                 </div>
 
-                {/* BRANDING */}
-                <div className="bg-white w-full max-w-md rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 text-center">
-                    <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full mb-3 overflow-hidden relative border-4 border-white shadow-md">
-                        {tenant.logo_url ? (
-                            <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl font-black text-gray-300">
-                                {tenant.name.charAt(0)}
+                {/* RESPONSIVE LAYOUT GRID */}
+                <div className="w-full flex flex-col lg:flex-row justify-center items-stretch gap-8">
+                    
+                    {/* LEFT PANEL: Branding & Loyalty Card (Desktop only, hidden on mobile) */}
+                    <div className="hidden lg:flex flex-col w-[360px] bg-zinc-900/60 backdrop-blur-xl rounded-[2.5rem] border border-zinc-800/80 p-8 justify-between shadow-2xl">
+                        <div className="space-y-8">
+                            {/* Brand Header */}
+                            <div className="text-center">
+                                <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-full mb-4 overflow-hidden relative border-[3px] border-zinc-800 shadow-xl ring-2 ring-[var(--brand-color)]">
+                                    {tenant.logo_url ? (
+                                        <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-3xl font-black text-zinc-400">
+                                            {tenant.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <h1 className="text-2xl font-black text-white tracking-tight leading-tight">{tenant.name}</h1>
+                                <span className="inline-block mt-2 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[var(--brand-color)]/10 text-[var(--brand-color)] border border-[var(--brand-color)]/25 shadow-sm">
+                                    {tenantSettings?.business_type === 'salon' ? 'Salón de Belleza' : 'Barbería Premium'}
+                                </span>
                             </div>
-                        )}
+
+                            <hr className="border-zinc-800/50" />
+
+                            {/* Details List */}
+                            <div className="space-y-4">
+                                {tenantAddress && (
+                                    <div className="flex gap-3.5 items-start text-sm">
+                                        <MapPin size={16} className="text-zinc-500 mt-0.5 shrink-0" />
+                                        <div className="space-y-1">
+                                            <span className="font-bold text-zinc-500 block text-[10px] uppercase tracking-wider">Ubicación</span>
+                                            <span className="text-zinc-300 font-medium leading-relaxed">{tenantAddress}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {whatsappPhone && (
+                                    <div className="flex gap-3.5 items-start text-sm">
+                                        <Phone size={16} className="text-zinc-500 mt-0.5 shrink-0" />
+                                        <div className="space-y-1">
+                                            <span className="font-bold text-zinc-500 block text-[10px] uppercase tracking-wider">Contacto</span>
+                                            <span className="text-zinc-300 font-medium">{whatsappPhone}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <hr className="border-zinc-800/50" />
+
+                            {/* Loyalty Promo Card */}
+                            <div className="bg-gradient-to-br from-amber-500/10 to-[var(--brand-color)]/5 rounded-3xl p-5 border border-amber-500/20 shadow-inner">
+                                <div className="flex gap-3 items-start">
+                                    <div className="w-10 h-10 bg-amber-500/15 rounded-xl flex items-center justify-center text-amber-400 shrink-0 shadow-sm border border-amber-500/10">
+                                        <Award size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-white text-sm tracking-tight">Club de Recompensas</h3>
+                                        <p className="text-xs text-zinc-400 mt-1 leading-relaxed font-medium">
+                                            Gana el <strong className="text-amber-400 font-black">10% de tus servicios</strong> en puntos acumulables. ¡Canjéalos por cortes y productos gratis en el portal!
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Portal Access Button */}
+                        <div className="pt-6">
+                            <Link 
+                                href="/app" 
+                                className="group flex items-center justify-center gap-2.5 w-full py-4 bg-zinc-800 hover:bg-zinc-750 text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-[0.98] border border-zinc-700/50 hover:border-zinc-600"
+                            >
+                                <User size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                                <span>Ver mis Puntos / Cuenta</span>
+                            </Link>
+                        </div>
                     </div>
-                    <h1 className="text-xl font-black text-gray-900 tracking-tight">{tenant.name}</h1>
+
+                    {/* RIGHT PANEL: Booking Card */}
+                    <div className="w-full max-w-md flex flex-col">
+                        <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100 flex-1 flex flex-col justify-between">
+                            <BookingWizard
+                                services={transformedServices}
+                                staff={transformedStaff}
+                                schedules={schedules || []}
+                                currentUser={userData}
+                                whatsappPhone={whatsappPhone}
+                                tenantName={tenant.name}
+                                businessType={tenantSettings?.business_type || 'barber'}
+                                paymentRules={tenantSettings?.payment_rules || { mode: 'Libre' }}
+                            />
+                        </div>
+                    </div>
                 </div>
 
-                {/* WIZARD */}
-                <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                    <BookingWizard
-                        services={transformedServices}
-                        staff={transformedStaff}
-                        schedules={schedules || []}
-                        currentUser={userData}
-                        whatsappPhone={whatsappPhone}
-                        tenantName={tenant.name}
-                        businessType={tenantSettings?.business_type || 'barber'}
-                        paymentRules={tenantSettings?.payment_rules || { mode: 'Libre' }}
-                    />
-                </div>
             </div>
         </div>
     );
