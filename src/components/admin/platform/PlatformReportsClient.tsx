@@ -10,11 +10,11 @@ import {
     Award, 
     Clock, 
     ShieldCheck,
-    Loader2
+    Loader2,
+    TrendingDown,
+    Activity
 } from 'lucide-react';
 import { 
-    BarChart, 
-    Bar, 
     XAxis, 
     YAxis, 
     CartesianGrid, 
@@ -37,6 +37,15 @@ interface PlatformReportsClientProps {
         bookingTrend: number;
         revenueTrend: number;
         last7Days: Array<{ day: string; count: number }>;
+        avgTicket: number;
+        rankings: Array<{
+            id: string;
+            name: string;
+            slug: string;
+            plan: string;
+            subscription_status: string;
+            bookingsCount: number;
+        }>;
     };
     tenants: Array<{
         id: string;
@@ -68,15 +77,43 @@ export default function PlatformReportsClient({ stats, tenants }: PlatformReport
         { name: 'Básico', value: planCounts.basic || 0, color: '#71717a' },
     ].filter(item => item.value > 0);
 
-    const activeCount = tenants.filter(t => t.subscription_status === 'active').length;
-    const suspendedCount = tenants.filter(t => t.subscription_status === 'suspended').length;
-    const activeRate = tenants.length ? Math.round((activeCount / tenants.length) * 100) : 0;
+    const leaderTenant = stats.rankings && stats.rankings.length > 0 ? stats.rankings[0] : null;
+
+    const getPlanBadge = (plan?: string) => {
+        switch (plan) {
+            case 'pro':
+                return (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        Pro ✨
+                    </span>
+                );
+            case 'enterprise':
+                return (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                        Enterprise 🏛️
+                    </span>
+                );
+            case 'basic':
+                return (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+                        Básico ⚡
+                    </span>
+                );
+            case 'trial':
+            default:
+                return (
+                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                        Prueba ⏳
+                    </span>
+                );
+        }
+    };
 
     return (
         <div className="space-y-8">
             {/* KPI GRID */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Ingresos Totales */}
+                {/* Ingresos SaaS */}
                 <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="flex items-start justify-between">
                         <div>
@@ -87,8 +124,17 @@ export default function PlatformReportsClient({ stats, tenants }: PlatformReport
                             <DollarSign size={18} />
                         </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-                        <TrendingUp size={12} /> +{stats.revenueTrend}% <span className="text-zinc-500 font-medium">vs mes ant.</span>
+                    <div className="mt-4 flex items-center gap-1.5 text-xs">
+                        {stats.revenueTrend >= 0 ? (
+                            <span className="flex items-center gap-0.5 font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <TrendingUp size={12} /> +{stats.revenueTrend}%
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-0.5 font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                                <TrendingDown size={12} /> {stats.revenueTrend}%
+                            </span>
+                        )}
+                        <span className="text-zinc-500 font-medium">vs mes ant.</span>
                     </div>
                 </div>
 
@@ -96,47 +142,58 @@ export default function PlatformReportsClient({ stats, tenants }: PlatformReport
                 <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Reservas Totales</p>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Reservas del Mes</p>
                             <h4 className="text-2xl font-black text-white">{stats.monthlyBookings.toLocaleString()}</h4>
                         </div>
                         <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
                             <Calendar size={18} />
                         </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-1.5 text-xs text-emerald-400 font-bold">
-                        <TrendingUp size={12} /> +{stats.bookingTrend}% <span className="text-zinc-500 font-medium">vs mes ant.</span>
+                    <div className="mt-4 flex items-center gap-1.5 text-xs">
+                        {stats.bookingTrend >= 0 ? (
+                            <span className="flex items-center gap-0.5 font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                <TrendingUp size={12} /> +{stats.bookingTrend}%
+                            </span>
+                        ) : (
+                            <span className="flex items-center gap-0.5 font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
+                                <TrendingDown size={12} /> {stats.bookingTrend}%
+                            </span>
+                        )}
+                        <span className="text-zinc-500 font-medium">vs mes ant.</span>
                     </div>
                 </div>
 
-                {/* Tasa de Retención */}
+                {/* Ticket Promedio */}
                 <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Salud del Negocio</p>
-                            <h4 className="text-2xl font-black text-white">{activeRate}% <span className="text-xs text-zinc-500 font-medium">Activos</span></h4>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Ticket Promedio</p>
+                            <h4 className="text-2xl font-black text-white">${stats.avgTicket.toLocaleString('es-MX')} MXN</h4>
                         </div>
                         <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
                             <Percent size={18} />
                         </div>
                     </div>
-                    <div className="mt-4 text-xs text-zinc-400 font-semibold flex gap-2">
-                        <span>{activeCount} activos</span> • <span>{suspendedCount} suspendidos</span>
+                    <div className="mt-4 text-xs text-zinc-400 font-semibold">
+                        Valor medio por cita este mes
                     </div>
                 </div>
 
-                {/* Total Tenants */}
+                {/* Barbería Líder */}
                 <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Barberías Totales</p>
-                            <h4 className="text-2xl font-black text-white">{tenants.length}</h4>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Barbería Líder</p>
+                            <h4 className="text-xl font-bold text-white truncate max-w-[160px]">
+                                {leaderTenant ? leaderTenant.name : 'Ninguna'}
+                            </h4>
                         </div>
                         <div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl border border-violet-500/20">
-                            <Building2 size={18} />
+                            <Award size={18} />
                         </div>
                     </div>
-                    <div className="mt-4 text-xs text-zinc-400 font-semibold">
-                        Registro histórico global
+                    <div className="mt-4 text-xs text-zinc-400 font-semibold truncate">
+                        {leaderTenant ? `${leaderTenant.bookingsCount.toLocaleString()} citas en total` : 'Sin registros'}
                     </div>
                 </div>
             </div>
@@ -219,6 +276,73 @@ export default function PlatformReportsClient({ stats, tenants }: PlatformReport
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+
+            {/* RANKING TABLE */}
+            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h3 className="text-base font-bold text-white flex items-center gap-2">
+                            <Activity className="text-amber-500" size={18} />
+                            Ranking de Barberías por Citas
+                        </h3>
+                        <p className="text-xs text-zinc-400">Listado de negocios ordenado por volumen total de citas agendadas históricamente en la plataforma.</p>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-zinc-800 text-zinc-500 text-[10px] font-black uppercase tracking-wider">
+                                <th className="pb-3 w-16">Puesto</th>
+                                <th className="pb-3">Negocio</th>
+                                <th className="pb-3 text-center">Plan</th>
+                                <th className="pb-3 text-center">Estado</th>
+                                <th className="pb-3 text-right">Total Citas</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-800/60">
+                            {stats.rankings?.map((tenant, index) => {
+                                const isFulanos = tenant.slug === 'fulanos';
+                                return (
+                                    <tr 
+                                        key={tenant.id} 
+                                        className={`text-xs hover:bg-zinc-800/20 transition-colors ${
+                                            isFulanos ? 'bg-amber-500/5 text-amber-300 font-bold border-l-2 border-amber-500 pl-2' : ''
+                                        }`}
+                                    >
+                                        <td className="py-4 text-zinc-500 font-bold">
+                                            #{index + 1}
+                                        </td>
+                                        <td className="py-4">
+                                            <div>
+                                                <p className={`font-bold ${isFulanos ? 'text-amber-400' : 'text-white'}`}>
+                                                    {tenant.name} {isFulanos && '👑 (Producción)'}
+                                                </p>
+                                                <p className="text-[10px] text-zinc-500">{tenant.slug}.agendabarber.pro</p>
+                                            </div>
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            {getPlanBadge(tenant.plan)}
+                                        </td>
+                                        <td className="py-4 text-center">
+                                            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                                tenant.subscription_status === 'active' 
+                                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                                    : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                            }`}>
+                                                {tenant.subscription_status === 'active' ? 'Activo' : 'Suspendido'}
+                                            </span>
+                                        </td>
+                                        <td className="py-4 text-right font-black text-white text-sm">
+                                            {tenant.bookingsCount.toLocaleString()}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

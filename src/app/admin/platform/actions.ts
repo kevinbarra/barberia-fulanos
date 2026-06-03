@@ -265,10 +265,11 @@ export async function getPlatformStats() {
     const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // Parallel execution of batch queries (Total: 3 queries instead of 13)
-    const [tenantsRes, bookingsRes, transactionsRes] = await Promise.all([
-        supabase.from('tenants').select('subscription_status'),
-        supabase.from('bookings').select('created_at').gte('created_at', startOfLastMonth.toISOString()),
-        supabase.from('transactions').select('total, created_at').gte('created_at', startOfLastMonth.toISOString())
+    const [tenantsRes, bookingsRes, transactionsRes, allBookingsRes] = await Promise.all([
+        supabase.from('tenants').select('id, name, slug, plan, subscription_status'),
+        supabase.from('bookings').select('created_at, tenant_id').gte('created_at', startOfLastMonth.toISOString()),
+        supabase.from('transactions').select('total, created_at').gte('created_at', startOfLastMonth.toISOString()),
+        supabase.from('bookings').select('tenant_id')
     ]);
 
     // Handle tenant metrics
@@ -341,6 +342,27 @@ export async function getPlatformStats() {
     const revenueTrend = lastMonthRevenue ?
         Math.round(((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) : 0;
 
+    // Calculate average ticket
+    const avgTicket = monthlyBookings ? Math.round(monthlyRevenue / monthlyBookings) : 0;
+
+    // Group all-time bookings per tenant
+    const tenantBookingsMap: Record<string, number> = {};
+    const allBookingsList = allBookingsRes.data || [];
+    allBookingsList.forEach(b => {
+        if (b.tenant_id) {
+            tenantBookingsMap[b.tenant_id] = (tenantBookingsMap[b.tenant_id] || 0) + 1;
+        }
+    });
+
+    const rankings = tenantsList.map(t => ({
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        plan: t.plan || 'trial',
+        subscription_status: t.subscription_status,
+        bookingsCount: tenantBookingsMap[t.id] || 0
+    })).sort((a, b) => b.bookingsCount - a.bookingsCount);
+
     return {
         totalTenants,
         activeTenants,
@@ -349,7 +371,9 @@ export async function getPlatformStats() {
         monthlyRevenue,
         bookingTrend,
         revenueTrend,
-        last7Days
+        last7Days,
+        avgTicket,
+        rankings
     };
 }
 

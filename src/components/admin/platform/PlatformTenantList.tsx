@@ -242,157 +242,70 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
 
     return (
         <div className="space-y-8">
-            {/* STATS GRID */}
+            {/* OPERATIONAL STATS GRID */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Ingresos Card */}
+                {/* Total Tenants */}
                 <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-300">
-                        <DollarSign size={80} />
-                    </div>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Ingresos del Mes</p>
-                            <h4 className="text-3xl font-black text-white">
-                                ${monthlyRevenue.toLocaleString('es-MX')} <span className="text-xs text-zinc-500 font-medium">MXN</span>
-                            </h4>
-                        </div>
-                        <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
-                            <DollarSign size={20} />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2">
-                        {revenueTrend >= 0 ? (
-                            <span className="flex items-center gap-0.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                <TrendingUp size={12} /> +{revenueTrend}%
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-0.5 text-xs font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                                <TrendingDown size={12} /> {revenueTrend}%
-                            </span>
-                        )}
-                        <span className="text-xs text-zinc-500 font-medium">vs mes anterior</span>
-                    </div>
-                </div>
-
-                {/* Citas Card */}
-                <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-5 text-blue-500 group-hover:scale-110 transition-transform duration-300">
-                        <Calendar size={80} />
-                    </div>
-                    <div className="flex items-start justify-between">
-                        <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Citas Totales (Mes)</p>
-                            <h4 className="text-3xl font-black text-white">
-                                {monthlyBookings.toLocaleString()} <span className="text-xs text-zinc-500 font-medium">citas</span>
-                            </h4>
-                        </div>
-                        <div className="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
-                            <Calendar size={20} />
-                        </div>
-                    </div>
-                    <div className="mt-4 flex items-center gap-2">
-                        {bookingTrend >= 0 ? (
-                            <span className="flex items-center gap-0.5 text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                                <TrendingUp size={12} /> +{bookingTrend}%
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-0.5 text-xs font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20">
-                                <TrendingDown size={12} /> {bookingTrend}%
-                            </span>
-                        )}
-                        <span className="text-xs text-zinc-500 font-medium">vs mes anterior</span>
-                    </div>
-                </div>
-
-                {/* Barberias Card */}
-                <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-6 opacity-5 text-violet-500 group-hover:scale-110 transition-transform duration-300">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 text-zinc-400 group-hover:scale-110 transition-transform duration-300">
                         <Building2 size={80} />
                     </div>
                     <div className="flex items-start justify-between">
                         <div>
-                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Barberías en Plataforma</p>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Barberías Totales</p>
                             <h4 className="text-3xl font-black text-white">
-                                {totalTenants} <span className="text-xs text-zinc-500 font-medium">totales</span>
+                                {tenants.length} <span className="text-xs text-zinc-500 font-medium">registradas</span>
                             </h4>
                         </div>
-                        <div className="p-3 bg-violet-500/10 text-violet-400 rounded-xl border border-violet-500/20">
+                        <div className="p-3 bg-zinc-800 text-zinc-400 rounded-xl border border-zinc-700/30">
                             <Building2 size={20} />
                         </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-3">
-                        <span className="flex items-center gap-1.5 text-xs text-zinc-300 font-bold bg-zinc-800/60 border border-zinc-700/60 px-2.5 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> {activeTenants} Activas
-                        </span>
-                        <span className="flex items-center gap-1.5 text-xs text-zinc-300 font-bold bg-zinc-800/60 border border-zinc-700/60 px-2.5 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span> {suspendedTenants} Suspendidos
-                        </span>
+                    <div className="mt-4 text-xs text-zinc-500 font-medium">
+                        Historial total de tenants creados
                     </div>
                 </div>
-            </div>
 
-            {/* CHART */}
-            <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md">
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h3 className="text-lg font-bold text-white">Actividad de Citas</h3>
-                        <p className="text-xs text-zinc-400">Total de reservas realizadas por día en la plataforma (Últimos 7 días)</p>
+                {/* Barberías Activas */}
+                <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                        <Building2 size={80} />
                     </div>
-                    <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20 flex items-center gap-1.5">
-                        <TrendingUp size={14} /> Tiempo Real
-                    </span>
-                </div>
-
-                <div className="h-[260px] w-full">
-                    {isMounted ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={last7Days}>
-                                <defs>
-                                    <linearGradient id="bookingTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2}/>
-                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                                <XAxis 
-                                    dataKey="day" 
-                                    stroke="#71717a" 
-                                    axisLine={false} 
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fontWeight: 500 }}
-                                />
-                                <YAxis 
-                                    stroke="#71717a" 
-                                    axisLine={false} 
-                                    tickLine={false}
-                                    tick={{ fontSize: 11, fontWeight: 500 }}
-                                    allowDecimals={false}
-                                />
-                                <Tooltip
-                                    formatter={(value: number) => [`${value} citas`, 'Reservas']}
-                                    contentStyle={{ 
-                                        backgroundColor: '#18181b', 
-                                        borderColor: '#27272a', 
-                                        borderRadius: '12px', 
-                                        color: '#f4f4f5',
-                                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
-                                    }}
-                                />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="count" 
-                                    stroke="#f59e0b" 
-                                    strokeWidth={2.5} 
-                                    fillOpacity={1} 
-                                    fill="url(#bookingTrendGrad)" 
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="w-full h-full bg-zinc-900/20 rounded-xl animate-pulse flex items-center justify-center border border-zinc-800/40">
-                            <Loader2 className="animate-spin text-zinc-600" size={24} />
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Activas en Producción</p>
+                            <h4 className="text-3xl font-black text-white">
+                                {tenants.filter(t => t.subscription_status === 'active').length} <span className="text-xs text-zinc-500 font-medium">activas</span>
+                            </h4>
                         </div>
-                    )}
+                        <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                            <Building2 size={20} />
+                        </div>
+                    </div>
+                    <div className="mt-4 text-xs text-emerald-400 font-bold flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Operando actualmente y agendando
+                    </div>
+                </div>
+
+                {/* Suscripciones Pro */}
+                <div className="bg-zinc-900/40 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-6 opacity-5 text-amber-500 group-hover:scale-110 transition-transform duration-300">
+                        <Building2 size={80} />
+                    </div>
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <p className="text-xs font-black text-zinc-400 uppercase tracking-wider mb-1">Clientes Premium (Pro)</p>
+                            <h4 className="text-3xl font-black text-white">
+                                {tenants.filter(t => t.plan === 'pro' || t.plan === 'enterprise').length} <span className="text-xs text-zinc-500 font-medium">premium</span>
+                            </h4>
+                        </div>
+                        <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                            <Building2 size={20} />
+                        </div>
+                    </div>
+                    <div className="mt-4 text-xs text-amber-400 font-bold">
+                        ★ Licencias Pro / Enterprise activas
+                    </div>
                 </div>
             </div>
 
