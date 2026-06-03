@@ -126,6 +126,13 @@ export default function TenantProvisioningForm() {
                                 <option value="America/Monterrey" className="bg-zinc-950">🇲🇽 Monterrey</option>
                                 <option value="America/Hermosillo" className="bg-zinc-950">🇲🇽 Hermosillo</option>
                                 <option value="America/Cancun" className="bg-zinc-950">🇲🇽 Cancún</option>
+                                <option value="America/Santo_Domingo" className="bg-zinc-950">🇩🇴 Rep. Dominicana</option>
+                                <option value="America/Bogota" className="bg-zinc-950">🇨🇴 Colombia / Perú</option>
+                                <option value="America/Santiago" className="bg-zinc-950">🇨🇱 Chile</option>
+                                <option value="America/Argentina/Buenos_Aires" className="bg-zinc-950">🇦🇷 Argentina</option>
+                                <option value="Europe/Madrid" className="bg-zinc-950">🇪🇸 España (Madrid)</option>
+                                <option value="America/New_York" className="bg-zinc-950">🇺🇸 USA Este (NY/Miami)</option>
+                                <option value="America/Chicago" className="bg-zinc-950">🇺🇸 USA Centro (Texas)</option>
                             </select>
                         </div>
                     </div>
