@@ -169,8 +169,8 @@ export default async function ReportsPage(props: { searchParams: Promise<any> })
     ] = await Promise.all([
         getFinancialDashboard(resolved.startDateStr, resolved.endDateStr) as Promise<FinancialMetricsRPC>,
         getClientRetentionMetrics(),
-        getRevenueByWeekday(),
-        getHourlyRevenue(),
+        getRevenueByWeekday(resolved.startDateStr, resolved.endDateStr),
+        getHourlyRevenue(resolved.startDateStr, resolved.endDateStr),
         getRevenueByDay(resolved.startDateStr, resolved.endDateStr)
     ]);
 

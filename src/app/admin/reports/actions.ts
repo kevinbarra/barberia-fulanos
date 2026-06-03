@@ -109,18 +109,78 @@ export async function getFinancialDashboard(startDate?: string, endDate?: string
     }
 }
 
-export async function getRevenueByWeekday() {
+export async function getRevenueByWeekday(startDate?: string, endDate?: string) {
     try {
         const supabase = await createClient();
         const tenantId = await getMyTenantId();
 
-        const { data, error } = await supabase.rpc('get_revenue_by_weekday', {
-            p_tenant_id: tenantId,
-            p_months_back: 3
-        });
+        if (!startDate || !endDate) {
+            const { data, error } = await supabase.rpc('get_revenue_by_weekday', {
+                p_tenant_id: tenantId,
+                p_months_back: 3
+            });
+            if (error) throw error;
+            return data;
+        }
+
+        const { data: bookings, error } = await supabase
+            .from('bookings')
+            .select('start_time, price_at_booking, services(price)')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('start_time', `${startDate}T00:00:00-06:00`)
+            .lte('start_time', `${endDate}T23:59:59-06:00`);
 
         if (error) throw error;
-        return data;
+
+        const weekdayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const weekdayCount: Record<string, number> = {};
+        const dateSum: Record<string, number> = {};
+        const dateWeekday: Record<string, string> = {};
+
+        (bookings || []).forEach(b => {
+            const date = new Date(b.start_time);
+            const dateStr = date.toISOString().split('T')[0];
+            const weekdayNum = date.getDay();
+            const weekdayName = weekdayNames[weekdayNum];
+
+            const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+
+            if (!dateSum[dateStr]) {
+                dateSum[dateStr] = 0;
+                dateWeekday[dateStr] = weekdayName;
+            }
+            dateSum[dateStr] += price;
+
+            if (!weekdayCount[weekdayName]) {
+                weekdayCount[weekdayName] = 0;
+            }
+            weekdayCount[weekdayName]++;
+        });
+
+        const weekdayTotals: Record<string, number> = {};
+        const weekdayDaysCount: Record<string, number> = {};
+        Object.keys(dateSum).forEach(dateStr => {
+            const weekdayName = dateWeekday[dateStr];
+            if (!weekdayTotals[weekdayName]) {
+                weekdayTotals[weekdayName] = 0;
+                weekdayDaysCount[weekdayName] = 0;
+            }
+            weekdayTotals[weekdayName] += dateSum[dateStr];
+            weekdayDaysCount[weekdayName]++;
+        });
+
+        return weekdayNames.map(name => {
+            const totalRev = weekdayTotals[name] || 0;
+            const daysCount = weekdayDaysCount[name] || 1;
+            const avg_revenue = Math.round((totalRev / daysCount) * 100) / 100;
+            const total_transactions = weekdayCount[name] || 0;
+            return {
+                weekday: name,
+                avg_revenue,
+                total_transactions
+            };
+        });
     } catch (error) {
         console.error('[Reports] Error fetching weekday revenue:', error);
         return [];
@@ -149,18 +209,55 @@ export async function getRevenueByDay(startDate?: string, endDate?: string) {
     }
 }
 
-export async function getHourlyRevenue() {
+export async function getHourlyRevenue(startDate?: string, endDate?: string) {
     try {
         const supabase = await createClient();
         const tenantId = await getMyTenantId();
 
-        const { data, error } = await supabase.rpc('get_hourly_revenue_heatmap', {
-            p_tenant_id: tenantId,
-            p_months_back: 1
-        });
+        if (!startDate || !endDate) {
+            const { data, error } = await supabase.rpc('get_hourly_revenue_heatmap', {
+                p_tenant_id: tenantId,
+                p_months_back: 1
+            });
+            if (error) throw error;
+            return data;
+        }
+
+        const { data: bookings, error } = await supabase
+            .from('bookings')
+            .select('start_time, price_at_booking, services(price)')
+            .eq('tenant_id', tenantId)
+            .eq('status', 'completed')
+            .gte('start_time', `${startDate}T00:00:00-06:00`)
+            .lte('start_time', `${endDate}T23:59:59-06:00`);
 
         if (error) throw error;
-        return data;
+
+        const hourlyMap: Record<number, { totalRevenue: number; count: number }> = {};
+        for (let h = 0; h < 24; h++) {
+            hourlyMap[h] = { totalRevenue: 0, count: 0 };
+        }
+
+        (bookings || []).forEach(b => {
+            const date = new Date(b.start_time);
+            const hour = date.getHours(); // Local hour
+            const price = Number(b.price_at_booking || (b.services as any)?.price || 0);
+            
+            hourlyMap[hour].totalRevenue += price;
+            hourlyMap[hour].count++;
+        });
+
+        const uniqueDays = new Set((bookings || []).map(b => b.start_time.split('T')[0])).size || 1;
+
+        return Object.keys(hourlyMap).map(hKey => {
+            const hour = Number(hKey);
+            const data = hourlyMap[hour];
+            return {
+                hour,
+                avg_revenue: Math.round((data.totalRevenue / uniqueDays) * 100) / 100,
+                transaction_count: data.count
+            };
+        });
     } catch (error) {
         console.error('[Reports] Error fetching hourly revenue:', error);
         return [];
