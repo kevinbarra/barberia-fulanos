@@ -22,19 +22,19 @@ export default async function NewTenantPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-            <div className="max-w-lg mx-auto">
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8">
+            <div className="max-w-xl mx-auto space-y-6">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-4 border-b border-zinc-800/60 pb-6">
                     <Link
                         href="/admin/platform"
-                        className="w-10 h-10 bg-white rounded-xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center hover:bg-zinc-800 rounded-xl transition-colors text-zinc-300 hover:text-white"
                     >
-                        <ArrowLeft size={20} className="text-gray-600" />
+                        <ArrowLeft size={20} />
                     </Link>
                     <div>
-                        <h1 className="text-xl font-black text-gray-900">Nueva Barbería</h1>
-                        <p className="text-gray-500 text-sm">Crear un nuevo negocio en la plataforma</p>
+                        <h1 className="text-2xl font-black text-white tracking-tighter uppercase">Nueva Barbería</h1>
+                        <p className="text-zinc-400 text-sm mt-0.5">Crear un nuevo negocio en la plataforma</p>
                     </div>
                 </div>
 

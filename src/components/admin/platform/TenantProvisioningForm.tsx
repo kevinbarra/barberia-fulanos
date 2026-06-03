@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react';
 import { createTenant } from '@/app/admin/platform/actions';
 import { toast } from 'sonner';
-import { Loader2, Building, User, Globe, Plus, Palette, CreditCard, Clock, Sparkles, UserX, Users } from 'lucide-react';
+import { Loader2, Building, User, Globe, Plus, Palette, CreditCard, Clock, Sparkles, UserX } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function TenantProvisioningForm() {
@@ -38,50 +38,50 @@ export default function TenantProvisioningForm() {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden sticky top-6">
-            <div className="bg-zinc-900 p-6 text-white">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl">
+            <div className="bg-zinc-950 p-6 border-b border-zinc-800">
                 <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                        <Plus size={24} className="text-white" />
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-400">
+                        <Plus size={20} />
                     </div>
-                    <h2 className="text-lg font-bold">Nuevo Negocio</h2>
+                    <h2 className="text-lg font-bold text-white">Nuevo Negocio</h2>
                 </div>
-                <p className="text-zinc-400 text-sm">Provisionar un nuevo tenant y asignar dueño.</p>
+                <p className="text-zinc-400 text-sm">Provisionar un nuevo tenant y configurar su entorno.</p>
             </div>
 
             <form ref={formRef} action={handleSubmit} className="p-6 space-y-6">
 
                 {/* SECCIÓN 1: IDENTIDAD */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Datos del Negocio</label>
+                <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">Datos del Negocio</label>
                     <div className="space-y-4">
                         <div className="relative">
-                            <Building className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <Building className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
                             <input
                                 type="text"
                                 name="name"
                                 required
                                 placeholder="Nombre Comercial (ej. Master Barber)"
-                                className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                                className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm font-medium"
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="relative">
-                                <Globe className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <Globe className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
                                 <input
                                     type="text"
                                     name="slug"
                                     required
                                     placeholder="Slug (url)"
-                                    className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all text-sm font-mono"
+                                    className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm font-mono"
                                 />
                             </div>
 
                             {/* Selector de Color */}
-                            <div className="relative flex items-center border border-gray-200 rounded-xl p-1 pr-3">
-                                <div className="absolute left-3 top-3 text-gray-400 pointer-events-none">
-                                    <Palette size={18} />
+                            <div className="relative flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1 pr-3">
+                                <div className="absolute left-3.5 top-3.5 text-zinc-500 pointer-events-none">
+                                    <Palette size={16} />
                                 </div>
                                 <input
                                     type="color"
@@ -89,173 +89,187 @@ export default function TenantProvisioningForm() {
                                     defaultValue="#8b5cf6"
                                     className="w-10 h-8 ml-9 border-none bg-transparent cursor-pointer p-0"
                                 />
-                                <span className="text-sm text-gray-500 ml-2">Color de Marca</span>
+                                <span className="text-xs text-zinc-400 ml-2 font-bold uppercase tracking-wider">Color de Marca</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* SECCIÓN 2: CONFIGURACIÓN SAAS */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Configuración SaaS</label>
-                    <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">Configuración SaaS</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Plan */}
                         <div className="relative">
-                            <CreditCard className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <CreditCard className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
                             <select
                                 name="plan"
-                                className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 outline-none text-sm bg-white appearance-none cursor-pointer"
+                                className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm appearance-none cursor-pointer"
                             >
-                                <option value="trial">Prueba (14 días)</option>
-                                <option value="basic">Plan Básico</option>
-                                <option value="pro">Plan Pro</option>
-                                <option value="enterprise">Enterprise</option>
+                                <option value="trial" className="bg-zinc-950">Prueba (14 días)</option>
+                                <option value="basic" className="bg-zinc-950">Plan Básico</option>
+                                <option value="pro" className="bg-zinc-950">Plan Pro</option>
+                                <option value="enterprise" className="bg-zinc-950">Enterprise</option>
                             </select>
                         </div>
 
                         {/* Zona Horaria */}
                         <div className="relative">
-                            <Clock className="absolute left-3 top-3 text-gray-400" size={18} />
+                            <Clock className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
                             <select
                                 name="timezone"
                                 defaultValue="America/Mexico_City"
-                                className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 outline-none text-sm bg-white appearance-none cursor-pointer"
+                                className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm appearance-none cursor-pointer"
                             >
-                                <option value="America/Mexico_City">🇲🇽 Ciudad de México</option>
-                                <option value="America/Tijuana">🇲🇽 Tijuana</option>
-                                <option value="America/Monterrey">🇲🇽 Monterrey</option>
-                                <option value="America/Hermosillo">🇲🇽 Hermosillo</option>
-                                <option value="America/Cancun">🇲🇽 Cancún</option>
+                                <option value="America/Mexico_City" className="bg-zinc-950">🇲🇽 Ciudad de México</option>
+                                <option value="America/Tijuana" className="bg-zinc-950">🇲🇽 Tijuana</option>
+                                <option value="America/Monterrey" className="bg-zinc-950">🇲🇽 Monterrey</option>
+                                <option value="America/Hermosillo" className="bg-zinc-950">🇲🇽 Hermosillo</option>
+                                <option value="America/Cancun" className="bg-zinc-950">🇲🇽 Cancún</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
                 {/* SECCIÓN 3: DUEÑO */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Dueño (Owner)</label>
+                <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">Dueño (Owner)</label>
 
                     {/* Demo Mode Toggle */}
                     <button
                         type="button"
                         onClick={() => setDemoMode(!demoMode)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all mb-3 ${demoMode
-                            ? 'border-amber-400 bg-amber-50 text-amber-800'
-                            : 'border-gray-200 bg-gray-50 text-gray-600 hover:border-gray-300'
-                            }`}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                            demoMode
+                                ? 'border-amber-500/30 bg-amber-500/10 text-amber-400 shadow-inner'
+                                : 'border-zinc-800 bg-zinc-950 text-zinc-400 hover:border-zinc-700'
+                        }`}
                     >
-                        <UserX size={18} className={demoMode ? 'text-amber-600' : 'text-gray-400'} />
-                        <span className="text-sm font-semibold flex-1 text-left">Modo Demo (sin dueño real)</span>
-                        <div className={`w-10 h-6 rounded-full transition-all flex items-center px-1 ${demoMode ? 'bg-amber-400 justify-end' : 'bg-gray-300 justify-start'
-                            }`}>
-                            <div className="w-4 h-4 rounded-full bg-white shadow-sm" />
+                        <UserX size={16} className={demoMode ? 'text-amber-400' : 'text-zinc-500'} />
+                        <span className="text-xs font-bold uppercase tracking-wider flex-1 text-left">Modo Demo (sin dueño real)</span>
+                        <div className={`w-9 h-5 rounded-full transition-all flex items-center px-0.5 ${
+                            demoMode ? 'bg-amber-500 justify-end' : 'bg-zinc-800 justify-start'
+                        }`}>
+                            <div className="w-4 h-4 rounded-full bg-zinc-950 shadow-sm" />
                         </div>
                     </button>
 
                     {demoMode ? (
-                        <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex gap-2">
+                        <div className="text-xs text-amber-400 bg-amber-500/5 p-3 rounded-xl border border-amber-500/10 flex gap-2">
                             <span>⚡</span>
                             <span>
-                                Se creará sin dueño vinculado. Podrás asignar el email real más adelante desde la plataforma.
+                                Se creará sin dueño vinculado. Podrás asignar el email real más adelante desde el panel administrativo.
                             </span>
-                        </p>
+                        </div>
                     ) : (
                         <>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <User className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
                                 <input
                                     type="email"
                                     name="owner_email"
                                     required={!demoMode}
                                     placeholder="Email del Dueño"
-                                    className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-zinc-900 focus:border-transparent outline-none transition-all text-sm font-medium"
+                                    className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm font-medium"
                                 />
                             </div>
-                            <p className="text-xs text-blue-600 mt-2 bg-blue-50 p-2 rounded-lg border border-blue-100 flex gap-2">
+                            <div className="text-xs text-blue-400 bg-blue-500/5 p-3 rounded-xl border border-blue-500/10 flex gap-2">
                                 <span>ℹ️</span>
                                 <span>
-                                    Si el usuario existe, se le asigna el negocio.
-                                    <br />
-                                    Si no existe, el sistema lo deja pendiente hasta que se registre.
+                                    Si el usuario existe, se le asigna el negocio. Si no existe, el sistema guardará el registro pendiente hasta que se registre.
                                 </span>
-                            </p>
+                            </div>
                         </>
                     )}
                 </div>
 
                 {/* SECCIÓN 4: GIRO Y DATOS DE PRUEBA */}
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
-                        <Sparkles size={14} className="text-violet-500" />
-                        Giro y Semilla de Datos
+                <div className="space-y-3">
+                    <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <Sparkles size={12} className="text-violet-400" />
+                        Giro y Semilla de Datos (Demo)
                     </label>
 
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="grid grid-cols-2 gap-3">
                         <button
                             type="button"
                             onClick={() => setDemoType('none')}
-                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'none'
-                                    ? 'border-gray-900 bg-gray-900 text-white shadow-lg'
-                                    : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
-                                }`}
+                            className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1.5 ${
+                                demoType === 'none'
+                                    ? 'border-amber-500 bg-amber-500/10 text-amber-400 shadow-md shadow-amber-500/5'
+                                    : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
                         >
-                            <span>Vacío (En blanco)</span>
+                            <span>Vacío (Blanco)</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setDemoType('barbershop')}
-                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'barbershop'
-                                    ? 'border-violet-600 bg-violet-50 text-violet-700 shadow-md shadow-violet-500/20'
-                                    : 'border-gray-200 bg-white text-gray-500 hover:border-violet-200 hover:bg-violet-50/30'
-                                }`}
+                            className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1.5 ${
+                                demoType === 'barbershop'
+                                    ? 'border-violet-500 bg-violet-500/10 text-violet-400 shadow-md shadow-violet-500/5'
+                                    : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
                         >
                             <span>💈 Barbería</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setDemoType('salon')}
-                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'salon'
-                                    ? 'border-pink-500 bg-pink-50 text-pink-700 shadow-md shadow-pink-500/20'
-                                    : 'border-gray-200 bg-white text-gray-500 hover:border-pink-200 hover:bg-pink-50/30'
-                                }`}
+                            className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1.5 ${
+                                demoType === 'salon'
+                                    ? 'border-pink-500 bg-pink-500/10 text-pink-400 shadow-md shadow-pink-500/5'
+                                    : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
                         >
-                            <span>💇‍♀️ Salón de Belleza</span>
+                            <span>💇‍♀️ Estética / Salón</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setDemoType('nails')}
-                            className={`p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'nails'
-                                    ? 'border-fuchsia-500 bg-fuchsia-50 text-fuchsia-700 shadow-md shadow-fuchsia-500/20'
-                                    : 'border-gray-200 bg-white text-gray-500 hover:border-fuchsia-200 hover:bg-fuchsia-50/30'
-                                }`}
+                            className={`p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1.5 ${
+                                demoType === 'nails'
+                                    ? 'border-fuchsia-500 bg-fuchsia-500/10 text-fuchsia-400 shadow-md shadow-fuchsia-500/5'
+                                    : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
                         >
-                            <span>💅 Nails / Uñas</span>
+                            <span>💅 Uñas / Nails</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => setDemoType('skincare')}
-                            className={`col-span-2 p-3 rounded-xl border-2 text-sm font-semibold transition-all flex flex-col items-center justify-center gap-2 ${demoType === 'skincare'
-                                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-md shadow-emerald-500/20'
-                                    : 'border-gray-200 bg-white text-gray-500 hover:border-emerald-200 hover:bg-emerald-50/30'
-                                }`}
+                            className={`col-span-2 p-3 rounded-xl border text-xs font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1.5 ${
+                                demoType === 'skincare'
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-md shadow-emerald-500/5'
+                                    : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                            }`}
                         >
                             <span>✨ Skin Care / Spa</span>
                         </button>
                     </div>
 
                     {demoType !== 'none' && (
-                        <p className="text-xs text-violet-600 bg-violet-50/50 p-2 rounded-lg border border-violet-100 mt-3 animate-in fade-in slide-in-from-top-2">
-                            ✨ Se inyectará un catálogo de servicios completo, categorías, equipo de staff y citas listos para operar.
-                        </p>
+                        <div className="text-xs text-violet-400 bg-violet-500/5 p-3 rounded-xl border border-violet-500/10 animate-in fade-in slide-in-from-top-2 flex gap-2">
+                            <span>✨</span>
+                            <span>
+                                Se inyectará automáticamente un catálogo de servicios, categorías, personal de staff y citas ficticias de prueba.
+                            </span>
+                        </div>
                     )}
                 </div>
 
                 <motion.button
                     whileTap={{ scale: 0.98 }}
                     disabled={isSubmitting}
-                    className="w-full bg-zinc-900 text-white font-bold py-4 rounded-xl shadow-lg shadow-zinc-900/20 hover:bg-zinc-800 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-950 font-black py-4 rounded-xl shadow-lg hover:shadow-amber-500/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSubmitting ? <Loader2 className="animate-spin" /> : 'Crear Barbería Automática 🚀'}
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="animate-spin" size={18} /> Provisionando...
+                        </>
+                    ) : (
+                        'Crear Barbería Automática 🚀'
+                    )}
                 </motion.button>
             </form>
         </div>
