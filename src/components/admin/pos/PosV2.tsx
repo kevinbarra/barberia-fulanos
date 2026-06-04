@@ -756,6 +756,11 @@ export default function PosV2({
                                         className="p-4 bg-white rounded-xl border border-gray-200 text-left hover:border-amber-500 hover:shadow-md transition-all group"
                                     >
                                         <div className="font-bold text-gray-900 group-hover:text-amber-600">{service.name}</div>
+                                        {service.description && (
+                                            <p className="text-[11px] text-gray-500 mt-1 leading-snug line-clamp-2 font-normal">
+                                                {service.description}
+                                            </p>
+                                        )}
                                         <div className="flex justify-between items-center mt-2">
                                             <span className="text-lg font-black text-amber-600">${service.price}</span>
                                             <span className="text-xs text-gray-400">{service.duration_min}min</span>

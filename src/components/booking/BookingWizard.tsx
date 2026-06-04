@@ -625,7 +625,7 @@ export default function BookingWizard({
                                                 <div className="flex justify-between items-center gap-3">
                                                     <div className="flex-1 min-w-0">
                                                         <span className="font-bold text-white text-sm block group-hover:text-[var(--brand-color)] transition-colors truncate">{service.name}</span>
-                                                        {service.description && <p className="text-[12px] text-zinc-500 mt-1 leading-relaxed font-medium truncate">{service.description}</p>}
+                                                        {service.description && <p className="text-[12px] text-zinc-500 mt-1 leading-relaxed font-medium">{service.description}</p>}
                                                         <span className="text-[11px] text-zinc-600 font-medium flex items-center gap-1.5 mt-2">
                                                             <Clock size={11} className="text-zinc-600" />
                                                             {service.duration_min} min

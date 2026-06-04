@@ -50,7 +50,7 @@ export default async function PosPage() {
     // Fetch services with category
     const { data: services } = await supabase
         .from("services")
-        .select("id, name, price, duration_min, category")
+        .select("id, name, price, duration_min, category, description")
         .eq("tenant_id", tenantId)
         .eq("is_active", true)
         .order("category", { ascending: true })
