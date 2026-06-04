@@ -41,7 +41,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      {/* ⚡ PERF: Load GTM with lazyOnload to prevent WebKit parser-blocking on iOS devices */}
+      {/* ⚡ PERF: Desactivado GTM temporalmente para aislar y solucionar bloqueos en Safari móvil */}
+      {/*
       <Script
         id="gtm-base"
         strategy="lazyOnload"
@@ -56,7 +57,9 @@ export default function RootLayout({
           });
         `}
       </Script>
+      */}
       <body className={`${inter.className} antialiased bg-gray-50 text-gray-900 selection:bg-black selection:text-white`}>
+        {/*
         <noscript>
           <iframe
             src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
@@ -65,6 +68,7 @@ export default function RootLayout({
             style={{ display: 'none', visibility: 'hidden' }}
           />
         </noscript>
+        */}
         {children}
         {/* Componente de notificaciones premium */}
         <Toaster position="top-center" richColors />
