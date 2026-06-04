@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Calendar, Users, CreditCard, BarChart3, Star, ArrowRight, Scissors, Clock, Smartphone, Check, ExternalLink } from "lucide-react"
 import { PLATFORM_WHATSAPP, GLOBAL_BRANDING } from '@/lib/constants'
+import HeroDissolve from "./HeroDissolve"
 
 const plans = [
     {
@@ -127,34 +128,8 @@ export default function SaaSLandingPage() {
                 </div>
             </nav>
 
-            {/* Hero Section — Rendered immediately, no skeleton */}
-            <section className="relative z-10 px-6 pt-24 pb-32 max-w-6xl mx-auto text-center">
-                <div className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-md border border-white rounded-full px-5 py-2 mb-10 shadow-sm">
-                    <Star className="w-4 h-4 text-brand fill-brand" />
-                    <span className="text-xs font-black uppercase tracking-[0.2em] text-[#86868B]">El Estándar Premium de Puebla</span>
-                </div>
-
-                <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black">
-                    Domina tu agenda.<br />
-                    <span className="bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent">Sin esfuerzo.</span>
-                </h1>
-
-                <p className="text-xl sm:text-2xl text-[#86868B] max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-                    Olvídate del caos. Sistema 360° con reservas online, POS y lealtad diseñado para las mejores barberías.
-                </p>
-
-                <div className="flex flex-col sm:flex-row gap-5 justify-center">
-                    <a
-                        href={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group bg-black hover:bg-zinc-800 text-white font-black px-10 py-5 rounded-[2rem] text-xl transition-all hover:scale-105 shadow-2xl shadow-black/20 flex items-center justify-center gap-3"
-                    >
-                        Iniciar ahora
-                        <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
-                    </a>
-                </div>
-            </section>
+            {/* Hero Section — Rendered with scroll-driven dissolve animation */}
+            <HeroDissolve whatsappUrl={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`} />
 
             {/* Features Section — Rendered immediately, no skeleton */}
             <section id="features" className="relative z-10 px-6 py-32 bg-white/40 backdrop-blur-md border-y border-white">
