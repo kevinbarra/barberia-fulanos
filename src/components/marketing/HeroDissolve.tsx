@@ -198,6 +198,49 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
     return `rgba(37, 99, 235, ${opacity})`;
   }, []);
 
+  // Helper to group characters into words to prevent single-letter wrapping (e.g. "agenda." wrapping last letter)
+  const renderWordGroup = useCallback((chars: CharAnimData[], getStyle: (c: CharAnimData) => React.CSSProperties) => {
+    const words: CharAnimData[][] = [];
+    let currentWord: CharAnimData[] = [];
+
+    chars.forEach((c) => {
+      if (c.char === " ") {
+        if (currentWord.length > 0) {
+          words.push(currentWord);
+          currentWord = [];
+        }
+        words.push([c]);
+      } else {
+        currentWord.push(c);
+      }
+    });
+    if (currentWord.length > 0) {
+      words.push(currentWord);
+    }
+
+    return words.map((wordChars, wordIndex) => {
+      if (wordChars.length === 1 && wordChars[0].char === " ") {
+        return <span key={`space-${wordIndex}`}>{`\u00A0`}</span>;
+      }
+
+      return (
+        <span 
+          key={`word-${wordIndex}`} 
+          className="inline-block whitespace-nowrap"
+        >
+          {wordChars.map((c, charIndex) => {
+            const charStyle = getStyle(c);
+            return (
+              <span key={charIndex} style={charStyle}>
+                {c.char}
+              </span>
+            );
+          })}
+        </span>
+      );
+    });
+  }, []);
+
   // Particle color map
   const particleColors = [
     "rgba(37, 99, 235, 0.55)",   // brand blue
@@ -225,29 +268,21 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
       <span className="sr-only">{line1} {line2}</span>
 
       {/* ── Animated heading ── */}
-      <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black relative" aria-hidden="true">
+      <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[1.15] md:leading-[0.85] text-black relative" aria-hidden="true">
         {/* Line 1: "Domina tu agenda." */}
         <span className="block">
-          {reducedMotion ? line1 : chars1.map((c, i) => (
-            <span key={i} style={getCharStyle(c, progress)}>
-              {c.char === " " ? "\u00A0" : c.char}
-            </span>
-          ))}
+          {reducedMotion ? line1 : renderWordGroup(chars1, (c) => getCharStyle(c, progress))}
         </span>
 
         {/* Line 2: "Sin esfuerzo." — with gradient colors */}
         <span className={`block ${reducedMotion ? "bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent" : ""}`}>
-          {reducedMotion ? line2 : chars2.map((c, i) => (
-            <span
-              key={i}
-              style={{
-                ...getCharStyle(c, progress),
-                color: getGradientColor(i, chars2.length),
-              }}
-            >
-              {c.char === " " ? "\u00A0" : c.char}
-            </span>
-          ))}
+          {reducedMotion ? line2 : renderWordGroup(chars2, (c) => {
+            const globalIndex = chars2.indexOf(c);
+            return {
+              ...getCharStyle(c, progress),
+              color: getGradientColor(globalIndex, chars2.length),
+            };
+          })}
         </span>
 
         {/* ── Hair clipping particles ── */}
