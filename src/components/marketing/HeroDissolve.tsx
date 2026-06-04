@@ -53,36 +53,40 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
 
   // Detect prefers-reduced-motion and screen size for performance
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const mq = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
     
     const checkMotionPreference = () => {
-      const isMobile = window.innerWidth < 768;
-      setReducedMotion(mq.matches || isMobile);
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+      setReducedMotion(mq ? mq.matches || isMobile : isMobile);
     };
 
     // Initial check
     checkMotionPreference();
 
     const handler = (e: MediaQueryListEvent) => {
-      const isMobile = window.innerWidth < 768;
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
       setReducedMotion(e.matches || isMobile);
     };
 
     // Safe event listener registration for older Safari/WebViews (iOS < 14)
-    if (mq.addEventListener) {
-      mq.addEventListener("change", handler);
-    } else if (mq.addListener) {
-      mq.addListener(handler);
+    if (mq) {
+      if (mq.addEventListener) {
+        mq.addEventListener("change", handler);
+      } else if (mq.addListener) {
+        mq.addListener(handler);
+      }
     }
 
     // Dynamic adaptation on resize (e.g. tablet rotation)
     window.addEventListener("resize", checkMotionPreference);
 
     return () => {
-      if (mq.removeEventListener) {
-        mq.removeEventListener("change", handler);
-      } else if (mq.removeListener) {
-        mq.removeListener(handler);
+      if (mq) {
+        if (mq.removeEventListener) {
+          mq.removeEventListener("change", handler);
+        } else if (mq.removeListener) {
+          mq.removeListener(handler);
+        }
       }
       window.removeEventListener("resize", checkMotionPreference);
     };
@@ -98,9 +102,10 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
         if (!sectionRef.current) return;
         const rect = sectionRef.current.getBoundingClientRect();
         const sectionHeight = sectionRef.current.offsetHeight;
-        // Progress: 0 = section fully visible, 1 = scrolled well past
-        const p = Math.max(0, Math.min(1, -rect.top / (sectionHeight * 0.5)));
-        setProgress(p);
+        // ⚡ REGRESION DE RENDIMIENTO: Evita división por cero y NaN si el elemento aún no tiene altura (offsetHeight = 0)
+        const divisor = sectionHeight * 0.5;
+        const p = divisor > 0 ? Math.max(0, Math.min(1, -rect.top / divisor)) : 0;
+        setProgress(isNaN(p) ? 0 : p);
       });
     };
 

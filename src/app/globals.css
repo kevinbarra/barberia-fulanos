@@ -3,8 +3,6 @@
 @tailwind utilities;
 
 html, body {
-  overscroll-behavior-y: none; /* Bloquea recarga al deslizar */
-  touch-action: manipulation;  /* Mejora respuesta táctil */
   -webkit-tap-highlight-color: transparent;
 }
 
