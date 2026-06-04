@@ -51,13 +51,41 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
   const [reducedMotion, setReducedMotion] = useState(false);
   const rafRef = useRef<number>(0);
 
-  // Detect prefers-reduced-motion
+  // Detect prefers-reduced-motion and screen size for performance
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    
+    const checkMotionPreference = () => {
+      const isMobile = window.innerWidth < 768;
+      setReducedMotion(mq.matches || isMobile);
+    };
+
+    // Initial check
+    checkMotionPreference();
+
+    const handler = (e: MediaQueryListEvent) => {
+      const isMobile = window.innerWidth < 768;
+      setReducedMotion(e.matches || isMobile);
+    };
+
+    // Safe event listener registration for older Safari/WebViews (iOS < 14)
+    if (mq.addEventListener) {
+      mq.addEventListener("change", handler);
+    } else if (mq.addListener) {
+      mq.addListener(handler);
+    }
+
+    // Dynamic adaptation on resize (e.g. tablet rotation)
+    window.addEventListener("resize", checkMotionPreference);
+
+    return () => {
+      if (mq.removeEventListener) {
+        mq.removeEventListener("change", handler);
+      } else if (mq.removeListener) {
+        mq.removeListener(handler);
+      }
+      window.removeEventListener("resize", checkMotionPreference);
+    };
   }, []);
 
   // Scroll progress tracker

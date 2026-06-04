@@ -4,8 +4,9 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/login/LoginForm";
 import { getTenantSlug } from "@/lib/tenant";
-import { Scissors, Lock } from "lucide-react";
+import { Scissors, Lock, Loader2 } from "lucide-react";
 import { ROOT_DOMAIN, isRootDomain as isRootDomainCheck, GLOBAL_BRANDING } from "@/lib/constants";
+import { Suspense } from "react";
 
 export default async function LoginPage({
     searchParams,
@@ -210,7 +211,13 @@ export default async function LoginPage({
                     </div>
 
                     {/* Form */}
-                    <LoginForm />
+                    <Suspense fallback={
+                        <div className="flex items-center justify-center p-8">
+                            <Loader2 className="animate-spin text-amber-500" size={32} />
+                        </div>
+                    }>
+                        <LoginForm />
+                    </Suspense>
 
                     {/* Footer */}
                     <div className="mt-8 text-center border-t border-white/5 pt-6">
