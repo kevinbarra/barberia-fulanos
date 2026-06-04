@@ -202,7 +202,7 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
     <section ref={sectionRef} className="relative z-10 px-6 pt-24 pb-32 max-w-6xl mx-auto text-center">
       {/* ── Badge ── */}
       <div
-        className="inline-flex items-center gap-2 bg-white/50 backdrop-blur-md border border-white rounded-full px-5 py-2 mb-10 shadow-sm"
+        className="inline-flex items-center gap-2 bg-white/95 md:bg-white/50 md:backdrop-blur-md border border-white rounded-full px-5 py-2 mb-10 shadow-sm"
         style={reducedMotion ? {} : {
           opacity: Math.max(0, 1 - progress * 2.5),
           transform: `translate3d(0, ${progress * -40}px, 0)`,
@@ -220,7 +220,12 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
       {/* ── Animated heading ── */}
       <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black relative" aria-hidden="true">
         {/* Line 1: "Domina tu agenda." */}
-        <span className="block">
+        {/* Mobile Static View (Immediate render, no layout shifts or JS lag) */}
+        <span className="block md:hidden">
+          {line1}
+        </span>
+        {/* Desktop Animated View */}
+        <span className="hidden md:block">
           {reducedMotion ? line1 : chars1.map((c, i) => (
             <span key={i} style={getCharStyle(c, progress)}>
               {c.char === " " ? "\u00A0" : c.char}
@@ -229,7 +234,12 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
         </span>
 
         {/* Line 2: "Sin esfuerzo." — with gradient colors */}
-        <span className={`block ${reducedMotion ? "bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent" : ""}`}>
+        {/* Mobile Static View */}
+        <span className="block md:hidden bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent">
+          {line2}
+        </span>
+        {/* Desktop Animated View */}
+        <span className={`hidden md:block ${reducedMotion ? "bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent" : ""}`}>
           {reducedMotion ? line2 : chars2.map((c, i) => (
             <span
               key={i}

@@ -101,7 +101,7 @@ export default function SaaSLandingPage() {
             </div>
 
             {/* Navigation */}
-            <nav className="relative z-10 px-6 py-4 flex justify-between items-center max-w-6xl mx-auto backdrop-blur-md bg-white/30 sticky top-0 border-b border-white/20">
+            <nav className="relative z-10 px-6 py-4 flex justify-between items-center max-w-6xl mx-auto bg-white/95 md:backdrop-blur-md md:bg-white/30 sticky top-0 border-b border-white/20">
                 <div className="flex items-center gap-2">
                     <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-lg">
                         <Scissors className="w-5 h-5 text-white" />
@@ -132,7 +132,7 @@ export default function SaaSLandingPage() {
             <HeroDissolve whatsappUrl={`https://wa.me/${PLATFORM_WHATSAPP}?text=${encodeURIComponent('Hola, me interesa AgendaBarber para mi barbería')}`} />
 
             {/* Features Section — Rendered immediately, no skeleton */}
-            <section id="features" className="relative z-10 px-6 py-32 bg-white/40 backdrop-blur-md border-y border-white">
+            <section id="features" className="relative z-10 px-6 py-32 bg-white/95 md:bg-white/40 md:backdrop-blur-md border-y border-white">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-20 text-black">
                         <h2 className="text-4xl md:text-5xl font-black mb-6 tracking-tight">Potencia Industrial</h2>
@@ -145,7 +145,7 @@ export default function SaaSLandingPage() {
                         {features.map((feature, i) => (
                             <div
                                 key={i}
-                                className="bg-white/70 backdrop-blur-md border border-white rounded-[2.5rem] p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group shadow-sm"
+                                className="bg-white/95 md:bg-white/70 md:backdrop-blur-md border border-white rounded-[2.5rem] p-8 hover:shadow-2xl hover:-translate-y-2 transition-all group shadow-sm"
                             >
                                 <div className="w-16 h-16 bg-brand/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-brand group-hover:text-white transition-all">
                                     <feature.icon className="w-8 h-8 text-brand group-hover:text-white transition-colors" />
@@ -172,7 +172,7 @@ export default function SaaSLandingPage() {
                         {plans.map((plan, i) => (
                             <div
                                 key={i}
-                                className={`relative bg-white/80 backdrop-blur-xl border-2 rounded-[3rem] p-10 transition-all ${plan.popular
+                                className={`relative bg-white/95 md:bg-white/80 md:backdrop-blur-xl border-2 rounded-[3rem] p-10 transition-all ${plan.popular
                                     ? 'border-brand shadow-[0_20px_50px_rgba(0,0,0,0.1)]'
                                     : 'border-white hover:border-brand/30 shadow-sm hover:shadow-xl'
                                     }`}
@@ -224,9 +224,9 @@ export default function SaaSLandingPage() {
             </section>
 
             {/* Contact Section */}
-            <section id="contact" className="relative z-10 px-6 py-32 bg-white/40 backdrop-blur-md border-y border-white">
+            <section id="contact" className="relative z-10 px-6 py-32 bg-white/95 md:bg-white/40 md:backdrop-blur-md border-y border-white">
                 <div className="max-w-4xl mx-auto">
-                    <div className="bg-white/70 backdrop-blur-md border border-white rounded-[3rem] p-10 md:p-16 shadow-xl text-center max-w-2xl mx-auto">
+                    <div className="bg-white/95 md:bg-white/70 md:backdrop-blur-md border border-white rounded-[3rem] p-10 md:p-16 shadow-xl text-center max-w-2xl mx-auto">
                         <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8">
                             <Smartphone className="w-10 h-10" />
                         </div>
