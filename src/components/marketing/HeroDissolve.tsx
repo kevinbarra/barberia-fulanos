@@ -48,26 +48,22 @@ interface ParticleData {
 export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const rafRef = useRef<number>(0);
 
-  // Detect prefers-reduced-motion and screen size for performance
+  // Detect prefers-reduced-motion
   useEffect(() => {
     const mq = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
     
     const checkMotionPreference = () => {
-      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-      // ⚡ PERF: Si es móvil, mantenemos reducedMotion = true para evitar cualquier renderizado pesado.
-      // Solo en desktop sin preferencias de reducción activadas, activamos las animaciones.
-      setReducedMotion(mq ? mq.matches || isMobile : isMobile);
+      setReducedMotion(mq ? mq.matches : false);
     };
 
     // Initial check
     checkMotionPreference();
 
     const handler = (e: MediaQueryListEvent) => {
-      const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-      setReducedMotion(e.matches || isMobile);
+      setReducedMotion(e.matches);
     };
 
     // Safe event listener registration for older Safari/WebViews (iOS < 14)
@@ -231,12 +227,7 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
       {/* ── Animated heading ── */}
       <h1 className="text-5xl sm:text-6xl md:text-8xl font-black tracking-tight mb-8 leading-[0.85] text-black relative" aria-hidden="true">
         {/* Line 1: "Domina tu agenda." */}
-        {/* Mobile Static View (Immediate render, no layout shifts or JS lag) */}
-        <span className="block md:hidden">
-          {line1}
-        </span>
-        {/* Desktop Animated View */}
-        <span className="hidden md:block">
+        <span className="block">
           {reducedMotion ? line1 : chars1.map((c, i) => (
             <span key={i} style={getCharStyle(c, progress)}>
               {c.char === " " ? "\u00A0" : c.char}
@@ -245,12 +236,7 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
         </span>
 
         {/* Line 2: "Sin esfuerzo." — with gradient colors */}
-        {/* Mobile Static View */}
-        <span className="block md:hidden bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent">
-          {line2}
-        </span>
-        {/* Desktop Animated View */}
-        <span className={`hidden md:block ${reducedMotion ? "bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent" : ""}`}>
+        <span className={`block ${reducedMotion ? "bg-gradient-to-r from-brand to-brand/60 bg-clip-text text-transparent" : ""}`}>
           {reducedMotion ? line2 : chars2.map((c, i) => (
             <span
               key={i}
