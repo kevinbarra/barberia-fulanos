@@ -154,6 +154,11 @@ export default async function BookingPage({
             } as React.CSSProperties}
             className="relative min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden selection:bg-amber-500/30 selection:text-white"
         >
+            <style>{`
+                html, body {
+                    background-color: #09090b !important;
+                }
+            `}</style>
             {/* Background glowing auroras and grid */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div 

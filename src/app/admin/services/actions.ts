@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient, getTenantIdForAdmin } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 // Helper for auth + role + tenant validation
@@ -40,8 +41,9 @@ import { logActivity } from '@/lib/audit'
 
 // --- CREAR SERVICIO ---
 export async function createService(formData: FormData) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     const name = formData.get('name') as string
     const price = formData.get('price') as string
@@ -100,8 +102,9 @@ export async function createService(formData: FormData) {
 
 // --- ACTUALIZAR SERVICIO ---
 export async function updateService(formData: FormData) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     const id = formData.get('id') as string
     const name = formData.get('name') as string
@@ -174,8 +177,9 @@ export async function updateService(formData: FormData) {
 // ==================== CATEGORY ACTIONS ====================
 
 export async function createCategory(name: string) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     const { data: newCategory, error: insertError } = await supabase
         .from('service_categories')
@@ -193,8 +197,9 @@ export async function createCategory(name: string) {
 }
 
 export async function updateCategory(id: string, name: string) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     const { error: updateError } = await supabase
         .from('service_categories')
@@ -209,8 +214,9 @@ export async function updateCategory(id: string, name: string) {
 }
 
 export async function deleteCategory(id: string) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     // Check if category has services
     const { count } = await supabase
@@ -236,9 +242,9 @@ export async function deleteCategory(id: string) {
 
 // --- CAMBIAR ESTADO (ACTIVAR/DESACTIVAR) ---
 export async function toggleServiceStatus(id: string, currentStatus: boolean) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    // ... rest of the file (toggleServiceStatus and deleteService) ...
-    if (error || !supabase) return { error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { error }
+    const supabase = createAdminClient()
 
     // SECURITY: Filter by BOTH id AND tenant_id
     const { error: updateError } = await supabase
@@ -268,8 +274,9 @@ export async function toggleServiceStatus(id: string, currentStatus: boolean) {
 
 // --- ELIMINAR SERVICIO (CON SEGURIDAD) ---
 export async function deleteService(id: string) {
-    const { error, supabase, tenantId } = await validateAdminAccess()
-    if (error || !supabase) return { success: false, error }
+    const { error, tenantId } = await validateAdminAccess()
+    if (error) return { success: false, error }
+    const supabase = createAdminClient()
 
     // 1. Verificar si tiene uso histórico (dentro del tenant)
     // ... (existing check code) ...

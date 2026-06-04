@@ -92,6 +92,11 @@ export default async function ClientLayout({
             } as React.CSSProperties}
             className="min-h-screen bg-zinc-950 relative overflow-hidden"
         >
+            <style>{`
+                html, body {
+                    background-color: #09090b !important;
+                }
+            `}</style>
             <ClientBackground brandColor={brandColor} secondaryColor={secondaryColor} />
             <AutoRefreshWrapper />
             <main className="relative z-10 pb-24 md:pb-0">
