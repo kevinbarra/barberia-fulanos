@@ -523,7 +523,7 @@ export default function BookingWizard({
     }
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden min-h-0">
             {/* PROGRESS HEADER */}
             <div className="px-6 pt-6 pb-3 sticky top-0 z-20 border-b border-zinc-800/60">
                 <div className="flex justify-between items-center mb-4">
@@ -546,7 +546,7 @@ export default function BookingWizard({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative">
                 <AnimatePresence mode="wait">
                     {/* PASO 1: CATEGORÍAS Y SERVICIOS */}
                     {step === 1 && (

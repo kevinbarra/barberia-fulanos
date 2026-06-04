@@ -276,8 +276,8 @@ export default async function BookingPage({
                     </div>
 
                     {/* RIGHT PANEL: Booking Card */}
-                    <div className="w-full max-w-md flex flex-col">
-                        <div className="bg-zinc-900/60 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-zinc-800/80 flex-1 flex flex-col justify-between">
+                    <div className="w-full max-w-md flex flex-col min-h-[550px] h-[650px] max-h-[85vh] lg:h-auto lg:max-h-none">
+                        <div className="bg-zinc-900/60 backdrop-blur-xl rounded-[2.5rem] shadow-2xl overflow-hidden border border-zinc-800/80 flex-1 flex flex-col justify-between min-h-0">
                             <Suspense fallback={
                                 <div className="flex items-center justify-center p-12">
                                     <Loader2 className="animate-spin text-amber-500" size={32} />
