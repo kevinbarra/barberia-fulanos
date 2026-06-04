@@ -33,6 +33,11 @@ export async function updateSession(request: NextRequest) {
     const hostname = request.headers.get('host') || ''
     const tenantSlug = extractTenantSlug(hostname)
 
+    // ⚡ PERF: Si estamos en un subdominio de tenant y accedemos a la raíz, redirigir directamente al booker en el middleware
+    if (tenantSlug && pathname === '/') {
+        return NextResponse.redirect(new URL(`/book/${tenantSlug}`, request.url))
+    }
+
     // 2. Crear headers con tenant info and path info
     const requestHeaders = new Headers(request.headers)
     if (tenantSlug) {
