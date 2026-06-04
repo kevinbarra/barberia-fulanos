@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createWalkIn } from "@/app/admin/bookings/actions";
 import { Clock, Check } from "lucide-react";
 
-type Service = { id: string; name: string; duration_min: number; price?: number | null };
+type Service = { id: string; name: string; duration_min: number; price?: number | null; description?: string | null };
 type Staff = { id: string; full_name: string };
 
 export default function NewBookingModal({
@@ -86,7 +86,12 @@ export default function NewBookingModal({
                                         <span className="font-bold text-gray-900 block leading-tight">
                                             {s.name}
                                         </span>
-                                        <span className="text-xs text-gray-400 flex items-center gap-1 mt-1">
+                                        {s.description && (
+                                            <span className="text-xs text-gray-400 block mt-1 line-clamp-1">
+                                                {s.description}
+                                            </span>
+                                        )}
+                                        <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
                                             <Clock size={12} />
                                             {s.duration_min} min
                                         </span>

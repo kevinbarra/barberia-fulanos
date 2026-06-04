@@ -28,6 +28,7 @@ type Service = {
     name: string;
     duration_min: number;
     price?: number | null;
+    description?: string | null;
 };
 
 type EditBookingModalProps = {
@@ -322,7 +323,12 @@ export default function EditBookingModal({
                                             <span className="font-bold text-gray-900 block text-xs truncate">
                                                 {s.name}
                                             </span>
-                                            <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                                            {s.description && (
+                                                <span className="text-[10px] text-gray-400 block mt-0.5 line-clamp-1">
+                                                    {s.description}
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] text-gray-500 flex items-center gap-1 mt-1">
                                                 <Clock size={10} />
                                                 {s.duration_min} min
                                             </span>

@@ -52,7 +52,7 @@ export default async function BookingsPage() {
 
     const { data: services } = await supabase
         .from("services")
-        .select("id, name, duration_min, price")
+        .select("id, name, duration_min, price, description")
         .eq("tenant_id", tenantId)
         .eq("is_active", true);
 

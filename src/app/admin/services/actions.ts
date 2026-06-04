@@ -51,6 +51,19 @@ export async function createService(formData: FormData) {
     const order = parseInt(formData.get('order') as string || '0')
     const formTenantId = formData.get('tenant_id') as string
 
+    // Fetch category name if categoryId is provided
+    let categoryName: string | null = null
+    if (categoryId) {
+        const { data: catData } = await supabase
+            .from('service_categories')
+            .select('name')
+            .eq('id', categoryId)
+            .single()
+        if (catData) {
+            categoryName = catData.name
+        }
+    }
+
     // Security: Use validated tenantId, not form input
     const { data: newService, error: insertError } = await supabase.from('services').insert({
         name,
@@ -58,6 +71,7 @@ export async function createService(formData: FormData) {
         price: parseFloat(price),
         duration_min: parseInt(duration),
         category_id: categoryId || null,
+        category: categoryName,
         tenant_id: formTenantId || tenantId, // Fallback to validated tenant
         is_active: true,
         order
@@ -97,6 +111,19 @@ export async function updateService(formData: FormData) {
     const description = formData.get('description') as string
     const order = parseInt(formData.get('order') as string || '0')
 
+    // Fetch category name if categoryId is provided
+    let categoryName: string | null = null
+    if (categoryId) {
+        const { data: catData } = await supabase
+            .from('service_categories')
+            .select('name')
+            .eq('id', categoryId)
+            .single()
+        if (catData) {
+            categoryName = catData.name
+        }
+    }
+
     // Fetch OLD values for audit (CRITICAL for price tracking)
     const { data: oldService } = await supabase
         .from('services')
@@ -113,7 +140,8 @@ export async function updateService(formData: FormData) {
             order,
             price,
             duration_min: duration,
-            category_id: categoryId || null
+            category_id: categoryId || null,
+            category: categoryName
         })
         .eq('id', id)
         .eq('tenant_id', tenantId)
