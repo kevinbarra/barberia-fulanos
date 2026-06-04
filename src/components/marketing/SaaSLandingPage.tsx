@@ -94,8 +94,8 @@ export default function SaaSLandingPage() {
             style={{ '--brand-color': '#2563eb' } as React.CSSProperties}
             className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] overflow-hidden selection:bg-brand selection:text-white"
         >
-            {/* Background gradients (Subtle) */}
-            <div className="fixed inset-0 pointer-events-none">
+            {/* Background gradients (Subtle - Optimized to hide on mobile to prevent GPU lag/freezes) */}
+            <div className="fixed inset-0 pointer-events-none hidden md:block">
                 <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-brand/5 blur-[150px] rounded-full" />
                 <div className="absolute bottom-0 right-1/4 w-[800px] h-[800px] bg-purple-500/5 blur-[150px] rounded-full" />
             </div>

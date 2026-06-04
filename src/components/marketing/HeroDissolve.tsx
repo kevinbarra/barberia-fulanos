@@ -48,7 +48,7 @@ interface ParticleData {
 export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
   const sectionRef = useRef<HTMLElement>(null);
   const [progress, setProgress] = useState(0);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(true);
   const rafRef = useRef<number>(0);
 
   // Detect prefers-reduced-motion and screen size for performance
@@ -57,6 +57,8 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
     
     const checkMotionPreference = () => {
       const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+      // ⚡ PERF: Si es móvil, mantenemos reducedMotion = true para evitar cualquier renderizado pesado.
+      // Solo en desktop sin preferencias de reducción activadas, activamos las animaciones.
       setReducedMotion(mq ? mq.matches || isMobile : isMobile);
     };
 
@@ -121,29 +123,32 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
   const line1 = "Domina tu agenda.";
   const line2 = "Sin esfuerzo.";
 
-  const chars1: CharAnimData[] = useMemo(() =>
-    line1.split("").map((char, i) => ({
+  const chars1: CharAnimData[] = useMemo(() => {
+    if (reducedMotion) return [];
+    return line1.split("").map((char, i) => ({
       char,
       dx: (seededRandom(i * 7 + 1) - 0.3) * 180,
       dy: seededRandom(i * 7 + 2) * 140 + 50,      // falls down
       rotation: (seededRandom(i * 7 + 3) - 0.5) * 140,
       delay: (i / line1.length) * 0.35,              // left-to-right stagger
-    })), []
-  );
+    }));
+  }, [reducedMotion]);
 
-  const chars2: CharAnimData[] = useMemo(() =>
-    line2.split("").map((char, i) => ({
+  const chars2: CharAnimData[] = useMemo(() => {
+    if (reducedMotion) return [];
+    return line2.split("").map((char, i) => ({
       char,
       dx: (seededRandom((i + 50) * 7 + 1) - 0.3) * 220,
       dy: seededRandom((i + 50) * 7 + 2) * 170 + 60,
       rotation: (seededRandom((i + 50) * 7 + 3) - 0.5) * 160,
       delay: (i / line2.length) * 0.28 + 0.12,       // slightly later than line 1
-    })), []
-  );
+    }));
+  }, [reducedMotion]);
 
   // ── Hair clipping particles ──
-  const particles: ParticleData[] = useMemo(() =>
-    Array.from({ length: 40 }, (_, i) => {
+  const particles: ParticleData[] = useMemo(() => {
+    if (reducedMotion) return [];
+    return Array.from({ length: 40 }, (_, i) => {
       const size = seededRandom(i * 17 + 5) * 7 + 2;
       const aspect = seededRandom(i * 17 + 8) * 2.5 + 1.5; // elongated
       return {
@@ -157,12 +162,13 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
         delay: seededRandom(i * 17 + 7) * 0.5,
         colorType: i % 3,
       };
-    }), []
-  );
+    });
+  }, [reducedMotion]);
 
   // ── Floating scissor sparkles (small ✂ icons) ──
-  const sparkles = useMemo(() =>
-    Array.from({ length: 6 }, (_, i) => ({
+  const sparkles = useMemo(() => {
+    if (reducedMotion) return [];
+    return Array.from({ length: 6 }, (_, i) => ({
       x: seededRandom(i * 31 + 10) * 70 + 15,
       y: seededRandom(i * 31 + 11) * 40 + 30,
       dx: (seededRandom(i * 31 + 12) - 0.5) * 200,
@@ -170,8 +176,8 @@ export default function HeroDissolve({ whatsappUrl }: { whatsappUrl: string }) {
       rotation: seededRandom(i * 31 + 14) * 360,
       delay: seededRandom(i * 31 + 15) * 0.45 + 0.1,
       size: seededRandom(i * 31 + 16) * 10 + 8,
-    })), []
-  );
+    }));
+  }, [reducedMotion]);
 
   // ── Per-character style calculator ──
   const getCharStyle = useCallback((c: CharAnimData, p: number): React.CSSProperties => {
