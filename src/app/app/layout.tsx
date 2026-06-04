@@ -4,6 +4,8 @@ import { checkAndClaimInvitations } from "@/lib/auth-helpers";
 import { getUserTenantSlug } from "@/lib/tenant";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
+import { shiftColorHue, hexToRgba } from "@/lib/colors";
+import ClientBackground from "@/components/client/ClientBackground";
 
 export default async function ClientLayout({
     children,
@@ -59,10 +61,40 @@ export default async function ClientLayout({
     console.log('[LAYOUT DEBUG] UserSlug (Profile):', userSlug);
     console.log('[LAYOUT DEBUG] Final TenantSlug:', tenantSlug);
 
+    // Obtener color del tenant
+    let brandColor = '#ea2707';
+    if (tenantSlug) {
+        const { data: tenant } = await supabase
+            .from('tenants')
+            .select('brand_color')
+            .eq('slug', tenantSlug)
+            .single();
+        if (tenant?.brand_color) {
+            brandColor = tenant.brand_color;
+        }
+    }
+
+    const secondaryColor = shiftColorHue(brandColor, 40);
+    const brandColor5 = hexToRgba(brandColor, 0.05);
+    const brandColor10 = hexToRgba(brandColor, 0.10);
+    const brandColor40 = hexToRgba(brandColor, 0.40);
+    const secondaryColor20 = hexToRgba(secondaryColor, 0.20);
+
     return (
-        <div className="min-h-screen bg-zinc-950">
+        <div 
+            style={{
+                '--brand-color': brandColor,
+                '--brand-color-secondary': secondaryColor,
+                '--brand-color-5': brandColor5,
+                '--brand-color-10': brandColor10,
+                '--brand-color-40': brandColor40,
+                '--brand-color-secondary-20': secondaryColor20,
+            } as React.CSSProperties}
+            className="min-h-screen bg-zinc-950 relative overflow-hidden"
+        >
+            <ClientBackground brandColor={brandColor} secondaryColor={secondaryColor} />
             <AutoRefreshWrapper />
-            <main className="pb-24 md:pb-0">
+            <main className="relative z-10 pb-24 md:pb-0">
                 {children}
             </main>
 

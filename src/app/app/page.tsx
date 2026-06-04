@@ -46,18 +46,22 @@ export default async function ClientAppPage() {
     let activeTenantName = "";
     let targetSlug = currentSlug;
     let tenantAddress: string | null = null;
+    let tenantBrandColor: string | null = null;
+    let tenantLogoUrl: string | null = null;
 
     // Priority 1: Resolve from subdomain
     if (currentSlug) {
         const { data: tenant } = await supabase
             .from('tenants')
-            .select('id, name, settings')
+            .select('id, name, settings, brand_color, logo_url')
             .eq('slug', currentSlug)
             .single();
 
         if (tenant) {
             activeTenantId = tenant.id;
             activeTenantName = tenant.name;
+            tenantBrandColor = tenant.brand_color;
+            tenantLogoUrl = tenant.logo_url;
             const s = tenant.settings as Record<string, any> | null;
             tenantAddress = s?.address || null;
         }
@@ -68,12 +72,14 @@ export default async function ClientAppPage() {
         activeTenantId = profile.tenant_id as string;
         const { data: fallbackTenant } = await supabase
             .from('tenants')
-            .select('slug, name, settings')
+            .select('slug, name, settings, brand_color, logo_url')
             .eq('id', activeTenantId)
             .single();
         if (fallbackTenant) {
             targetSlug = fallbackTenant.slug;
             activeTenantName = fallbackTenant.name;
+            tenantBrandColor = fallbackTenant.brand_color;
+            tenantLogoUrl = fallbackTenant.logo_url;
             const s = fallbackTenant.settings as Record<string, any> | null;
             tenantAddress = s?.address || null;
         }
@@ -162,6 +168,9 @@ export default async function ClientAppPage() {
             showNoShowAlert={!!showNoShowAlert}
             tenantSlug={targetSlug || ''}
             tenantAddress={tenantAddress}
+            tenantBrandColor={tenantBrandColor}
+            tenantLogoUrl={tenantLogoUrl}
+            tenantName={activeTenantName}
         />
     );
 }

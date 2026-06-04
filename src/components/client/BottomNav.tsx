@@ -48,10 +48,13 @@ export default function BottomNav({ tenantSlug, role }: { tenantSlug: string, ro
                             >
                                 <motion.div
                                     whileTap={{ scale: 0.9 }}
-                                    className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg border-4 border-zinc-950 ${isAdmin
-                                            ? 'bg-purple-600 shadow-purple-600/40'
-                                            : 'bg-blue-600 shadow-blue-600/40'
-                                        }`}
+                                    className="w-14 h-14 rounded-full flex items-center justify-center border-4 border-zinc-950 text-white"
+                                    style={{
+                                        backgroundColor: isAdmin ? '#9333ea' : 'var(--brand-color)',
+                                        boxShadow: isAdmin 
+                                            ? '0 10px 15px -3px rgba(147, 51, 234, 0.4)' 
+                                            : '0 10px 15px -3px var(--brand-color-40)'
+                                    }}
                                 >
                                     <item.icon size={28} className="text-white" strokeWidth={2.5} />
                                 </motion.div>

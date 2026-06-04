@@ -124,7 +124,7 @@ export default function NextAppointmentCard({
                 <div className="bg-zinc-900/95 rounded-[23px] p-5 relative overflow-hidden backdrop-blur-md">
 
                     {/* Decoración de Fondo */}
-                    <div className="absolute -right-12 -top-12 w-40 h-40 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                    <div className="absolute -right-12 -top-12 w-40 h-40 bg-[var(--brand-color)]/10 rounded-full blur-3xl pointer-events-none"></div>
 
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4 relative z-10">
@@ -134,7 +134,7 @@ export default function NextAppointmentCard({
                             {/* IDENTITY CONTEXT: Show "Para: Name" if booking for someone else */}
                             {isBookingForOther && (
                                 <div className="mb-2 flex items-center gap-2">
-                                    <span className="text-xs font-bold text-purple-400 bg-purple-500/10 px-2 py-1 rounded-lg border border-purple-500/20">
+                                    <span className="text-xs font-bold text-[var(--brand-color)] bg-[var(--brand-color-10)] px-2 py-1 rounded-lg border border-[var(--brand-color)]/20">
                                         Para: {bookingForName}
                                     </span>
                                 </div>
@@ -160,12 +160,12 @@ export default function NextAppointmentCard({
                     {/* Date & Location Row */}
                     <div className="flex items-center gap-4 mb-4 text-xs text-zinc-400 relative z-10">
                         <div className="flex items-center gap-2">
-                            <Calendar size={14} className="text-blue-500" />
+                            <Calendar size={14} className="text-[var(--brand-color)]" />
                             <span className="capitalize font-medium">{dateStr}</span>
                         </div>
                         {tenantAddress && (
                             <div className="flex items-center gap-2">
-                                <MapPin size={14} className="text-purple-500" />
+                                <MapPin size={14} className="text-[var(--brand-color)] opacity-80" />
                                 <span className="font-medium">{tenantAddress}</span>
                             </div>
                         )}
@@ -188,7 +188,7 @@ export default function NextAppointmentCard({
                             href={calendarUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-all"
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-[var(--brand-color)] bg-[var(--brand-color-10)] hover:bg-[var(--brand-color-10)]/80 border border-[var(--brand-color)]/25 transition-all shadow-sm"
                         >
                             <CalendarPlus size={14} />
                             Añadir a Calendario

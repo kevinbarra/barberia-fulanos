@@ -83,10 +83,10 @@ export default function ClientProfileForm({
                 {/* Info Cards */}
                 <div className="grid grid-cols-2 gap-4">
                     {/* Puntos de Lealtad */}
-                    <div className="bg-gradient-to-br from-amber-500/20 to-orange-600/20 border border-amber-500/30 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 text-amber-400 mb-2">
+                    <div className="bg-gradient-to-br from-[var(--brand-color)]/25 to-[var(--brand-color-secondary)]/15 border border-[var(--brand-color)]/30 rounded-2xl p-4 shadow-sm shadow-[var(--brand-color)]/5">
+                        <div className="flex items-center gap-2 text-[var(--brand-color)] mb-2">
                             <Star size={18} />
-                            <span className="text-xs font-bold uppercase">Puntos</span>
+                            <span className="text-xs font-extrabold uppercase tracking-wider">Puntos</span>
                         </div>
                         <p className="text-3xl font-black text-white">{loyaltyPoints}</p>
                     </div>
@@ -126,7 +126,7 @@ export default function ClientProfileForm({
                                     <User className="w-10 h-10 text-zinc-600" />
                                 )}
                             </div>
-                            <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2.5 rounded-full cursor-pointer hover:bg-blue-500 transition-colors shadow-lg active:scale-95">
+                            <label className="absolute bottom-0 right-0 bg-[var(--brand-color)] text-white p-2.5 rounded-full cursor-pointer hover:opacity-95 transition-all shadow-lg shadow-[var(--brand-color-40)] active:scale-95 border border-[var(--brand-color)]/20">
                                 <Camera size={16} />
                                 <input type="file" name="avatar" accept="image/*" className="hidden" onChange={handleImageChange} />
                             </label>
@@ -151,7 +151,7 @@ export default function ClientProfileForm({
                             name="full_name"
                             defaultValue={initialName}
                             required
-                            className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none transition-all text-white placeholder-zinc-600"
+                            className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-[var(--brand-color)]/60 focus:border-[var(--brand-color)]/50 outline-none transition-all text-white placeholder-zinc-600"
                             placeholder="Tu nombre aquí"
                         />
                     </div>
@@ -165,7 +165,7 @@ export default function ClientProfileForm({
                             name="phone"
                             type="tel"
                             defaultValue={phone}
-                            className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-blue-600 outline-none transition-all text-white placeholder-zinc-600"
+                            className="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:ring-2 focus:ring-[var(--brand-color)]/60 focus:border-[var(--brand-color)]/50 outline-none transition-all text-white placeholder-zinc-600"
                             placeholder="Tu teléfono"
                         />
                     </div>
@@ -173,7 +173,7 @@ export default function ClientProfileForm({
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full py-4 bg-white text-black rounded-2xl font-bold text-lg hover:bg-zinc-200 active:scale-95 transition-all flex justify-center items-center gap-2"
+                        className="w-full py-4 bg-[var(--brand-color)] text-white rounded-2xl font-bold text-lg hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2 shadow-lg shadow-[var(--brand-color-40)] border border-[var(--brand-color)]/20"
                     >
                         {isLoading ? <Loader2 className="animate-spin" /> : 'Guardar Cambios'}
                     </button>

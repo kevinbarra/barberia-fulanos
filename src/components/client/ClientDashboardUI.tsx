@@ -33,6 +33,9 @@ interface ClientDashboardUIProps {
     showNoShowAlert: boolean;
     tenantSlug: string;
     tenantAddress?: string | null;
+    tenantBrandColor?: string | null;
+    tenantLogoUrl?: string | null;
+    tenantName?: string | null;
 }
 
 export default function ClientDashboardUI({
@@ -45,7 +48,10 @@ export default function ClientDashboardUI({
     loyaltyStatus,
     showNoShowAlert,
     tenantSlug,
-    tenantAddress
+    tenantAddress,
+    tenantBrandColor,
+    tenantLogoUrl,
+    tenantName
 }: ClientDashboardUIProps) {
     const { vocabulary } = useVocabulary();
 
@@ -82,25 +88,7 @@ export default function ClientDashboardUI({
     const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-white p-6 pb-32 relative overflow-hidden selection:bg-blue-500/30">
-
-            {/* Aurora Backgrounds */}
-            <motion.div
-                animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.2, 0.3, 0.2]
-                }}
-                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-[-10%] left-[-20%] w-[350px] h-[350px] bg-blue-600/30 blur-[120px] rounded-full pointer-events-none"
-            />
-            <motion.div
-                animate={{
-                    scale: [1, 1.1, 1],
-                    opacity: [0.1, 0.2, 0.1]
-                }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute bottom-[-10%] right-[-20%] w-[300px] h-[300px] bg-purple-600/20 blur-[100px] rounded-full pointer-events-none"
-            />
+        <div className="text-white p-6 pb-32 selection:bg-[var(--brand-color)]/30">
 
             <motion.div
                 variants={container}
@@ -112,6 +100,20 @@ export default function ClientDashboardUI({
                 {/* HEADER */}
                 <motion.div variants={item} className="flex justify-between items-start mb-8">
                     <div>
+                        {tenantName && (
+                            <div className="flex items-center gap-2 mb-2.5 bg-zinc-900/60 border border-zinc-800/80 px-3 py-1 rounded-full w-fit backdrop-blur-md shadow-sm">
+                                <div className="w-4 h-4 rounded-full overflow-hidden relative bg-zinc-850 flex-shrink-0 border border-zinc-700">
+                                    {tenantLogoUrl ? (
+                                        <Image src={tenantLogoUrl} alt={tenantName} fill className="object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-[8px] font-black text-zinc-400">
+                                            {tenantName.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <span className="text-[9px] font-black tracking-widest text-zinc-400 uppercase truncate max-w-[120px]">{tenantName}</span>
+                            </div>
+                        )}
                         <h1 className="text-xl font-bold capitalize bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
                             Hola, {profileName.split(" ")[0]}
                         </h1>
@@ -245,7 +247,7 @@ export default function ClientDashboardUI({
                                 <p className="text-sm text-zinc-500 mb-6">Reserva tu próxima visita en segundos</p>
                                 <Link
                                     href={`/book/${tenantSlug}`}
-                                    className="inline-flex items-center gap-2 px-6 py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 transition-all active:scale-95"
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-color)] text-white rounded-xl font-bold hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-[var(--brand-color-40)] border border-[var(--brand-color)]/25"
                                 >
                                     <Plus size={18} />
                                     Reservar Ahora
@@ -318,7 +320,7 @@ export default function ClientDashboardUI({
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <span className="block text-green-400 font-bold text-xs bg-green-400/10 px-2 py-0.5 rounded-md mb-1">+{pointsEarned} pts</span>
+                                            <span className="block text-[var(--brand-color)] font-bold text-xs bg-[var(--brand-color-10)] px-2 py-0.5 rounded-md mb-1 border border-[var(--brand-color)]/10">+{pointsEarned} pts</span>
                                             <span className="text-[10px] text-zinc-600 font-medium">${amount}</span>
                                         </div>
                                     </motion.div>
