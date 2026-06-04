@@ -59,6 +59,8 @@ export default async function RatingPage({ params, searchParams }: PageProps) {
             guestName={booking.guest_name || (customer as { full_name?: string })?.full_name}
             guestEmail={booking.guest_email || (customer as { email?: string })?.email}
             initialRating={initialRating ? parseInt(initialRating) : undefined}
+            tenantBrandColor={tenant?.brand_color}
+            tenantLogoUrl={tenant?.logo_url}
         />
     )
 }

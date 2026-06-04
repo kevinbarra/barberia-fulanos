@@ -21,7 +21,9 @@ export async function getBookingForRating(bookingId: string) {
             tenant:tenant_id(
                 name,
                 slug,
-                settings
+                settings,
+                brand_color,
+                logo_url
             )
         `)
         .eq('id', bookingId)
