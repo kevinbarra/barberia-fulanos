@@ -185,54 +185,54 @@ export default async function BookingPage({
             <style>{isSpaTheme ? `
                 html, body {
                     background-color: #f4f0e6 !important;
-                    color: #3a322d !important;
+                    color: #2e2522 !important;
                     background-image: radial-gradient(circle at 50% 50%, #f4f0e6 0%, #efebe2 100%) !important;
                 }
                 /* Pisado de clases de fondo y paneles */
                 .bg-zinc-900\\/60 {
-                    background-color: rgba(255, 255, 255, 0.85) !important;
+                    background-color: rgba(255, 255, 255, 0.88) !important;
                     backdrop-filter: blur(24px) !important;
-                    border-color: rgba(224, 218, 208, 0.6) !important;
-                    box-shadow: 0 20px 40px -15px rgba(42, 36, 33, 0.04), 0 1px 3px rgba(42, 36, 33, 0.01) !important;
+                    border-color: rgba(224, 218, 208, 0.7) !important;
+                    box-shadow: 0 20px 40px -15px rgba(42, 36, 33, 0.06), 0 1px 3px rgba(42, 36, 33, 0.02) !important;
                 }
                 .bg-zinc-900\\/90 {
-                    background-color: rgba(255, 255, 255, 0.92) !important;
-                    border-color: rgba(224, 218, 208, 0.7) !important;
-                    box-shadow: 0 15px 30px -10px rgba(42, 36, 33, 0.05) !important;
+                    background-color: rgba(255, 255, 255, 0.94) !important;
+                    border-color: rgba(224, 218, 208, 0.8) !important;
+                    box-shadow: 0 15px 30px -10px rgba(42, 36, 33, 0.08) !important;
                 }
                 .text-white {
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 .text-zinc-100 {
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 .text-zinc-300 {
-                    color: #4a3e3d !important;
+                    color: #2e2522 !important;
                 }
                 .text-zinc-400 {
-                    color: #6e5d5b !important;
+                    color: #4a3a36 !important;
                 }
                 .text-zinc-500 {
-                    color: #8c7a77 !important;
+                    color: #665551 !important;
                 }
                 .text-zinc-600, .text-zinc-650 {
-                    color: #b0a2a0 !important;
+                    color: #85736f !important;
                 }
                 .text-zinc-900 {
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 /* Success screen gray text mapping */
                 .text-gray-900 {
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 .text-gray-600 {
-                    color: #6e5d5b !important;
+                    color: #4a3a36 !important;
                 }
                 .text-gray-500 {
-                    color: #8c7a77 !important;
+                    color: #665551 !important;
                 }
                 .text-gray-400 {
-                    color: #8c7a77 !important;
+                    color: #665551 !important;
                 }
                 .bg-gray-50 {
                     background-color: rgba(244, 240, 230, 0.6) !important;
@@ -250,60 +250,84 @@ export default async function BookingPage({
                 .border-amber-500\\/10 {
                     border-color: rgba(194, 65, 12, 0.15) !important;
                 }
-                .bg-gradient-to-br.from-amber-500\\/10.to-\\[var\\(--brand-color\\)\\]\\/5 {
-                    background: linear-gradient(135deg, rgba(194, 65, 12, 0.08), var(--brand-contrast-color-10)) !important;
-                    border-color: rgba(194, 65, 12, 0.15) !important;
-                }
                 /* Botones de categorías y servicios */
                 .bg-zinc-800\\/40, .bg-zinc-800\\/50, .bg-zinc-800\\/30, .bg-zinc-800 {
                     background-color: rgba(244, 240, 230, 0.7) !important;
-                    border-color: rgba(224, 218, 208, 0.5) !important;
-                    color: #3a322d !important;
+                    border-color: rgba(224, 218, 208, 0.6) !important;
+                    color: #2e2522 !important;
                 }
-                .hover\\:bg-zinc-800\\/70:hover, .hover\\:bg-zinc-800\\/80:hover, .hover\\:bg-zinc-800\\/60:hover, .hover\\:bg-zinc-800\\/50:hover,
-                .hover\\:bg-zinc-755:hover, .hover\\:bg-zinc-750:hover, .hover\\:bg-zinc-700:hover, .hover\\:bg-zinc-800:hover {
+                .hover\\:bg-zinc-800\\/70:hover, .hover\\:bg-zinc-800\\/80:hover, .hover\\:bg-zinc-800\\/60:hover, .hover\\:bg-zinc-800\\/50:hover {
                     background-color: rgba(235, 229, 217, 0.9) !important;
                     border-color: rgba(214, 207, 195, 0.8) !important;
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 /* Inputs y dropdowns */
                 input, select {
                     background-color: #ffffff !important;
                     border-color: rgba(224, 218, 208, 0.8) !important;
-                    color: #2a2421 !important;
+                    color: #1c1614 !important;
                 }
                 input::placeholder {
-                    color: #b0a2a0 !important;
+                    color: #85736f !important;
                 }
                 /* Bordes divisorios */
                 .border-zinc-850, .border-zinc-800, .border-zinc-800\\/60, .border-zinc-700\\/40, .border-zinc-700\\/30, .border-zinc-700\\/50 {
-                    border-color: rgba(224, 218, 208, 0.5) !important;
+                    border-color: rgba(224, 218, 208, 0.6) !important;
                 }
                 .bg-zinc-950\\/40, .bg-zinc-950 {
                     background-color: rgba(244, 240, 230, 0.6) !important;
-                    border-color: rgba(224, 218, 208, 0.4) !important;
+                    border-color: rgba(224, 218, 208, 0.5) !important;
                 }
                 .bg-zinc-950\\/60 {
-                    background-color: rgba(255, 255, 255, 0.88) !important;
+                    background-color: rgba(255, 255, 255, 0.9) !important;
                 }
                 hr {
-                    border-color: rgba(224, 218, 208, 0.5) !important;
+                    border-color: rgba(224, 218, 208, 0.6) !important;
                 }
                 /* Scrollbar */
                 .custom-scrollbar::-webkit-scrollbar-thumb {
                     background-color: rgba(214, 207, 195, 0.4) !important;
                 }
-                /* Logo containers - white card frame and shadow */
+                /* Logo containers - white card frame and a strong contrasting outline */
                 .logo-img-container {
                     background-color: #ffffff !important;
-                    border-color: #efebe2 !important;
-                    box-shadow: 0 10px 25px -5px rgba(42, 36, 33, 0.05), 0 8px 10px -6px rgba(42, 36, 33, 0.05) !important;
+                    border: 3.5px solid var(--brand-contrast-color) !important;
+                    box-shadow: 0 10px 25px rgba(42, 36, 33, 0.08) !important;
                 }
                 .logo-img-container-mobile {
                     background-color: #ffffff !important;
-                    border-color: #efebe2 !important;
+                    border: 2px solid var(--brand-contrast-color) !important;
+                    box-shadow: 0 4px 10px rgba(42, 36, 33, 0.06) !important;
                 }
-                /* Button/active state text contrast preservation */
+                /* Brand Badge Override */
+                .brand-badge {
+                    background-color: var(--brand-contrast-color-10) !important;
+                    color: var(--brand-contrast-color) !important;
+                    border: 1px solid var(--brand-contrast-color-20) !important;
+                }
+                /* Loyalty Card Promo */
+                .loyalty-promo-card {
+                    background: linear-gradient(135deg, rgba(194, 65, 12, 0.08), var(--brand-contrast-color-10)) !important;
+                    border: 1px solid rgba(194, 65, 12, 0.15) !important;
+                }
+                /* Loyalty Portal Button (Bottom Left) - Force dark brown text on light background */
+                .loyalty-portal-btn {
+                    background-color: rgba(244, 240, 230, 0.75) !important;
+                    border: 1px solid rgba(224, 218, 208, 0.8) !important;
+                    color: #1c1614 !important;
+                }
+                .loyalty-portal-btn:hover {
+                    background-color: rgba(235, 229, 217, 0.95) !important;
+                    border-color: rgba(214, 207, 195, 0.9) !important;
+                    color: #1c1614 !important;
+                }
+                .loyalty-portal-btn span {
+                    color: #1c1614 !important;
+                }
+                .loyalty-portal-btn-icon {
+                    color: #c2410c !important;
+                }
+                /* Button/active state text contrast preservation for solid brand colors */
                 button.text-white,
                 a.text-white,
                 .bg-\\[var\\(--brand-color\\)\\] .text-white,
@@ -321,12 +345,6 @@ export default async function BookingPage({
                 }
                 .group:hover .group-hover\\:text-white {
                     color: #ffffff !important; /* Price badge should turn white on hover */
-                }
-                /* Accent background selectors */
-                .bg-\\[var\\(--brand-color\\)\\]\\/10 {
-                    background-color: var(--brand-contrast-color-10) !important;
-                    color: var(--brand-contrast-color) !important;
-                    border-color: var(--brand-contrast-color-20) !important;
                 }
             ` : `
                 html, body {
@@ -392,7 +410,7 @@ export default async function BookingPage({
                         <div className="space-y-8">
                             {/* Brand Header */}
                             <div className="text-center">
-                                <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-full mb-4 overflow-hidden relative border-[3px] border-zinc-800 shadow-xl ring-2 ring-[var(--brand-color)] logo-img-container">
+                                <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-full mb-4 overflow-hidden relative border-[3px] border-zinc-800 shadow-xl logo-img-container">
                                     {tenant.logo_url ? (
                                         <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
                                     ) : (
@@ -402,7 +420,7 @@ export default async function BookingPage({
                                     )}
                                 </div>
                                 <h1 className="text-2xl font-black text-white tracking-tight leading-tight">{tenant.name}</h1>
-                                <span className="inline-block mt-2 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[var(--brand-color)]/10 text-[var(--brand-color)] border border-[var(--brand-color)]/25 shadow-sm">
+                                <span className="inline-block mt-2 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm brand-badge">
                                     {getBusinessTypeLabel(tenantSettings?.business_type)}
                                 </span>
                             </div>
@@ -435,7 +453,7 @@ export default async function BookingPage({
                             <hr className="border-zinc-800/50" />
 
                             {/* Loyalty Promo Card */}
-                            <div className="bg-gradient-to-br from-amber-500/10 to-[var(--brand-color)]/5 rounded-3xl p-5 border border-amber-500/20 shadow-inner">
+                            <div className="rounded-3xl p-5 shadow-inner border loyalty-promo-card">
                                 <div className="flex gap-3 items-start">
                                     <div className="w-10 h-10 bg-amber-500/15 rounded-xl flex items-center justify-center text-amber-400 shrink-0 shadow-sm border border-amber-500/10">
                                         <Award size={20} />
@@ -454,9 +472,9 @@ export default async function BookingPage({
                         <div className="pt-6">
                             <Link 
                                 href="/app" 
-                                className="group flex items-center justify-center gap-2.5 w-full py-4 bg-zinc-800 hover:bg-zinc-750 text-white rounded-2xl font-bold text-sm shadow-md transition-all active:scale-[0.98] border border-zinc-700/50 hover:border-zinc-600"
+                                className="group flex items-center justify-center gap-2.5 w-full py-4 rounded-2xl font-bold text-sm shadow-md transition-all active:scale-[0.98] border loyalty-portal-btn"
                             >
-                                <User size={15} className="text-amber-400 group-hover:scale-110 transition-transform" />
+                                <User size={15} className="group-hover:scale-110 transition-transform loyalty-portal-btn-icon" />
                                 <span>Ver mis Puntos / Cuenta</span>
                             </Link>
                         </div>
