@@ -185,7 +185,7 @@ export async function toggleTenantStatus(tenantId: string, newStatus: 'active' |
 }
 
 
-// Update tenant data (name, slug, whatsapp_phone, plan, brand_color, timezone, trial_ends_at, subscription_status, logo_url) — Super Admin only
+// Update tenant data (name, slug, whatsapp_phone, plan, brand_color, timezone, trial_ends_at, subscription_status, logo_url, theme_preset) — Super Admin only
 export async function updateTenantAdmin(
     tenantId: string,
     data: { 
@@ -199,6 +199,7 @@ export async function updateTenantAdmin(
         trial_ends_at?: string | null;
         subscription_status?: 'active' | 'suspended';
         logo_url?: string | null;
+        theme_preset?: 'dark-modern' | 'spa-light';
     }
 ) {
     const supabase = await createClient();
@@ -245,7 +246,8 @@ export async function updateTenantAdmin(
     if (
         Object.keys(updatePayload).length === 0 && 
         data.whatsapp_phone === undefined && 
-        data.address === undefined
+        data.address === undefined &&
+        data.theme_preset === undefined
     ) {
         return { error: 'No hay cambios para guardar.' };
     }
@@ -259,8 +261,8 @@ export async function updateTenantAdmin(
         if (error) return { error: `Error al actualizar tenant: ${error.message}` };
     }
 
-    // Update settings JSONB (whatsapp_phone + address)
-    if (data.whatsapp_phone !== undefined || data.address !== undefined) {
+    // Update settings JSONB (whatsapp_phone + address + theme_preset)
+    if (data.whatsapp_phone !== undefined || data.address !== undefined || data.theme_preset !== undefined) {
         const { data: tenant } = await supabase
             .from('tenants')
             .select('settings')
@@ -276,6 +278,9 @@ export async function updateTenantAdmin(
         }
         if (data.address !== undefined) {
             newSettings.address = data.address.trim() || null;
+        }
+        if (data.theme_preset !== undefined) {
+            newSettings.theme_preset = data.theme_preset;
         }
 
         const { error } = await supabase

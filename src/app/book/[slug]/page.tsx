@@ -143,6 +143,9 @@ export default async function BookingPage({
     const brandColor10 = hexToRgba(brandColor, 0.10);
     const secondaryColor20 = hexToRgba(secondaryColor, 0.20);
 
+    const themePreset = tenantSettings?.theme_preset || 'dark-modern'; // 'dark-modern' (default) o 'spa-light'
+    const isSpaTheme = themePreset === 'spa-light';
+
     return (
         <div
             style={{
@@ -152,9 +155,96 @@ export default async function BookingPage({
                 '--brand-color-10': brandColor10,
                 '--brand-color-secondary-20': secondaryColor20,
             } as React.CSSProperties}
-            className="relative min-h-screen bg-zinc-950 text-zinc-100 overflow-x-hidden selection:bg-amber-500/30 selection:text-white"
+            className={`relative min-h-screen overflow-x-hidden selection:bg-amber-500/30 ${
+                isSpaTheme 
+                    ? 'bg-stone-50 text-stone-800 selection:text-stone-900' 
+                    : 'bg-zinc-950 text-zinc-100 selection:text-white'
+            }`}
         >
-            <style>{`
+            <style>{isSpaTheme ? `
+                html, body {
+                    background-color: #fafaf9 !important;
+                    color: #292524 !important;
+                }
+                /* Pisado de clases de fondo y paneles */
+                .bg-zinc-900\\/60 {
+                    background-color: rgba(255, 255, 255, 0.8) !important;
+                    backdrop-filter: blur(24px) !important;
+                    border-color: rgba(231, 229, 228, 0.8) !important;
+                    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.03) !important;
+                }
+                .bg-zinc-900\\/90 {
+                    background-color: rgba(255, 255, 255, 0.9) !important;
+                    border-color: rgba(231, 229, 228, 0.8) !important;
+                }
+                .text-white {
+                    color: #1c1917 !important;
+                }
+                .text-zinc-100 {
+                    color: #292524 !important;
+                }
+                .text-zinc-300 {
+                    color: #44403c !important;
+                }
+                .text-zinc-400 {
+                    color: #57534e !important;
+                }
+                .text-zinc-500 {
+                    color: #78716c !important;
+                }
+                .text-zinc-600 {
+                    color: #a8a29e !important;
+                }
+                /* Botones de categorías y servicios */
+                .bg-zinc-800\\/40, .bg-zinc-800\\/50, .bg-zinc-800\\/30, .bg-zinc-800 {
+                    background-color: rgba(245, 245, 244, 0.8) !important;
+                    border-color: rgba(231, 229, 228, 0.6) !important;
+                    color: #292524 !important;
+                }
+                .hover\\:bg-zinc-800\\/70:hover, .hover\\:bg-zinc-800\\/80:hover, .hover\\:bg-zinc-800\\/60:hover, .hover\\:bg-zinc-800\\/50:hover {
+                    background-color: rgba(231, 229, 228, 0.9) !important;
+                    border-color: rgba(214, 211, 209, 0.8) !important;
+                }
+                /* Inputs y dropdowns */
+                input, select {
+                    background-color: #ffffff !important;
+                    border-color: rgba(231, 229, 228, 0.8) !important;
+                    color: #1c1917 !important;
+                }
+                input::placeholder {
+                    color: #a8a29e !important;
+                }
+                /* Bordes divisorios */
+                .border-zinc-850, .border-zinc-800, .border-zinc-800\\/60, .border-zinc-700\\/40, .border-zinc-700\\/30, .border-zinc-700\\/50 {
+                    border-color: rgba(231, 229, 228, 0.7) !important;
+                }
+                .bg-zinc-950\\/40, .bg-zinc-950 {
+                    background-color: rgba(245, 245, 244, 0.7) !important;
+                    border-color: rgba(231, 229, 228, 0.5) !important;
+                }
+                .bg-zinc-950\\/60 {
+                    background-color: rgba(255, 255, 255, 0.85) !important;
+                }
+                hr {
+                    border-color: rgba(231, 229, 228, 0.6) !important;
+                }
+                /* Scrollbar */
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background-color: rgba(214, 211, 209, 0.5) !important;
+                }
+                .text-zinc-900 {
+                    color: #1c1917 !important;
+                }
+                /* Especial para tarjetas de fidelidad */
+                .bg-gradient-to-br.from-amber-500\\/10.to-\\[var\\(--brand-color\\)\\]\\/5 {
+                    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(139, 92, 246, 0.03)) !important;
+                    border-color: rgba(245, 158, 11, 0.15) !important;
+                }
+                /* Avatares y loaders */
+                .bg-zinc-800 {
+                    background-color: #f5f5f4 !important;
+                }
+            ` : `
                 html, body {
                     background-color: #09090b !important;
                 }
@@ -162,14 +252,22 @@ export default async function BookingPage({
             {/* Background glowing auroras and grid */}
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div 
-                    className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-25"
+                    className={`absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] ${
+                        isSpaTheme ? 'opacity-10' : 'opacity-25'
+                    }`}
                     style={{ backgroundColor: brandColor }}
                 />
                 <div 
-                    className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] opacity-15"
+                    className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] ${
+                        isSpaTheme ? 'opacity-8' : 'opacity-15'
+                    }`}
                     style={{ backgroundColor: secondaryColor }}
                 />
-                <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] [background-size:16px_16px] opacity-80" />
+                <div className={`absolute inset-0 [background-size:16px_16px] ${
+                    isSpaTheme 
+                        ? 'bg-[radial-gradient(#00000004_1px,transparent_1px)] opacity-100' 
+                        : 'bg-[radial-gradient(#ffffff05_1px,transparent_1px)] opacity-80'
+                }`} />
             </div>
 
             {/* Content Wrapper */}

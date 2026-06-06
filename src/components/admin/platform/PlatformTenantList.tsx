@@ -75,6 +75,7 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
     const [editTrialEndsAt, setEditTrialEndsAt] = useState('');
     const [editSubscriptionStatus, setEditSubscriptionStatus] = useState('');
     const [editLogoUrl, setEditLogoUrl] = useState('');
+    const [editThemePreset, setEditThemePreset] = useState('dark-modern');
     const [isExtractingColor, setIsExtractingColor] = useState(false);
 
     const [loading, setLoading] = useState(false);
@@ -111,6 +112,7 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
         setEditTrialEndsAt(t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().split('T')[0] : '');
         setEditSubscriptionStatus(t.subscription_status || 'active');
         setEditLogoUrl(t.logo_url || '');
+        setEditThemePreset(t.settings?.theme_preset || 'dark-modern');
         setMessage(null);
     };
 
@@ -200,6 +202,7 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
             trial_ends_at: editTrialEndsAt ? new Date(editTrialEndsAt).toISOString() : null,
             subscription_status: editSubscriptionStatus as 'active' | 'suspended',
             logo_url: editLogoUrl || null,
+            theme_preset: editThemePreset as 'dark-modern' | 'spa-light',
         });
         setLoading(false);
         if (result.error) {
@@ -702,6 +705,18 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
                                             </button>
                                         </div>
                                     )}
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">Tema / Preset Visual</label>
+                                    <select
+                                        value={editThemePreset}
+                                        onChange={e => setEditThemePreset(e.target.value)}
+                                        className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+                                    >
+                                        <option value="dark-modern">Barbería Oscura (Modern Dark)</option>
+                                        <option value="spa-light">Spa Luminoso (Spa Light)</option>
+                                    </select>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
