@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronLeft, User, MapPin, Phone, Award, Clock, Star, Gift, Loader2 } from "lucide-react";
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { shiftColorHue, hexToRgba } from "@/lib/colors";
+import { shiftColorHue, hexToRgba, hexToHsl, hslToHex } from "@/lib/colors";
 
 export async function generateMetadata({
     params,
@@ -35,7 +35,15 @@ export async function generateMetadata({
     };
 }
 
-
+function getBusinessTypeLabel(type?: string) {
+    switch (type) {
+        case 'salon': return 'Salón de Belleza';
+        case 'spa': return 'Spa & Bienestar';
+        case 'nails': return 'Salón de Uñas';
+        case 'barber': return 'Barbería Premium';
+        default: return 'Servicios Premium';
+    }
+}
 
 export default async function BookingPage({
     params,
@@ -138,22 +146,35 @@ export default async function BookingPage({
     })) || [];
 
     const brandColor = tenant.brand_color || '#ea2707';
-    const secondaryColor = shiftColorHue(brandColor, 40);
-    const brandColor5 = hexToRgba(brandColor, 0.05);
-    const brandColor10 = hexToRgba(brandColor, 0.10);
-    const secondaryColor20 = hexToRgba(secondaryColor, 0.20);
-
+    
+    // Calcular versión de contraste para el tema claro/spa
     const themePreset = tenantSettings?.theme_preset || 'dark-modern'; // 'dark-modern' (default) o 'spa-light'
     const isSpaTheme = themePreset === 'spa-light';
+
+    const hsl = hexToHsl(brandColor);
+    const isColorTooLight = hsl.l > 60;
+    const brandContrastColor = isSpaTheme
+        ? (isColorTooLight ? hslToHex(hsl.h, Math.max(hsl.s, 45), 28) : brandColor)
+        : brandColor;
+
+    const secondaryColor = shiftColorHue(brandColor, 40);
+    const secondaryContrastColor = shiftColorHue(brandContrastColor, 40);
+
+    const brandColor5 = hexToRgba(isSpaTheme ? brandContrastColor : brandColor, 0.05);
+    const brandColor10 = hexToRgba(isSpaTheme ? brandContrastColor : brandColor, 0.10);
+    const secondaryColor20 = hexToRgba(isSpaTheme ? secondaryContrastColor : secondaryColor, 0.20);
 
     return (
         <div
             style={{
-                '--brand-color': brandColor,
-                '--brand-color-secondary': secondaryColor,
+                '--brand-color': isSpaTheme ? brandContrastColor : brandColor,
+                '--brand-color-secondary': isSpaTheme ? secondaryContrastColor : secondaryColor,
                 '--brand-color-5': brandColor5,
                 '--brand-color-10': brandColor10,
                 '--brand-color-secondary-20': secondaryColor20,
+                '--brand-contrast-color': brandContrastColor,
+                '--brand-contrast-color-10': hexToRgba(brandContrastColor, 0.10),
+                '--brand-contrast-color-20': hexToRgba(brandContrastColor, 0.20),
             } as React.CSSProperties}
             className={`relative min-h-screen overflow-x-hidden selection:bg-amber-500/30 ${
                 isSpaTheme 
@@ -163,86 +184,149 @@ export default async function BookingPage({
         >
             <style>{isSpaTheme ? `
                 html, body {
-                    background-color: #fafaf9 !important;
-                    color: #292524 !important;
+                    background-color: #f4f0e6 !important;
+                    color: #3a322d !important;
+                    background-image: radial-gradient(circle at 50% 50%, #f4f0e6 0%, #efebe2 100%) !important;
                 }
                 /* Pisado de clases de fondo y paneles */
                 .bg-zinc-900\\/60 {
-                    background-color: rgba(255, 255, 255, 0.8) !important;
+                    background-color: rgba(255, 255, 255, 0.85) !important;
                     backdrop-filter: blur(24px) !important;
-                    border-color: rgba(231, 229, 228, 0.8) !important;
-                    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.03) !important;
+                    border-color: rgba(224, 218, 208, 0.6) !important;
+                    box-shadow: 0 20px 40px -15px rgba(42, 36, 33, 0.04), 0 1px 3px rgba(42, 36, 33, 0.01) !important;
                 }
                 .bg-zinc-900\\/90 {
-                    background-color: rgba(255, 255, 255, 0.9) !important;
-                    border-color: rgba(231, 229, 228, 0.8) !important;
+                    background-color: rgba(255, 255, 255, 0.92) !important;
+                    border-color: rgba(224, 218, 208, 0.7) !important;
+                    box-shadow: 0 15px 30px -10px rgba(42, 36, 33, 0.05) !important;
                 }
                 .text-white {
-                    color: #1c1917 !important;
+                    color: #2a2421 !important;
                 }
                 .text-zinc-100 {
-                    color: #292524 !important;
+                    color: #2a2421 !important;
                 }
                 .text-zinc-300 {
-                    color: #44403c !important;
+                    color: #4a3e3d !important;
                 }
                 .text-zinc-400 {
-                    color: #57534e !important;
+                    color: #6e5d5b !important;
                 }
                 .text-zinc-500 {
-                    color: #78716c !important;
+                    color: #8c7a77 !important;
                 }
-                .text-zinc-600 {
-                    color: #a8a29e !important;
+                .text-zinc-600, .text-zinc-650 {
+                    color: #b0a2a0 !important;
+                }
+                .text-zinc-900 {
+                    color: #2a2421 !important;
+                }
+                /* Success screen gray text mapping */
+                .text-gray-900 {
+                    color: #2a2421 !important;
+                }
+                .text-gray-600 {
+                    color: #6e5d5b !important;
+                }
+                .text-gray-500 {
+                    color: #8c7a77 !important;
+                }
+                .text-gray-400 {
+                    color: #8c7a77 !important;
+                }
+                .bg-gray-50 {
+                    background-color: rgba(244, 240, 230, 0.6) !important;
+                }
+                .hover\\:bg-gray-100:hover {
+                    background-color: rgba(235, 229, 217, 0.8) !important;
+                }
+                /* Copper styling for Loyalty Card and alerts */
+                .text-amber-400, .text-amber-500 {
+                    color: #c2410c !important;
+                }
+                .bg-amber-500\\/15 {
+                    background-color: rgba(194, 65, 12, 0.1) !important;
+                }
+                .border-amber-500\\/10 {
+                    border-color: rgba(194, 65, 12, 0.15) !important;
+                }
+                .bg-gradient-to-br.from-amber-500\\/10.to-\\[var\\(--brand-color\\)\\]\\/5 {
+                    background: linear-gradient(135deg, rgba(194, 65, 12, 0.08), var(--brand-contrast-color-10)) !important;
+                    border-color: rgba(194, 65, 12, 0.15) !important;
                 }
                 /* Botones de categorías y servicios */
                 .bg-zinc-800\\/40, .bg-zinc-800\\/50, .bg-zinc-800\\/30, .bg-zinc-800 {
-                    background-color: rgba(245, 245, 244, 0.8) !important;
-                    border-color: rgba(231, 229, 228, 0.6) !important;
-                    color: #292524 !important;
+                    background-color: rgba(244, 240, 230, 0.7) !important;
+                    border-color: rgba(224, 218, 208, 0.5) !important;
+                    color: #3a322d !important;
                 }
-                .hover\\:bg-zinc-800\\/70:hover, .hover\\:bg-zinc-800\\/80:hover, .hover\\:bg-zinc-800\\/60:hover, .hover\\:bg-zinc-800\\/50:hover {
-                    background-color: rgba(231, 229, 228, 0.9) !important;
-                    border-color: rgba(214, 211, 209, 0.8) !important;
+                .hover\\:bg-zinc-800\\/70:hover, .hover\\:bg-zinc-800\\/80:hover, .hover\\:bg-zinc-800\\/60:hover, .hover\\:bg-zinc-800\\/50:hover,
+                .hover\\:bg-zinc-755:hover, .hover\\:bg-zinc-750:hover, .hover\\:bg-zinc-700:hover, .hover\\:bg-zinc-800:hover {
+                    background-color: rgba(235, 229, 217, 0.9) !important;
+                    border-color: rgba(214, 207, 195, 0.8) !important;
+                    color: #2a2421 !important;
                 }
                 /* Inputs y dropdowns */
                 input, select {
                     background-color: #ffffff !important;
-                    border-color: rgba(231, 229, 228, 0.8) !important;
-                    color: #1c1917 !important;
+                    border-color: rgba(224, 218, 208, 0.8) !important;
+                    color: #2a2421 !important;
                 }
                 input::placeholder {
-                    color: #a8a29e !important;
+                    color: #b0a2a0 !important;
                 }
                 /* Bordes divisorios */
                 .border-zinc-850, .border-zinc-800, .border-zinc-800\\/60, .border-zinc-700\\/40, .border-zinc-700\\/30, .border-zinc-700\\/50 {
-                    border-color: rgba(231, 229, 228, 0.7) !important;
+                    border-color: rgba(224, 218, 208, 0.5) !important;
                 }
                 .bg-zinc-950\\/40, .bg-zinc-950 {
-                    background-color: rgba(245, 245, 244, 0.7) !important;
-                    border-color: rgba(231, 229, 228, 0.5) !important;
+                    background-color: rgba(244, 240, 230, 0.6) !important;
+                    border-color: rgba(224, 218, 208, 0.4) !important;
                 }
                 .bg-zinc-950\\/60 {
-                    background-color: rgba(255, 255, 255, 0.85) !important;
+                    background-color: rgba(255, 255, 255, 0.88) !important;
                 }
                 hr {
-                    border-color: rgba(231, 229, 228, 0.6) !important;
+                    border-color: rgba(224, 218, 208, 0.5) !important;
                 }
                 /* Scrollbar */
                 .custom-scrollbar::-webkit-scrollbar-thumb {
-                    background-color: rgba(214, 211, 209, 0.5) !important;
+                    background-color: rgba(214, 207, 195, 0.4) !important;
                 }
-                .text-zinc-900 {
-                    color: #1c1917 !important;
+                /* Logo containers - white card frame and shadow */
+                .logo-img-container {
+                    background-color: #ffffff !important;
+                    border-color: #efebe2 !important;
+                    box-shadow: 0 10px 25px -5px rgba(42, 36, 33, 0.05), 0 8px 10px -6px rgba(42, 36, 33, 0.05) !important;
                 }
-                /* Especial para tarjetas de fidelidad */
-                .bg-gradient-to-br.from-amber-500\\/10.to-\\[var\\(--brand-color\\)\\]\\/5 {
-                    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(139, 92, 246, 0.03)) !important;
-                    border-color: rgba(245, 158, 11, 0.15) !important;
+                .logo-img-container-mobile {
+                    background-color: #ffffff !important;
+                    border-color: #efebe2 !important;
                 }
-                /* Avatares y loaders */
-                .bg-zinc-800 {
-                    background-color: #f5f5f4 !important;
+                /* Button/active state text contrast preservation */
+                button.text-white,
+                a.text-white,
+                .bg-\\[var\\(--brand-color\\)\\] .text-white,
+                .bg-\\[var\\(--brand-color\\)\\] span,
+                .bg-\\[var\\(--brand-color\\)\\] {
+                    color: #ffffff !important;
+                }
+                button[style*="background"] span,
+                button[style*="background"] {
+                    color: #ffffff !important;
+                }
+                /* Staff member button hover - keep text dark brown instead of white */
+                button.bg-zinc-800\\/40:hover span {
+                    color: var(--brand-contrast-color) !important;
+                }
+                .group:hover .group-hover\\:text-white {
+                    color: #ffffff !important; /* Price badge should turn white on hover */
+                }
+                /* Accent background selectors */
+                .bg-\\[var\\(--brand-color\\)\\]\\/10 {
+                    background-color: var(--brand-contrast-color-10) !important;
+                    color: var(--brand-contrast-color) !important;
+                    border-color: var(--brand-contrast-color-20) !important;
                 }
             ` : `
                 html, body {
@@ -253,15 +337,15 @@ export default async function BookingPage({
             <div className="fixed inset-0 pointer-events-none z-0">
                 <div 
                     className={`absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] ${
-                        isSpaTheme ? 'opacity-10' : 'opacity-25'
+                        isSpaTheme ? 'opacity-8' : 'opacity-25'
                     }`}
-                    style={{ backgroundColor: brandColor }}
+                    style={{ backgroundColor: brandContrastColor }}
                 />
                 <div 
                     className={`absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] ${
-                        isSpaTheme ? 'opacity-8' : 'opacity-15'
+                        isSpaTheme ? 'opacity-6' : 'opacity-15'
                     }`}
-                    style={{ backgroundColor: secondaryColor }}
+                    style={{ backgroundColor: secondaryContrastColor }}
                 />
                 <div className={`absolute inset-0 [background-size:16px_16px] ${
                     isSpaTheme 
@@ -276,7 +360,7 @@ export default async function BookingPage({
                 {/* MOBILE COMPACT HEADER (Visible on mobile/tablet, hidden on desktop) */}
                 <div className="w-full max-w-md lg:hidden mb-6 flex justify-between items-center bg-zinc-900/90 backdrop-blur-xl p-3.5 rounded-[2rem] border border-zinc-800/80 shadow-2xl">
                     <div className="flex items-center gap-3 pl-1">
-                        <div className="w-10 h-10 rounded-full bg-zinc-800 border-[2px] border-zinc-700 overflow-hidden relative flex-shrink-0 shadow-md">
+                        <div className="w-10 h-10 rounded-full bg-zinc-800 border-[2px] border-zinc-700 overflow-hidden relative flex-shrink-0 shadow-md logo-img-container-mobile">
                             {tenant.logo_url ? (
                                 <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
                             ) : (
@@ -308,7 +392,7 @@ export default async function BookingPage({
                         <div className="space-y-8">
                             {/* Brand Header */}
                             <div className="text-center">
-                                <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-full mb-4 overflow-hidden relative border-[3px] border-zinc-800 shadow-xl ring-2 ring-[var(--brand-color)]">
+                                <div className="w-24 h-24 mx-auto bg-zinc-800 rounded-full mb-4 overflow-hidden relative border-[3px] border-zinc-800 shadow-xl ring-2 ring-[var(--brand-color)] logo-img-container">
                                     {tenant.logo_url ? (
                                         <Image src={tenant.logo_url} alt={tenant.name} fill className="object-cover" />
                                     ) : (
@@ -319,7 +403,7 @@ export default async function BookingPage({
                                 </div>
                                 <h1 className="text-2xl font-black text-white tracking-tight leading-tight">{tenant.name}</h1>
                                 <span className="inline-block mt-2 px-3.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-[var(--brand-color)]/10 text-[var(--brand-color)] border border-[var(--brand-color)]/25 shadow-sm">
-                                    {tenantSettings?.business_type === 'salon' ? 'Salón de Belleza' : 'Barbería Premium'}
+                                    {getBusinessTypeLabel(tenantSettings?.business_type)}
                                 </span>
                             </div>
 
