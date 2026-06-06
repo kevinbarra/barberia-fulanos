@@ -18,7 +18,13 @@ import {
     MessageSquare, 
     AlertCircle, 
     Ban, 
-    Check 
+    Check,
+    Palette,
+    Sparkles,
+    Clock,
+    Globe,
+    CreditCard,
+    Building
 } from 'lucide-react';
 import Link from 'next/link';
 import { deleteTenant, updateTenantAdmin, toggleTenantStatus } from '@/app/admin/platform/actions';
@@ -34,6 +40,9 @@ type Tenant = {
     settings?: any;
     plan?: string;
     trial_ends_at?: string;
+    brand_color?: string;
+    timezone?: string;
+    logo_url?: string | null;
 };
 
 interface PlatformTenantListProps {
@@ -55,8 +64,19 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
     const [editTenant, setEditTenant] = useState<Tenant | null>(null);
     const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null);
     const [confirmSlug, setConfirmSlug] = useState('');
+    
+    // Edit form states
     const [editName, setEditName] = useState('');
+    const [editSlug, setEditSlug] = useState('');
     const [editWhatsapp, setEditWhatsapp] = useState('');
+    const [editPlan, setEditPlan] = useState('');
+    const [editBrandColor, setEditBrandColor] = useState('');
+    const [editTimezone, setEditTimezone] = useState('');
+    const [editTrialEndsAt, setEditTrialEndsAt] = useState('');
+    const [editSubscriptionStatus, setEditSubscriptionStatus] = useState('');
+    const [editLogoUrl, setEditLogoUrl] = useState('');
+    const [isExtractingColor, setIsExtractingColor] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -83,8 +103,88 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
     const handleEdit = (t: Tenant) => {
         setEditTenant(t);
         setEditName(t.name);
+        setEditSlug(t.slug);
         setEditWhatsapp(t.settings?.whatsapp_phone || '');
+        setEditPlan(t.plan || 'trial');
+        setEditBrandColor(t.brand_color || '#8b5cf6');
+        setEditTimezone(t.timezone || 'America/Mexico_City');
+        setEditTrialEndsAt(t.trial_ends_at ? new Date(t.trial_ends_at).toISOString().split('T')[0] : '');
+        setEditSubscriptionStatus(t.subscription_status || 'active');
+        setEditLogoUrl(t.logo_url || '');
         setMessage(null);
+    };
+
+    const extractColorFromLogo = async () => {
+        if (!editLogoUrl) {
+            setMessage({ text: 'Introduce primero una URL de logo válida.', type: 'error' });
+            return;
+        }
+        setIsExtractingColor(true);
+        try {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = editLogoUrl;
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        setIsExtractingColor(false);
+                        return;
+                    }
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    
+                    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+                    
+                    for (let i = 0; i < imageData.length; i += 16) {
+                        const r = imageData[i];
+                        const g = imageData[i+1];
+                        const b = imageData[i+2];
+                        const a = imageData[i+3];
+                        
+                        // Skip fully transparent, pure white, or pure black pixels
+                        if (a > 200 && !(r > 240 && g > 240 && b > 240) && !(r < 20 && g < 20 && b < 20)) {
+                            rSum += r;
+                            gSum += g;
+                            bSum += b;
+                            count++;
+                        }
+                    }
+                    
+                    if (count > 0) {
+                        const rAvg = Math.round(rSum / count);
+                        const gAvg = Math.round(gSum / count);
+                        const bAvg = Math.round(bSum / count);
+                        const toHex = (x: number) => {
+                            const hex = x.toString(16);
+                            return hex.length === 1 ? '0' + hex : hex;
+                        };
+                        const extractedHex = `#${toHex(rAvg)}${toHex(gAvg)}${toHex(bAvg)}`;
+                        setEditBrandColor(extractedHex);
+                        setMessage({ text: 'Color de marca sincronizado con el logo.', type: 'success' });
+                    } else {
+                        setMessage({ text: 'No se pudo identificar un color predominante. Usando color base.', type: 'error' });
+                    }
+                } catch (e) {
+                    console.error(e);
+                    setMessage({ text: 'Error al procesar el logo (¿restricciones de CORS?).', type: 'error' });
+                } finally {
+                    setIsExtractingColor(false);
+                }
+            };
+            img.onerror = () => {
+                setMessage({ text: 'No se pudo cargar la imagen del logo. Revisa la URL.', type: 'error' });
+                setIsExtractingColor(false);
+            };
+        } catch (error) {
+            console.error(error);
+            setIsExtractingColor(false);
+        }
     };
 
     const handleSaveEdit = async () => {
@@ -92,7 +192,14 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
         setLoading(true);
         const result = await updateTenantAdmin(editTenant.id, {
             name: editName,
+            slug: editSlug,
             whatsapp_phone: editWhatsapp,
+            plan: editPlan,
+            brand_color: editBrandColor,
+            timezone: editTimezone,
+            trial_ends_at: editTrialEndsAt ? new Date(editTrialEndsAt).toISOString() : null,
+            subscription_status: editSubscriptionStatus as 'active' | 'suspended',
+            logo_url: editLogoUrl || null,
         });
         setLoading(false);
         if (result.error) {
@@ -510,50 +617,236 @@ export default function PlatformTenantList({ tenants, stats }: PlatformTenantLis
 
             {/* EDIT MODAL */}
             {editTenant && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setEditTenant(null)}>
-                    <div className="bg-zinc-900 border border-zinc-850 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                            <h3 className="font-black text-lg text-white">Editar Negocio</h3>
-                            <button onClick={() => setEditTenant(null)} className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors">
-                                <X size={18} />
+                <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto" onClick={() => setEditTenant(null)}>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl w-full max-w-2xl p-6 md:p-8 space-y-6 my-8" onClick={e => e.stopPropagation()}>
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-400">
+                                    <Palette size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-xl text-white uppercase tracking-tight">Editar Negocio</h3>
+                                    <p className="text-zinc-500 text-xs mt-0.5">Gestión administrativa y de branding global</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setEditTenant(null)} className="p-2 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl transition-colors">
+                                <X size={20} />
                             </button>
                         </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Nombre Comercial</label>
-                                <input 
-                                    value={editName} 
-                                    onChange={e => setEditName(e.target.value)} 
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium text-white focus:outline-none focus:border-amber-500 transition-colors" 
-                                />
+
+                        {/* Two Column Form Layout */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            
+                            {/* COL 1: IDENTIDAD & DISEÑO */}
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800/60 pb-1.5 flex items-center gap-1.5">
+                                    <Building size={12} className="text-zinc-500" />
+                                    Identidad y Branding
+                                </h4>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">Nombre Comercial</label>
+                                    <input 
+                                        type="text"
+                                        value={editName} 
+                                        onChange={e => setEditName(e.target.value)} 
+                                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-sm font-medium text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors" 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">Enlace Slug (URL)</label>
+                                    <div className="flex items-center bg-zinc-950 border border-zinc-800 rounded-xl overflow-hidden focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 transition-colors">
+                                        <span className="px-3 bg-zinc-900 border-r border-zinc-800 text-[10px] font-mono text-zinc-500">.agendabarber.pro</span>
+                                        <input 
+                                            type="text"
+                                            value={editSlug} 
+                                            onChange={e => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} 
+                                            className="flex-1 bg-transparent border-none px-3 py-2.5 text-sm font-mono text-white focus:outline-none" 
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">URL del Logo</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text"
+                                            value={editLogoUrl} 
+                                            onChange={e => setEditLogoUrl(e.target.value)} 
+                                            placeholder="https://ejemplo.com/logo.png"
+                                            className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs font-mono text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors placeholder:text-zinc-700" 
+                                        />
+                                    </div>
+                                    {editLogoUrl && (
+                                        <div className="mt-2 flex items-center gap-3 bg-zinc-950/60 p-2 border border-zinc-800/40 rounded-xl">
+                                            <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-center">
+                                                <img src={editLogoUrl} alt="Preview" className="object-cover w-full h-full" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={extractColorFromLogo}
+                                                disabled={isExtractingColor}
+                                                className="flex-1 py-1.5 px-3 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                            >
+                                                {isExtractingColor ? (
+                                                    <>
+                                                        <Loader2 className="animate-spin" size={10} /> Extrayendo...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Sparkles size={10} /> Sincronizar Color
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    {/* Brand Color Selector */}
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">Color de Marca</label>
+                                        <div className="relative flex items-center bg-zinc-950 border border-zinc-800 rounded-xl p-1 pr-3">
+                                            <input
+                                                type="color"
+                                                value={editBrandColor}
+                                                onChange={e => setEditBrandColor(e.target.value)}
+                                                className="w-10 h-8 border-none bg-transparent cursor-pointer p-0 shrink-0"
+                                            />
+                                            <span className="text-[10px] text-zinc-300 ml-2 font-mono uppercase truncate font-bold">{editBrandColor}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Preview Box */}
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">Previsualización</label>
+                                        <div 
+                                            className="h-10 rounded-xl border border-zinc-800 flex items-center justify-center text-[10px] font-black uppercase tracking-wider text-white shadow-inner transition-all duration-300"
+                                            style={{ backgroundColor: editBrandColor, boxShadow: `inset 0 2px 4px rgba(0,0,0,0.3), 0 0 10px ${editBrandColor}33` }}
+                                        >
+                                            Botón ⚡
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest block mb-1.5">Teléfono WhatsApp</label>
-                                <input 
-                                    value={editWhatsapp} 
-                                    onChange={e => setEditWhatsapp(e.target.value)} 
-                                    placeholder="ej. 522294593949" 
-                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-sm font-medium text-white focus:outline-none focus:border-amber-500 transition-colors" 
-                                />
-                                <p className="text-[10px] text-zinc-500 mt-1 font-medium">Incluye código de país sin el signo + (ej. 52 para México).</p>
+
+                            {/* COL 2: SUSCRIPCIÓN & CONFIG */}
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800/60 pb-1.5 flex items-center gap-1.5">
+                                    <CreditCard size={12} className="text-zinc-500" />
+                                    Suscripción y Ajustes
+                                </h4>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">Plan</label>
+                                        <select
+                                            value={editPlan}
+                                            onChange={e => setEditPlan(e.target.value)}
+                                            className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+                                        >
+                                            <option value="trial">Prueba (Trial)</option>
+                                            <option value="basic">Plan Básico</option>
+                                            <option value="pro">Plan Pro</option>
+                                            <option value="enterprise">Enterprise</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">Estado de Suscripción</label>
+                                        <select
+                                            value={editSubscriptionStatus}
+                                            onChange={e => setEditSubscriptionStatus(e.target.value)}
+                                            className="w-full bg-zinc-950 border border-zinc-800 text-white rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+                                        >
+                                            <option value="active">Activo</option>
+                                            <option value="suspended">Suspendido</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {editPlan === 'trial' && (
+                                    <div>
+                                        <label className="text-[10px] font-bold text-zinc-400 block mb-1">Fecha Fin de Prueba (Trial Ends)</label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-3.5 top-3.5 text-zinc-600" size={14} />
+                                            <input 
+                                                type="date"
+                                                value={editTrialEndsAt} 
+                                                onChange={e => setEditTrialEndsAt(e.target.value)} 
+                                                className="w-full pl-9 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 transition-colors cursor-pointer" 
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">Zona Horaria</label>
+                                    <div className="relative">
+                                        <Clock className="absolute left-3.5 top-3.5 text-zinc-600" size={14} />
+                                        <select
+                                            value={editTimezone}
+                                            onChange={e => setEditTimezone(e.target.value)}
+                                            className="w-full pl-9 bg-zinc-950 border border-zinc-800 text-white rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-amber-500 transition-colors cursor-pointer appearance-none"
+                                        >
+                                            <option value="America/Mexico_City">🇲🇽 Ciudad de México</option>
+                                            <option value="America/Tijuana">🇲🇽 Tijuana</option>
+                                            <option value="America/Monterrey">🇲🇽 Monterrey</option>
+                                            <option value="America/Hermosillo">🇲🇽 Hermosillo</option>
+                                            <option value="America/Cancun">🇲🇽 Cancún</option>
+                                            <option value="America/Santo_Domingo">🇩🇴 Rep. Dominicana</option>
+                                            <option value="America/Bogota">🇨🇴 Colombia / Perú</option>
+                                            <option value="America/Santiago">🇨🇱 Chile</option>
+                                            <option value="America/Argentina/Buenos_Aires">🇦🇷 Argentina</option>
+                                            <option value="Europe/Madrid">🇪🇸 España (Madrid)</option>
+                                            <option value="America/New_York">🇺🇸 USA Este (NY/Miami)</option>
+                                            <option value="America/Chicago">🇺🇸 USA Centro (Texas)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-zinc-400 block mb-1">Teléfono WhatsApp</label>
+                                    <div className="relative">
+                                        <MessageSquare className="absolute left-3.5 top-3.5 text-zinc-600" size={14} />
+                                        <input 
+                                            type="text"
+                                            value={editWhatsapp} 
+                                            onChange={e => setEditWhatsapp(e.target.value)} 
+                                            placeholder="ej. 522294593949" 
+                                            className="w-full pl-9 bg-zinc-950 border border-zinc-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors placeholder:text-zinc-700 font-mono" 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-zinc-500 mt-1">Incluye el código de país sin el signo + (ej. 52 para México).</p>
+                                </div>
                             </div>
                         </div>
 
+                        {/* Message Banner */}
                         {message && (
-                            <p className={`text-xs font-bold ${message.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>{message.text}</p>
+                            <div className={`text-xs font-bold p-3 rounded-xl border ${
+                                message.type === 'error' 
+                                    ? 'bg-red-500/5 text-red-400 border-red-500/10' 
+                                    : 'bg-emerald-500/5 text-emerald-400 border-emerald-500/10'
+                            }`}>
+                                {message.text}
+                            </div>
                         )}
                         
-                        <div className="flex items-center gap-3 pt-2">
+                        {/* Actions buttons */}
+                        <div className="flex items-center gap-3 pt-4 border-t border-zinc-800/60">
                             <button 
                                 onClick={() => setEditTenant(null)} 
-                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-3 rounded-xl font-bold text-sm transition-colors"
+                                className="flex-1 bg-zinc-800 hover:bg-zinc-750 text-zinc-300 py-3.5 rounded-xl font-bold text-sm transition-all active:scale-[0.99] border border-zinc-700/30"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={handleSaveEdit} 
                                 disabled={loading} 
-                                className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 py-3 rounded-xl font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                                className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 py-3.5 rounded-xl font-black text-sm disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-lg shadow-amber-500/5 hover:shadow-amber-500/15"
                             >
                                 {loading ? <Loader2 className="animate-spin" size={16} /> : 'Guardar Cambios'}
                             </button>

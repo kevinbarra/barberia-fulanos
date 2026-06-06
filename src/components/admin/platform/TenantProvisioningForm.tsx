@@ -10,12 +10,89 @@ export default function TenantProvisioningForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [demoMode, setDemoMode] = useState(false);
     const [demoType, setDemoType] = useState<string>('none');
+    const [brandColor, setBrandColor] = useState('#8b5cf6');
+    const [logoUrl, setLogoUrl] = useState('');
+    const [isExtractingColor, setIsExtractingColor] = useState(false);
     const formRef = useRef<HTMLFormElement>(null);
+
+    const extractColorFromLogo = async () => {
+        if (!logoUrl) {
+            toast.error('Introduce primero una URL de logo válida.');
+            return;
+        }
+        setIsExtractingColor(true);
+        try {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = logoUrl;
+            img.onload = () => {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        setIsExtractingColor(false);
+                        return;
+                    }
+                    
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                    
+                    let rSum = 0, gSum = 0, bSum = 0, count = 0;
+                    
+                    for (let i = 0; i < imageData.length; i += 16) {
+                        const r = imageData[i];
+                        const g = imageData[i+1];
+                        const b = imageData[i+2];
+                        const a = imageData[i+3];
+                        
+                        if (a > 200 && !(r > 240 && g > 240 && b > 240) && !(r < 20 && g < 20 && b < 20)) {
+                            rSum += r;
+                            gSum += g;
+                            bSum += b;
+                            count++;
+                        }
+                    }
+                    
+                    if (count > 0) {
+                        const rAvg = Math.round(rSum / count);
+                        const gAvg = Math.round(gSum / count);
+                        const bAvg = Math.round(bSum / count);
+                        const toHex = (x: number) => {
+                            const hex = x.toString(16);
+                            return hex.length === 1 ? '0' + hex : hex;
+                        };
+                        const extractedHex = `#${toHex(rAvg)}${toHex(gAvg)}${toHex(bAvg)}`;
+                        setBrandColor(extractedHex);
+                        toast.success('Color extraído y sincronizado con el logo.');
+                    } else {
+                        toast.error('No se pudo identificar un color predominante.');
+                    }
+                } catch (e) {
+                    console.error(e);
+                    toast.error('Error al procesar el logo (CORS).');
+                } finally {
+                    setIsExtractingColor(false);
+                }
+            };
+            img.onerror = () => {
+                toast.error('No se pudo cargar la imagen del logo.');
+                setIsExtractingColor(false);
+            };
+        } catch (error) {
+            console.error(error);
+            setIsExtractingColor(false);
+        }
+    };
 
     const handleSubmit = async (formData: FormData) => {
         setIsSubmitting(true);
         try {
-            // Inject toggle states into formData
+            // Inject states into formData
+            formData.set('brand_color', brandColor);
+            formData.set('logo_url', logoUrl);
             if (demoMode) formData.set('demo_mode', 'true');
             if (demoType !== 'none') {
                 formData.set('demo_type', demoType);
@@ -29,6 +106,8 @@ export default function TenantProvisioningForm() {
                 formRef.current?.reset();
                 setDemoMode(false);
                 setDemoType('none');
+                setBrandColor('#8b5cf6');
+                setLogoUrl('');
             }
         } catch (error) {
             toast.error('Error de conexión');
@@ -86,11 +165,50 @@ export default function TenantProvisioningForm() {
                                 <input
                                     type="color"
                                     name="brand_color"
-                                    defaultValue="#8b5cf6"
+                                    value={brandColor}
+                                    onChange={e => setBrandColor(e.target.value)}
                                     className="w-10 h-8 ml-9 border-none bg-transparent cursor-pointer p-0"
                                 />
-                                <span className="text-xs text-zinc-400 ml-2 font-bold uppercase tracking-wider">Color de Marca</span>
+                                <span className="text-xs text-zinc-400 ml-2 font-bold uppercase tracking-wider">Color: {brandColor}</span>
                             </div>
+                        </div>
+
+                        {/* URL de Logo Opcional en Creación */}
+                        <div className="space-y-2">
+                            <div className="relative">
+                                <Globe className="absolute left-3.5 top-3.5 text-zinc-500" size={16} />
+                                <input
+                                    type="text"
+                                    name="logo_url"
+                                    value={logoUrl}
+                                    onChange={e => setLogoUrl(e.target.value)}
+                                    placeholder="URL del Logo (Opcional - ej: https://ejemplo.com/logo.png)"
+                                    className="w-full pl-10 p-3 bg-zinc-950 border border-zinc-800 text-white placeholder-zinc-500 rounded-xl focus:outline-none focus:border-amber-500 transition-colors text-sm font-mono"
+                                />
+                            </div>
+                            {logoUrl && (
+                                <div className="flex items-center gap-3 bg-zinc-950/60 p-2.5 border border-zinc-800/40 rounded-xl">
+                                    <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-zinc-800 bg-zinc-900 shrink-0 flex items-center justify-center">
+                                        <img src={logoUrl} alt="Preview" className="object-cover w-full h-full" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={extractColorFromLogo}
+                                        disabled={isExtractingColor}
+                                        className="flex-1 py-2 px-3 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        {isExtractingColor ? (
+                                            <>
+                                                <Loader2 className="animate-spin" size={12} /> Extrayendo...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles size={12} /> Obtener Color del Logo
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

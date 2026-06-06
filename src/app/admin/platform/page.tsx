@@ -25,7 +25,7 @@ export default async function PlatformPage() {
     // Fetch ALL tenants with settings, plan and trial info
     const { data: allTenants } = await supabase
         .from('tenants')
-        .select('id, name, slug, created_at, subscription_status, settings, plan, trial_ends_at')
+        .select('id, name, slug, created_at, subscription_status, settings, plan, trial_ends_at, brand_color, timezone, logo_url')
         .order('created_at', { ascending: false });
 
     return (

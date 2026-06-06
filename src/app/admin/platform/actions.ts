@@ -77,6 +77,19 @@ export async function createTenant(formData: FormData) {
         return { error: result.message || 'Error desconocido.' };
     }
 
+    // Update logo_url if provided in the creation form
+    const logoUrl = formData.get('logo_url') as string;
+    if (logoUrl?.trim() && result.tenant_id) {
+        try {
+            await supabase
+                .from('tenants')
+                .update({ logo_url: logoUrl.trim() })
+                .eq('id', result.tenant_id);
+        } catch (logoError) {
+            console.error('[PROVISION] Error updating logo_url:', logoError);
+        }
+    }
+
     // 4. SHOWCASE MODE: Seed demo data using the Demo Factory templates
     if (demoType && demoType !== 'none' && result.tenant_id) {
         try {
@@ -172,10 +185,21 @@ export async function toggleTenantStatus(tenantId: string, newStatus: 'active' |
 }
 
 
-// Update tenant data (name, slug, whatsapp_phone) — Super Admin only
+// Update tenant data (name, slug, whatsapp_phone, plan, brand_color, timezone, trial_ends_at, subscription_status, logo_url) — Super Admin only
 export async function updateTenantAdmin(
     tenantId: string,
-    data: { name?: string; slug?: string; whatsapp_phone?: string; address?: string }
+    data: { 
+        name?: string; 
+        slug?: string; 
+        whatsapp_phone?: string; 
+        address?: string;
+        plan?: string;
+        brand_color?: string;
+        timezone?: string;
+        trial_ends_at?: string | null;
+        subscription_status?: 'active' | 'suspended';
+        logo_url?: string | null;
+    }
 ) {
     const supabase = await createClient();
 
@@ -196,6 +220,13 @@ export async function updateTenantAdmin(
     // Build update payload
     const updatePayload: Record<string, any> = {};
     if (data.name?.trim()) updatePayload.name = data.name.trim();
+    if (data.brand_color) updatePayload.brand_color = data.brand_color;
+    if (data.plan) updatePayload.plan = data.plan;
+    if (data.timezone) updatePayload.timezone = data.timezone;
+    if (data.trial_ends_at !== undefined) updatePayload.trial_ends_at = data.trial_ends_at;
+    if (data.subscription_status) updatePayload.subscription_status = data.subscription_status;
+    if (data.logo_url !== undefined) updatePayload.logo_url = data.logo_url;
+
     if (data.slug?.trim()) {
         const cleanSlug = data.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
         // Check slug uniqueness
@@ -211,7 +242,11 @@ export async function updateTenantAdmin(
         updatePayload.slug = cleanSlug;
     }
 
-    if (Object.keys(updatePayload).length === 0 && !data.whatsapp_phone && data.whatsapp_phone !== '') {
+    if (
+        Object.keys(updatePayload).length === 0 && 
+        data.whatsapp_phone === undefined && 
+        data.address === undefined
+    ) {
         return { error: 'No hay cambios para guardar.' };
     }
 
